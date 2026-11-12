@@ -247,6 +247,31 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .sw.on{border-color:var(--gold);box-shadow:0 0 0 3px var(--glow)}
 .hint{font-size:13px;color:var(--muted)}
 
+/* ===== MINIJUEGOS ===== */
+.mg-stage{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.mg-hud{display:flex;justify-content:space-between;align-items:center;width:100%;font-size:13px;margin-bottom:8px;gap:8px}
+.mg-cauldron{width:96px;height:96px;margin:0 auto 12px;border-radius:50%;background:radial-gradient(circle at 50% 35%,#3c2a78,#140f2d);border:3px solid var(--gold);display:grid;place-items:center;font-size:40px;box-shadow:0 0 28px var(--glow);transition:transform .2s,border-color .2s}
+.mg-cauldron.flash{transform:scale(1.12);border-color:var(--good)}
+.mg-ing{padding:10px 8px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:grid;gap:4px;place-items:center;transition:.15s}
+.mg-ing:hover:not(:disabled){border-color:var(--gold);transform:translateY(-2px)}
+.mg-ing b{font-size:24px}
+.mg-ing small{font-size:11px;color:var(--muted)}
+.mg-bar{position:relative;height:34px;border-radius:999px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin:14px 0}
+.mg-zone{position:absolute;top:0;bottom:0;left:36%;width:28%;background:color-mix(in srgb,var(--gold) 32%,transparent);border-inline:2px solid var(--gold)}
+.mg-cur{position:absolute;top:2px;bottom:2px;width:10px;border-radius:99px;background:#fff;box-shadow:0 0 12px var(--gold);transform:translateX(-50%)}
+.mg-pots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mg-pot{height:78px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),#2b1e16);display:grid;place-items:center;font-size:32px;cursor:pointer;user-select:none;transition:.12s}
+.mg-pot.up{border-color:var(--gold);background:linear-gradient(180deg,var(--surface-2),#3b281c)}
+.mg-sky{position:relative;width:100%;height:220px;border-radius:12px;background:radial-gradient(circle at 50% 20%,#1f2556,#08071a);border:1px solid var(--line);overflow:hidden;touch-action:manipulation}
+.mg-snitch{position:absolute;width:42px;height:42px;border-radius:50%;border:none;background:radial-gradient(circle,#fff4b8,#e3bb4e);box-shadow:0 0 18px var(--gold);cursor:pointer;font-size:20px;display:grid;place-items:center;transition:left .42s ease-out,top .42s ease-out;transform:translate(-50%,-50%)}
+.mg-bludger{position:absolute;width:34px;height:34px;border-radius:50%;border:2px solid var(--bad);background:#2a1418;cursor:pointer;font-size:17px;display:grid;place-items:center;transition:left .5s linear,top .5s linear;transform:translate(-50%,-50%)}
+.mg-star{position:absolute;width:36px;height:36px;border-radius:50%;border:1.5px solid var(--gold);background:rgba(20,18,46,.9);color:var(--gold);font:700 14px var(--display);cursor:pointer;display:grid;place-items:center;transform:translate(-50%,-50%);transition:.2s}
+.mg-star.done{background:var(--gold);color:var(--gold-ink);box-shadow:0 0 16px var(--gold)}
+.mg-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%}
+.mg-card{height:68px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:26px;cursor:pointer;display:grid;place-items:center;transition:.15s}
+.mg-card.open{border-color:var(--gold);background:var(--glow);color:var(--gold)}
+.mg-card.matched{border-color:var(--good);background:color-mix(in srgb,var(--good) 20%,var(--surface));color:var(--good)}
+
 @media (max-width:860px){
   .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g3,.steps,.creator{grid-template-columns:1fr}
@@ -261,7 +286,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
   <div class="links">
-    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases</a><a href="#cursos-sec">Cursos</a><a href="#alumnos">Busca tu nombre</a>
+    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#cursos-sec">Cursos</a><a href="#alumnos">Busca tu nombre</a>
   </div>
   <div class="row">
     <button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
@@ -273,13 +298,13 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <header class="hero">
     <p class="kicker">Escuela de Magia y Hechicería</p>
     <h1>Entra al Castillo</h1>
-    <p class="lead">El director eres tú y los alumnos son tu comunidad. Personaliza tu mago, elige casa, explora el castillo y haz ganar la Copa.</p>
+    <p class="lead">El director eres tú y los alumnos son tu comunidad. Personaliza tu mago, elige casa, supera los minijuegos de cada clase y haz ganar la Copa.</p>
     <div class="hero-stats">
       <div><b id="statStudents">0</b><span>alumnos matriculados</span></div>
       <div><b>4</b><span>casas en disputa</span></div>
       <div><b id="statPoints">0</b><span>puntos en juego</span></div>
     </div>
-    <div class="cta"><a class="btn gold" href="#clases">Mi personaje</a><a class="btn" href="#copa">Ver la Copa</a></div>
+    <div class="cta"><a class="btn gold" href="#clases">Jugar Minijuegos</a><a class="btn" href="#copa">Ver la Copa</a></div>
   </header>
 
   <div id="eventSlot"></div>
@@ -287,7 +312,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <section class="block" id="copa">
     <div class="sec-head"><h2>La Copa de las Casas</h2>
       <p>Cada curso dura un mes y solo gana una casa. Los puntos llenan el reloj de gemas de cada una.</p>
-      <div class="rules"><span class="rule"><b>10</b>puntos por clase asistida</span><span class="rule"><b>50</b>puntos para la casa que gana un partido</span></div>
+      <div class="rules"><span class="rule"><b>10+</b>puntos por clase o minijuego</span><span class="rule"><b>50</b>puntos para la casa que gana un partido</span></div>
     </div>
     <div class="panel hl"><div class="glasses" id="glasses"></div><p class="muted center" id="copaTotal" style="text-align:center;margin-top:18px;font-size:13px"></p></div>
   </section>
@@ -317,7 +342,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </section>
 
   <section class="block" id="clases">
-    <div class="sec-head"><h2>Personaje, Clases y Quidditch</h2><p>Personaliza tu aspecto, asiste a las clases abiertas en su horario y entrena para entrar al equipo de Quidditch.</p></div>
+    <div class="sec-head"><h2>Personaje, Clases y Minijuegos</h2><p>Cada asignatura tiene su propio minijuego interactivo. Puedes entrenarlo en cualquier momento o jugarlo en horario de clase para ganar la bonificación completa.</p></div>
     <div class="panel" style="margin-bottom:16px">
       <div class="row" style="justify-content:space-between;margin-bottom:14px;gap:12px">
         <div class="row" id="whoami" style="gap:10px;flex:1"></div>
@@ -365,7 +390,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <div class="steps">
       <div class="step"><h3>Crea tu personaje</h3><p class="muted">Elige nombre, ojos, pelo, peinado y tono de piel. Tu túnica llevará los colores de tu casa.</p></div>
       <div class="step"><h3>Elige tu casa</h3><p class="muted">Gryffindor, Slytherin, Ravenclaw o Hufflepuff. La decisión es definitiva.</p></div>
-      <div class="step"><h3>Explora y suma puntos</h3><p class="muted">Asiste a clases, pasea por el castillo en tiempo libre y juega Quidditch para ganar la Copa.</p></div>
+      <div class="step"><h3>Juega y suma puntos</h3><p class="muted">Supera los 7 minijuegos mágicos, explora el mapa y juega Quidditch para ganar la Copa.</p></div>
     </div>
   </section>
 
@@ -396,6 +421,7 @@ function tone(freqs,type,step,dur,vol){
 const chime=()=>tone([523.25,659.25,783.99,1046.5],'sine',.055,.35,.12);
 const fanfare=()=>tone([440,554.37,659.25,880],'triangle',.09,.45,.16);
 const snitchSnd=()=>tone([1200,2400],'triangle',.12,.25,.14);
+const buzzSnd=()=>tone([220,165],'sawtooth',.08,.22,.1);
 
 /* ===== 2. Configuración y Personalización ===== */
 const HOUSES=[
@@ -405,13 +431,13 @@ const HOUSES=[
  {id:'hufflepuff',name:'Hufflepuff',motto:'Lealtad y dedicación',letter:'H'}];
 const HOUSE=id=>HOUSES.find(h=>h.id===id);
 const ACTS={
- pociones:{name:'Pociones',points:10,desc:'Filtros y brebajes en las mazmorras.',room:'mazmorras',loc:'Mazmorras'},
- encantamientos:{name:'Encantamientos',points:10,desc:'Movimientos de varita y conjuros.',room:'encantamientos',loc:'Aula 2B'},
- herbologia:{name:'Herbología',points:10,desc:'Mandrágoras y plantas mágicas.',room:'invernaderos',loc:'Invernaderos'},
- defensa:{name:'Defensa contra las Artes Oscuras',points:10,desc:'Contrahechizos y protección mágica.',room:'defensa',loc:'Aula de Duelos'},
- vuelo:{name:'Clase de Vuelo',points:10,flightXp:5,desc:'Maniobras aéreas para el equipo de Quidditch.',room:'quidditch',loc:'Campo de Quidditch'},
- astronomia:{name:'Astronomía',points:8,desc:'Cartografía celeste desde la torre más alta.',room:'astronomia',loc:'Torre de Astronomía'},
- runas:{name:'Runas Antiguas',points:8,desc:'Traducción de alfabetos mágicos.',room:'historia',loc:'Torre de Runas'}};
+ pociones:{name:'Pociones',mg:'🧪 Caldero de Memoria',points:10,desc:'Memoriza la secuencia de ingredientes del caldero.',room:'mazmorras',loc:'Mazmorras'},
+ encantamientos:{name:'Encantamientos',mg:'🪄 Pulso de Varita',points:10,desc:'Sincroniza el movimiento de tu varita en la zona áurea.',room:'encantamientos',loc:'Aula 2B'},
+ herbologia:{name:'Herbología',mg:'🌱 Mandrágoras Rebeldes',points:10,desc:'Atrapa las mandrágoras antes de que se escondan.',room:'invernaderos',loc:'Invernaderos'},
+ defensa:{name:'Defensa contra las Artes Oscuras',mg:'🛡️ Duelo de Reflejos',points:10,desc:'Reacciona con el contrahechizo exacto ante cada amenaza.',room:'defensa',loc:'Aula de Duelos'},
+ vuelo:{name:'Clase de Vuelo',mg:'🟡 Caza de la Snitch',points:10,flightXp:5,desc:'Atrapa la Snitch Dorada esquivando las Bludgers.',room:'quidditch',loc:'Campo de Quidditch'},
+ astronomia:{name:'Astronomía',mg:'✨ Mapa Celeste',points:8,desc:'Conecta las estrellas de la constelación en orden.',room:'astronomia',loc:'Torre de Astronomía'},
+ runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,desc:'Encuentra las parejas de glifos antiguos ocultos.',room:'historia',loc:'Torre de Runas'}};
 /* Actividades de tiempo libre al explorar el mapa */
 const FREE_ACTS={
  quidditch:{name:'Entrenar vuelo',pts:3,xp:2},
@@ -670,6 +696,25 @@ const API={
     commit(`${u.username} +${pts} pts (${cfg.name})`);
     return{pts,fx};
   },
+  trainMinigame(key,hit){
+    const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
+    const open=db.free||classStatus(key).st==='open';
+    if(open){
+      return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0);
+    }
+    const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);
+    const ev=activeEvent(),mult=ev?ev.mult:1;
+    const base=hit?5:2;
+    const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
+    u.points+=pts;if(fx)u.flight_xp+=fx;
+    db.houses.find(h=>h.id===u.house).points+=pts;
+    (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
+    db.log.unshift({u:u.username,h:u.house,a:`${cfg.mg} (${cfg.name})`,p:pts,x:fx});
+    db.log.length=Math.min(db.log.length,15);
+    chime();
+    commit(`${u.username} +${pts} pts en ${cfg.mg}`);
+    return{pts,fx,trained:true};
+  },
   apply(traits,pitch){
     must(traits.length===3,'Elige exactamente 3 características');must(db.period==='application','La postulación no está abierta');
     const u=me();must(u&&u.house,'Elige casa primero');must(!db.apps.some(a=>a.user_id===u.id&&a.status==='pending'),'Ya estás postulado');
@@ -754,8 +799,15 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;$('toasts').appendChild(el);
   setTimeout(()=>{el.style.transition='.25s';el.style.opacity='0';setTimeout(()=>el.remove(),260)},2800)}
-function openModal(html,wide){const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div></div>`}
-function closeModal(){const m=$('modalRoot');m.hidden=true;m.innerHTML=''}
+let mgClean=null;
+function openModal(html,wide){
+  if(mgClean){mgClean();mgClean=null}
+  const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div></div>`;
+}
+function closeModal(){
+  if(mgClean){mgClean();mgClean=null}
+  const m=$('modalRoot');m.hidden=true;m.innerHTML='';
+}
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closeModal();
   if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.room.go')){e.preventDefault();e.target.click()}
@@ -923,11 +975,12 @@ function renderPlay(){
     else if(s.st==='soon'){badge='<span class="pill warn">Próxima</span>';info=`Hoy a las ${s.slot.from} · en ${dur(s.rem)}`}
     else if(s.st==='closed'){badge='<span class="pill off">Cerrada</span>';info=`Abre el ${DAYL[s.day].toLowerCase()} a las ${s.slot.from}`}
     else{badge='<span class="pill off">Sin clase</span>';info='No hay clase esta semana'}
-    return `<div class="act" style="${open?'':'opacity:.65'}"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
-      <p class="muted" style="font-size:13px">${a.desc}</p><p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
-      <span class="pill gold mono" style="align-self:flex-start">+${pts} pts${a.flightXp?` · +${a.flightXp} XP`:''}</span>
-      <div class="row">${!open?'<button class="btn sm" disabled type="button">Cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
-      <button class="btn sm" data-do="practice" data-k="${k}" type="button" ${(!open||cd>0)?'disabled':''} title="Práctica con bonus">Práctica</button></div></div>`}).join('')}</div>
+    return `<div class="act"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
+      <p class="muted" style="font-size:12px"><strong>${a.mg}</strong> — ${a.desc}</p>
+      <p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
+      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts`:`Práctica: +${Math.round(5*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
+      <div class="row">${!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
+      <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${cd>0?'disabled':''} title="${a.mg}">${cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
     <div class="log">${db.log.slice(0,8).map(l=>`<span><strong>${esc(l.u)}</strong> · ${esc(l.a)} <b style="color:var(--good)">+${l.p}</b>${l.x?` <b style="color:var(--rav)">+${l.x} XP</b>`:''}</span>`).join('')}</div>`;
 }
 function renderTeams(){
@@ -1003,12 +1056,308 @@ function renderClock(){
 }
 function renderAll(){ensureLooks();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
 
-/* ===== 8. Modales ===== */
+/* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
+
+function finishMinigame(k,hit,msgWin,msgLose){
+  try{
+    const r=API.trainMinigame(k,hit);
+    closeModal();
+    toast((hit?(msgWin||'¡Excelente!'):(msgLose||'Buen intento'))+`: +${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);
+  }catch(err){
+    closeModal();
+    toast(err.message);
+  }
+}
+
 function practice(k){
-  const glyphs=['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ'],t=glyphs[Math.floor(Math.random()*glyphs.length)];
-  openModal(`<h3 style="font-size:20px">Práctica de ${ACTS[k].name}</h3><p class="muted">Elige el glifo <strong style="color:var(--gold);font-size:22px">${t}</strong> para +5 pts extra. Si fallas, ganas +2.</p>
-  <div class="grid g3" style="width:100%">${glyphs.map(g=>`<button class="btn" style="font-size:24px;padding:14px" data-do="rune" data-k="${k}" data-g="${g}" data-t="${t}" type="button">${g}</button>`).join('')}</div><button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`)}
+  const cd=API.cooldown(k);
+  if(cd>0){toast(`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);return}
+  if(k==='pociones') return mgPociones();
+  if(k==='encantamientos') return mgEncantamientos();
+  if(k==='herbologia') return mgHerbologia();
+  if(k==='defensa') return mgDefensa();
+  if(k==='vuelo') return mgVuelo();
+  if(k==='astronomia') return mgAstronomia();
+  return mgRunas();
+}
+
+/* 1. POCIONES: Caldero de Memoria */
+function mgPociones(){
+  const INGS=[['🕷️','Araña'],['🌿','Asfódelo'],['💎','Bezoar'],['🍄','Hongo'],['🩸','Draco'],['🌙','Lunar']];
+  const seq=Array.from({length:4},()=>Math.floor(Math.random()*INGS.length));
+  let step=0,locked=true,timers=[];
+  openModal(`<h3 style="font-size:20px">🧪 Caldero de Memoria</h3>
+    <p class="muted" id="mgSub">Observa el orden de los 4 ingredientes del caldero…</p>
+    <div class="mg-stage">
+      <div class="mg-cauldron" id="mgCauldron">⚗️</div>
+      <div class="grid g3" id="mgIngs">${INGS.map(([ic,nm],i)=>`<button type="button" class="mg-ing" data-i="${i}" disabled><b>${ic}</b><small>${nm}</small></button>`).join('')}</div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  seq.forEach((idx,n)=>{
+    timers.push(setTimeout(()=>{
+      const c=$('mgCauldron');if(!c)return;
+      c.textContent=INGS[idx][0];c.classList.add('flash');
+      tone([380+idx*70],'sine',0,.2,.1);
+      setTimeout(()=>c&&c.classList.remove('flash'),320);
+    },500+n*650));
+  });
+  timers.push(setTimeout(()=>{
+    locked=false;
+    const c=$('mgCauldron'),s=$('mgSub');
+    if(c)c.textContent='❓';
+    if(s)s.textContent='¡Tu turno! Pulsa los 4 ingredientes en el mismo orden (0/4)';
+    document.querySelectorAll('#mgIngs .mg-ing').forEach(b=>b.disabled=false);
+  },500+seq.length*650+200));
+  mgClean=()=>timers.forEach(clearTimeout);
+  $('mgIngs').onclick=e=>{
+    const b=e.target.closest('.mg-ing');if(!b||locked)return;
+    const pick=Number(b.dataset.i), c=$('mgCauldron');
+    if(c)c.textContent=INGS[pick][0];
+    if(pick===seq[step]){
+      step++;
+      tone([520+step*90],'sine',0,.15,.1);
+      const s=$('mgSub');if(s)s.textContent=`¡Correcto! (${step}/4)`;
+      if(step===seq.length){locked=true;setTimeout(()=>finishMinigame('pociones',true,'¡Poción perfecta!'),250);}
+    }else{
+      locked=true;buzzSnd();
+      setTimeout(()=>finishMinigame('pociones',false,'El caldero humeó, pero aprendiste la lección'),300);
+    }
+  };
+}
+
+/* 2. ENCANTAMIENTOS: Pulso de Varita */
+function mgEncantamientos(){
+  let pos=50,dir=1,hits=0,tries=0,iv=null;
+  openModal(`<h3 style="font-size:20px">🪄 Pulso de Varita: Wingardium Leviosa</h3>
+    <p class="muted">Detén el pulso dentro de la zona dorada <strong>3 veces</strong>.</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span id="mgHits" class="pill gold">Aciertos: 0/3</span><span id="mgTries" class="muted">Intentos: 0/4</span></div>
+      <div class="mg-bar"><div class="mg-zone"></div><div class="mg-cur" id="mgCur" style="left:50%"></div></div>
+      <button class="btn gold" id="mgCastBtn" type="button" style="width:100%">✨ ¡Conjurar ahora!</button>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  iv=setInterval(()=>{
+    pos+=dir*3.6;
+    if(pos>=96){pos=96;dir=-1}else if(pos<=4){pos=4;dir=1}
+    const el=$('mgCur');if(el)el.style.left=pos+'%';
+  },24);
+  mgClean=()=>clearInterval(iv);
+  $('mgCastBtn').onclick=()=>{
+    tries++;
+    const ok=pos>=36&&pos<=64;
+    if(ok){hits++;tone([660,880],'sine',.05,.2,.12)}else buzzSnd();
+    if($('mgHits'))$('mgHits').textContent=`Aciertos: ${hits}/3`;
+    if($('mgTries'))$('mgTries').textContent=`Intentos: ${tries}/4`;
+    if(hits>=3)finishMinigame('encantamientos',true,'¡Pluma levitando a la perfección!');
+    else if(tries>=4)finishMinigame('encantamientos',false,'Conjuro inestable');
+  };
+}
+
+/* 3. HERBOLOGÍA: Mandrágoras Rebeldes */
+function mgHerbologia(){
+  let score=0,timeLeft=9,activePot=-1,isBad=false,iv1=null,iv2=null;
+  openModal(`<h3 style="font-size:20px">🌱 Mandrágoras Rebeldes</h3>
+    <p class="muted">Atrapa <strong>5 Mandrágoras (🌱)</strong> antes de que se agote el tiempo. ¡Evita las Tentáculas (🥀)!</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span class="pill gold" id="mgHerbScore">Mandrágoras: 0/5</span><span class="mono" id="mgHerbTime">9 s</span></div>
+      <div class="mg-pots" id="mgPots">${Array.from({length:6},(_,i)=>`<button type="button" class="mg-pot" data-p="${i}">🪴</button>`).join('')}</div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  const spawn=()=>{
+    activePot=Math.floor(Math.random()*6);
+    isBad=Math.random()<.24;
+    document.querySelectorAll('#mgPots .mg-pot').forEach((el,i)=>{
+      el.classList.toggle('up',i===activePot);
+      el.textContent=i===activePot?(isBad?'🥀':'🌱'):'🪴';
+    });
+  };
+  spawn();
+  iv1=setInterval(spawn,700);
+  iv2=setInterval(()=>{
+    timeLeft--;
+    if($('mgHerbTime'))$('mgHerbTime').textContent=timeLeft+' s';
+    if(timeLeft<=0)finishMinigame('herbologia',score>=5,'¡Invernadero controlado!','Se escaparon algunas mandrágoras');
+  },1000);
+  mgClean=()=>{clearInterval(iv1);clearInterval(iv2)};
+  $('mgPots').onclick=e=>{
+    const b=e.target.closest('.mg-pot');if(!b)return;
+    const p=Number(b.dataset.p);
+    if(p!==activePot)return;
+    activePot=-1;b.classList.remove('up');b.textContent='🪴';
+    if(isBad){score=Math.max(0,score-1);buzzSnd()}
+    else{score++;tone([587.33,783.99],'sine',.04,.16,.1)}
+    if($('mgHerbScore'))$('mgHerbScore').textContent=`Mandrágoras: ${score}/5`;
+    if(score>=5)finishMinigame('herbologia',true,'¡5 Mandrágoras trasplantadas!');
+  };
+}
+
+/* 4. DEFENSA: Duelo de Reflejos */
+function mgDefensa(){
+  const THREATS=[
+    {q:'👻 ¡Un Dementor desciende sobre ti!',a:'Expecto Patronum',ic:'☀️'},
+    {q:'🦇 ¡Un Boggart sale del armario!',a:'Riddikulus',ic:'😂'},
+    {q:'🐍 ¡Un maleficio aturdidor viene de frente!',a:'Protego',ic:'🛡️'},
+    {q:'🪄 ¡Tu rival alza su varita para atacar!',a:'Expelliarmus',ic:'⚡'}
+  ];
+  let round=0,timeLeft=8,cur=null,iv=null;
+  openModal(`<h3 style="font-size:20px">🛡️ Duelo contra las Artes Oscuras</h3>
+    <p class="muted">Elige el contrahechizo correcto en <strong>3 asaltos</strong> antes de que se agote el tiempo.</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span class="pill gold" id="mgDefRd">Asalto 1/3</span><span class="mono" id="mgDefTime">8 s</span></div>
+      <div class="box" id="mgDefPrompt" style="margin-bottom:12px;font-weight:700;font-size:16px"></div>
+      <div class="grid g2" id="mgDefBtns">${THREATS.map(t=>`<button type="button" class="btn" data-spell="${t.a}">${t.ic} ${t.a}</button>`).join('')}</div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  const nextRound=()=>{
+    cur=THREATS[Math.floor(Math.random()*THREATS.length)];
+    if($('mgDefPrompt'))$('mgDefPrompt').textContent=cur.q;
+    if($('mgDefRd'))$('mgDefRd').textContent=`Asalto ${round+1}/3`;
+  };
+  nextRound();
+  iv=setInterval(()=>{
+    timeLeft--;
+    if($('mgDefTime'))$('mgDefTime').textContent=timeLeft+' s';
+    if(timeLeft<=0)finishMinigame('defensa',false,'Se agotó el tiempo del duelo');
+  },1000);
+  mgClean=()=>clearInterval(iv);
+  $('mgDefBtns').onclick=e=>{
+    const b=e.target.closest('[data-spell]');if(!b||!cur)return;
+    if(b.dataset.spell===cur.a){
+      round++;tone([659.25,880],'triangle',.05,.18,.12);
+      if(round>=3)finishMinigame('defensa',true,'¡Duelo ganado con maestría!');
+      else nextRound();
+    }else{
+      buzzSnd();
+      finishMinigame('defensa',false,'Contrahechizo equivocado');
+    }
+  };
+}
+
+/* 5. VUELO: Caza de la Snitch Dorada */
+function mgVuelo(){
+  let caught=0,timeLeft=10,iv1=null,iv2=null;
+  openModal(`<h3 style="font-size:20px">🟡 Caza de la Snitch Dorada</h3>
+    <p class="muted">Atrapa la Snitch <strong>4 veces</strong> en 10 s para ganar puntos y <strong>+4 XP de vuelo extra</strong>. ¡No toques las Bludgers (⚫)!</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span class="pill gold" id="mgSnitchCnt">Snitch: 0/4</span><span class="mono" id="mgSnitchTime">10 s</span></div>
+      <div class="mg-sky" id="mgSky">
+        <button type="button" class="mg-snitch" id="mgSnitch" style="left:50%;top:50%" aria-label="Snitch">🟡</button>
+        <button type="button" class="mg-bludger" id="mgBlud1" style="left:25%;top:30%" aria-label="Bludger">⚫</button>
+        <button type="button" class="mg-bludger" id="mgBlud2" style="left:75%;top:70%" aria-label="Bludger">⚫</button>
+      </div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  const moveAll=()=>{
+    const rnd=()=>14+Math.floor(Math.random()*72);
+    const s=$('mgSnitch'),b1=$('mgBlud1'),b2=$('mgBlud2');
+    if(s){s.style.left=rnd()+'%';s.style.top=rnd()+'%'}
+    if(b1){b1.style.left=rnd()+'%';b1.style.top=rnd()+'%'}
+    if(b2){b2.style.left=rnd()+'%';b2.style.top=rnd()+'%'}
+  };
+  iv1=setInterval(moveAll,560);
+  iv2=setInterval(()=>{
+    timeLeft--;
+    if($('mgSnitchTime'))$('mgSnitchTime').textContent=timeLeft+' s';
+    if(timeLeft<=0)finishMinigame('vuelo',caught>=4,'¡Vuelo digno de un Buscador!','La Snitch se escapó entre las nubes');
+  },1000);
+  mgClean=()=>{clearInterval(iv1);clearInterval(iv2)};
+  $('mgSky').onclick=e=>{
+    if(e.target.closest('.mg-snitch')){
+      caught++;snitchSnd();moveAll();
+      if($('mgSnitchCnt'))$('mgSnitchCnt').textContent=`Snitch: ${caught}/4`;
+      if(caught>=4)finishMinigame('vuelo',true,'¡Atrapaste la Snitch Dorada!');
+    }else if(e.target.closest('.mg-bludger')){
+      caught=Math.max(0,caught-1);buzzSnd();
+      if($('mgSnitchCnt'))$('mgSnitchCnt').textContent=`Snitch: ${caught}/4`;
+    }
+  };
+}
+
+/* 6. ASTRONOMÍA: Mapa Celeste (Conecta la Constelación) */
+function mgAstronomia(){
+  const pts=[[18,72],[34,28],[52,62],[70,24],[84,58]];
+  let next=1,timeLeft=10,iv=null;
+  openModal(`<h3 style="font-size:20px">✨ Mapa Celeste</h3>
+    <p class="muted">Conecta las <strong>5 estrellas</strong> de la constelación en orden numérico (1 → 5).</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span class="pill gold" id="mgStarSt">Estrella: 0/5</span><span class="mono" id="mgStarTime">10 s</span></div>
+      <div class="mg-sky" id="mgStarSky">
+        <svg id="mgStarLines" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+        ${pts.map(([x,y],i)=>`<button type="button" class="mg-star" data-s="${i+1}" style="left:${x}%;top:${y}%">${i+1}</button>`).join('')}
+      </div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  iv=setInterval(()=>{
+    timeLeft--;
+    if($('mgStarTime'))$('mgStarTime').textContent=timeLeft+' s';
+    if(timeLeft<=0)finishMinigame('astronomia',false,'Las nubes cubrieron la constelación');
+  },1000);
+  mgClean=()=>clearInterval(iv);
+  $('mgStarSky').onclick=e=>{
+    const b=e.target.closest('.mg-star');if(!b)return;
+    const n=Number(b.dataset.s);
+    if(n===next){
+      b.classList.add('done');
+      tone([440+n*80],'sine',0,.2,.1);
+      if(n>1){
+        const [x1,y1]=pts[n-2],[x2,y2]=pts[n-1],svg=$('mgStarLines');
+        if(svg)svg.innerHTML+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--gold)" stroke-width="1.2"/>`;
+      }
+      next++;
+      if($('mgStarSt'))$('mgStarSt').textContent=`Estrella: ${next-1}/5`;
+      if(next>5)setTimeout(()=>finishMinigame('astronomia',true,'¡Constelación cartografiada!'),200);
+    }else if(n>next){
+      buzzSnd();
+      finishMinigame('astronomia',false,'Orden estelar incorrecto');
+    }
+  };
+}
+
+/* 7. RUNAS ANTIGUAS: Parejas Rúnicas */
+function mgRunas(){
+  const pool=['ᚠ','ᚢ','ᚦ','ᚨ'];
+  const deck=[...pool,...pool].sort(()=>Math.random()-.5);
+  let openIdx=[],matched=[],moves=0,locked=false;
+  openModal(`<h3 style="font-size:20px">📜 Parejas de Runas Antiguas</h3>
+    <p class="muted">Encuentra las <strong>4 parejas de runas</strong> en un máximo de 7 intentos.</p>
+    <div class="mg-stage">
+      <div class="mg-hud"><span class="pill gold" id="mgRunePairs">Parejas: 0/4</span><span class="muted" id="mgRuneMoves">Intentos: 0/7</span></div>
+      <div class="mg-cards" id="mgCards">${deck.map((_,i)=>`<button type="button" class="mg-card" data-c="${i}">❔</button>`).join('')}</div>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  const paint=()=>{
+    document.querySelectorAll('#mgCards .mg-card').forEach((el,i)=>{
+      const isM=matched.includes(i),isO=openIdx.includes(i);
+      el.className='mg-card'+(isM?' matched':isO?' open':'');
+      el.textContent=(isM||isO)?deck[i]:'❔';
+    });
+  };
+  $('mgCards').onclick=e=>{
+    const b=e.target.closest('.mg-card');if(!b||locked)return;
+    const i=Number(b.dataset.c);
+    if(matched.includes(i)||openIdx.includes(i))return;
+    openIdx.push(i);paint();
+    tone([520],'sine',0,.12,.09);
+    if(openIdx.length===2){
+      moves++;
+      if($('mgRuneMoves'))$('mgRuneMoves').textContent=`Intentos: ${moves}/7`;
+      const [a,c]=openIdx;
+      if(deck[a]===deck[c]){
+        matched.push(a,c);openIdx=[];paint();
+        if($('mgRunePairs'))$('mgRunePairs').textContent=`Parejas: ${matched.length/2}/4`;
+        if(matched.length===deck.length)setTimeout(()=>finishMinigame('runas',true,'¡Traducción rúnica impecable!'),220);
+      }else{
+        locked=true;
+        setTimeout(()=>{
+          openIdx=[];locked=false;paint();
+          if(moves>=7)finishMinigame('runas',false,'Se agotaron los intentos de traducción');
+        },550);
+      }
+    }
+  };
+}
+
 function newStudent(){
   draftNew=true;
   draft={name:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
@@ -1056,7 +1405,6 @@ document.addEventListener('click',e=>{
     case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
     case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'practice':practice(d.k);break;
-    case 'rune':{const hit=d.g===d.t,r=API.attend(d.k,hit?5:2,d.k==='vuelo'&&hit?3:0);closeModal();toast(hit?`Perfecto: +${r.pts} pts`:`Clase completada: +${r.pts} pts`);break}
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
       if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
     case 'apply':API.apply(traitsDraft,$('pitch')?.value||'');traitsDraft=[];pitchDraft='';toast('Postulación enviada');break;
