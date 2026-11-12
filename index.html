@@ -130,7 +130,7 @@ section.block{padding:44px 0}
 input[type=text],input[type=search],input[type=password],input[type=time],select,textarea{width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg)}
 select{width:auto}
 .mapbox{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--surface-2)}
-.map{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));grid-auto-rows:78px;gap:6px;padding:10px;min-width:700px}
+.map{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));grid-auto-rows:98px;gap:6px;padding:10px;min-width:700px}
 .room{position:relative;border-radius:10px;border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px;background:color-mix(in srgb,var(--rc,#556) 55%,var(--surface));display:flex;flex-direction:column;justify-content:space-between;min-width:0;overflow:hidden}
 .room .rn{font:700 10px var(--display);letter-spacing:.08em;text-transform:uppercase;line-height:1.25}
 .room .rc{font-size:11px;color:var(--muted)}
@@ -218,14 +218,38 @@ th{color:var(--gold)}
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:100;background:rgba(6,5,18,.72);backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px;overflow-y:auto}
 .modal .panel{max-width:440px;width:100%;text-align:center;display:grid;gap:12px;justify-items:center}
+.modal .panel.wide{max-width:760px}
 .toasts{position:fixed;top:calc(72px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:120;display:grid;gap:8px;pointer-events:none;max-width:340px}
 .toast{background:var(--surface);border:1px solid var(--gold);padding:10px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:14px;animation:tin .25s ease}
 @keyframes tin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
 footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;display:grid;gap:8px}
 
+/* personajes y exploración */
+.av{display:block;overflow:visible}
+.pawn{display:inline-block;line-height:0;animation:pop .35s ease;transition:transform .25s}
+.pawn.me{filter:drop-shadow(0 0 5px var(--gold))}
+.pawn.find{transform:scale(1.7);position:relative;z-index:3}
+.pawn.big{animation:none}
+@keyframes pop{from{transform:translateY(-10px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.room .dots{flex:1;align-content:flex-end;overflow:hidden;gap:2px}
+.room.here{outline:2px solid var(--gold)}
+.room.go{cursor:pointer}
+.room.go:hover,.room.go:focus-visible{outline:2px dashed var(--gold)}
+.youbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.youbar .chips{flex-basis:100%}
+.mapbox:focus-visible{outline:2px solid var(--gold)}
+.creator{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start;text-align:left;width:100%}
+.lookbox{display:grid;gap:12px;justify-items:center}
+.lookbox .prev{display:grid;place-items:center;width:120px;height:150px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}
+.swrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.swrow>span{width:92px;font-size:13px;color:var(--muted)}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.sw.on{border-color:var(--gold);box-shadow:0 0 0 3px var(--glow)}
+.hint{font-size:13px;color:var(--muted)}
+
 @media (max-width:860px){
   .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .g3,.steps{grid-template-columns:1fr}
+  .g3,.steps,.creator{grid-template-columns:1fr}
   .g2{grid-template-columns:1fr}
   .week{grid-template-columns:repeat(2,minmax(0,1fr))}
   .glasses{row-gap:34px}
@@ -249,13 +273,13 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <header class="hero">
     <p class="kicker">Escuela de Magia y Hechicería</p>
     <h1>Entra al Castillo</h1>
-    <p class="lead">El director eres tú y los alumnos son tu comunidad. Elige casa, asiste a clase y haz ganar la Copa.</p>
+    <p class="lead">El director eres tú y los alumnos son tu comunidad. Personaliza tu mago, elige casa, explora el castillo y haz ganar la Copa.</p>
     <div class="hero-stats">
       <div><b id="statStudents">0</b><span>alumnos matriculados</span></div>
       <div><b>4</b><span>casas en disputa</span></div>
       <div><b id="statPoints">0</b><span>puntos en juego</span></div>
     </div>
-    <div class="cta"><a class="btn gold" href="#alumnos">Busca tu nombre</a><a class="btn" href="#copa">Ver la Copa</a></div>
+    <div class="cta"><a class="btn gold" href="#clases">Mi personaje</a><a class="btn" href="#copa">Ver la Copa</a></div>
   </header>
 
   <div id="eventSlot"></div>
@@ -263,17 +287,18 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <section class="block" id="copa">
     <div class="sec-head"><h2>La Copa de las Casas</h2>
       <p>Cada curso dura un mes y solo gana una casa. Los puntos llenan el reloj de gemas de cada una.</p>
-      <div class="rules"><span class="rule"><b>1</b>punto por cada comentario</span><span class="rule"><b>3</b>comentarios como máximo por vídeo</span></div>
+      <div class="rules"><span class="rule"><b>10</b>puntos por clase asistida</span><span class="rule"><b>50</b>puntos para la casa que gana un partido</span></div>
     </div>
     <div class="panel hl"><div class="glasses" id="glasses"></div><p class="muted center" id="copaTotal" style="text-align:center;margin-top:18px;font-size:13px"></p></div>
   </section>
 
   <section class="block" id="directo">
-    <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y toque de queda: cada alumno está donde le toca. Búscate y mira qué estás haciendo ahora mismo.</p></div>
+    <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y tiempo libre: mira los personajes en cada sala o muévete por el mapa durante el recreo.</p></div>
     <div class="panel">
       <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p></div><span class="pill" id="nowCount"></span></div>
+      <div class="youbar" id="youBar"></div>
       <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"></div>
-      <div class="mapbox"><div class="map" id="map"></div></div>
+      <div class="mapbox" id="mapbox" tabindex="0" aria-label="Mapa del castillo. En tiempo libre puedes tocar cualquier sala o usar las flechas para mover tu personaje."><div class="map" id="map"></div></div>
     </div>
     <div class="grid g2" style="margin-top:16px;align-items:start">
       <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h3 id="schedTitle" style="font-size:18px">Horario</h3><span id="schedTags" class="row"></span></div><div class="slots" id="slots"></div></div>
@@ -292,15 +317,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </section>
 
   <section class="block" id="clases">
-    <div class="sec-head"><h2>Clases y Quidditch</h2><p>Cada clase solo abre en su horario. Crea tu alumno o selecciónalo para participar con tu casa.</p></div>
+    <div class="sec-head"><h2>Personaje, Clases y Quidditch</h2><p>Personaliza tu aspecto, asiste a las clases abiertas en su horario y entrena para entrar al equipo de Quidditch.</p></div>
     <div class="panel" style="margin-bottom:16px">
       <div class="row" style="justify-content:space-between;margin-bottom:14px;gap:12px">
-        <div class="row" id="whoami" style="gap:10px"></div>
+        <div class="row" id="whoami" style="gap:10px;flex:1"></div>
         <div class="row">
           <div class="row" id="adminControls" style="display:none;">
             <label class="muted" for="userSwitch" style="font-size:13px">Simulador</label>
             <select id="userSwitch" aria-label="Cambiar de alumno"></select>
           </div>
+          <button class="btn sm" id="editCharBtn" type="button" data-do="editChar">🎨 Editar apariencia</button>
           <button class="btn sm gold" id="newStudentBtn" type="button">Nuevo alumno</button>
         </div>
       </div>
@@ -319,14 +345,14 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </section>
 
   <section class="block" id="alumnos">
-    <div class="sec-head"><h2>Registro de alumnos</h2><p>Busca tu nombre o mira quién defiende cada casa. Toca un alumno para ver su expediente.</p></div>
+    <div class="sec-head"><h2>Registro de alumnos</h2><p>Busca tu nombre o mira quién defiende cada casa. Toca un alumno para ver su expediente y su avatar.</p></div>
     <div class="filters">
       <input id="stuSearch" type="search" placeholder="Buscar alumno…" autocomplete="off" aria-label="Buscar alumno">
       <select id="stuSort" aria-label="Ordenar"><option value="pts">Más puntos</option><option value="new">Orden de llegada</option><option value="az">Nombre (A-Z)</option></select>
     </div>
     <div class="chips" id="stuHouses" style="margin-bottom:14px"></div>
     <div class="students" id="students"></div>
-    <p class="muted" style="margin-top:12px;font-size:13px;text-align:center">¿No te encuentras? Pulsa el botón «Nuevo alumno» en la sección de Clases.</p>
+    <p class="muted" style="margin-top:12px;font-size:13px;text-align:center">¿No te encuentras? Pulsa «Nuevo alumno» en la sección de Clases para crear tu mago.</p>
   </section>
 
   <section class="block" id="cursos-sec">
@@ -337,16 +363,15 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <section class="block" id="entrar">
     <div class="sec-head"><h2>Cómo entrar</h2></div>
     <div class="steps">
-      <div class="step"><h3>Entra como alumno</h3><p class="muted">Crea tu alumno y el sombrero te propone una casa.</p></div>
+      <div class="step"><h3>Crea tu personaje</h3><p class="muted">Elige nombre, ojos, pelo, peinado y tono de piel. Tu túnica llevará los colores de tu casa.</p></div>
       <div class="step"><h3>Elige tu casa</h3><p class="muted">Gryffindor, Slytherin, Ravenclaw o Hufflepuff. La decisión es definitiva.</p></div>
-      <div class="step"><h3>Suma puntos</h3><p class="muted">Asiste a las clases abiertas y juega Quidditch para que tu casa gane la Copa.</p></div>
+      <div class="step"><h3>Explora y suma puntos</h3><p class="muted">Asiste a clases, pasea por el castillo en tiempo libre y juega Quidditch para ganar la Copa.</p></div>
     </div>
   </section>
 
   <footer>
     <p>Proyecto de fans sin ánimo oficial. Sin relación con Warner Bros., J.K. Rowling ni los titulares de Harry Potter.</p>
-    <p>Los datos de esta demo viven en la nube y se sincronizan en tiempo real.</p>
-    <!-- Botón secreto de admin -->
+    <p>Cada jugador personaliza su personaje y el castillo se sincroniza en tiempo real.</p>
     <button id="adminLoginBtn" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer; margin-top:10px;">🔐 Acceso Profesorado</button>
   </footer>
 </main>
@@ -372,7 +397,7 @@ const chime=()=>tone([523.25,659.25,783.99,1046.5],'sine',.055,.35,.12);
 const fanfare=()=>tone([440,554.37,659.25,880],'triangle',.09,.45,.16);
 const snitchSnd=()=>tone([1200,2400],'triangle',.12,.25,.14);
 
-/* ===== 2. Configuración ===== */
+/* ===== 2. Configuración y Personalización ===== */
 const HOUSES=[
  {id:'gryffindor',name:'Gryffindor',motto:'Valentía y honor',letter:'G'},
  {id:'slytherin',name:'Slytherin',motto:'Ambición y astucia',letter:'S'},
@@ -387,6 +412,31 @@ const ACTS={
  vuelo:{name:'Clase de Vuelo',points:10,flightXp:5,desc:'Maniobras aéreas para el equipo de Quidditch.',room:'quidditch',loc:'Campo de Quidditch'},
  astronomia:{name:'Astronomía',points:8,desc:'Cartografía celeste desde la torre más alta.',room:'astronomia',loc:'Torre de Astronomía'},
  runas:{name:'Runas Antiguas',points:8,desc:'Traducción de alfabetos mágicos.',room:'historia',loc:'Torre de Runas'}};
+/* Actividades de tiempo libre al explorar el mapa */
+const FREE_ACTS={
+ quidditch:{name:'Entrenar vuelo',pts:3,xp:2},
+ cabana:{name:'Cuidar criaturas con Hagrid',pts:3,xp:0},
+ biblioteca:{name:'Estudiar en silencio',pts:3,xp:0},
+ terrenos:{name:'Pasear junto al lago',pts:2,xp:0},
+ patio:{name:'Charlar con amigos',pts:2,xp:0}};
+const DEST=['quidditch','cabana','biblioteca','terrenos','patio','comedor'];
+/* Opciones de apariencia del personaje */
+const SKIN=['#f6d7bd','#e8b98f','#c98e63','#9a6440','#6b4128'];
+const HAIR=['#1d1a22','#5a3820','#a8622a','#e0b552','#c4472d','#7a5ec4'];
+const HAIRN=['Negro','Castaño','Cobrizo','Rubio','Pelirrojo','Violeta'];
+const EYES=['#3a2a1d','#2f6bd0','#2f9a5d','#7a8a96','#9a5ec4'];
+const EYEN=['Marrón','Azul','Verde','Gris','Violeta'];
+const STYLES=[['corto','Corto'],['largo','Largo'],['rizado','Rizado']];
+const DEFAULT_LOOKS=[
+ {skin:0,hair:4,style:'corto',eyes:0},
+ {skin:1,hair:0,style:'corto',eyes:0},
+ {skin:0,hair:2,style:'largo',eyes:2},
+ {skin:2,hair:1,style:'corto',eyes:1},
+ {skin:0,hair:0,style:'largo',eyes:3},
+ {skin:1,hair:3,style:'rizado',eyes:0},
+ {skin:1,hair:5,style:'largo',eyes:4},
+ {skin:3,hair:0,style:'rizado',eyes:0}];
+
 /* Salas del mapa: [id, nombre, columna, fila, ancho, alto, color] */
 const ROOMS=[
  ['gryffindor','Gryffindor',1,1,1,1],['slytherin','Slytherin',2,1,1,1],['ravenclaw','Ravenclaw',3,1,1,1],['hufflepuff','Hufflepuff',4,1,1,1],
@@ -402,12 +452,12 @@ const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador
 const COOLDOWN=20000,ROUND_MS=15000;
 const DAYS=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 const DAYL={domingo:'Domingo',lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado'};
-const T=(from,to,label,room)=>({from,to,type:'break',label,room});
+const T=(from,to,label,room,free)=>({from,to,type:'break',label,room,free:!!free});
 const C=(from,to,key,loc)=>({from,to,type:'class',key,location:loc||ACTS[key].loc,room:ACTS[key].room});
 const weekday=(c,evening,eroom,night)=>[
  T('00:00','07:00','Toque de queda','profesores'),T('07:00','08:30','Desayuno en el Gran Comedor','comedor'),
  C('08:30','10:30',c[0]),C('10:30','12:30',c[1]),T('12:30','14:30','Almuerzo','comedor'),
- C('14:30','16:00',c[2]),C('16:00','17:30',c[3]),T('17:30','20:00',evening,eroom),T('20:00','20:30','Cena','comedor'),C('20:30','24:00',night)];
+ C('14:30','16:00',c[2]),C('16:00','17:30',c[3]),T('17:30','20:00',evening,eroom,true),T('20:00','20:30','Cena','comedor'),C('20:30','24:00',night)];
 const SCHEDULE={
  lunes:weekday(['pociones','encantamientos','herbologia','vuelo'],'Club de Duelos y estudio','patio','astronomia'),
  martes:weekday(['defensa','runas','pociones','encantamientos'],'Estudio en la biblioteca','biblioteca','astronomia'),
@@ -415,18 +465,28 @@ const SCHEDULE={
  jueves:weekday(['encantamientos','defensa','astronomia','herbologia'],'Estudio en la biblioteca','biblioteca','runas'),
  viernes:weekday(['vuelo','pociones','runas','encantamientos'],'Fiesta de fin de semana','patio','astronomia'),
  sabado:[T('00:00','08:00','Toque de queda','profesores'),T('08:00','10:00','Desayuno tardío','comedor'),C('10:00','12:00','vuelo'),
-  T('12:00','14:00','Almuerzo','comedor'),C('14:00','17:00','vuelo','Entrenamiento de Quidditch'),T('17:00','20:00','Tiempo libre','terrenos'),
+  T('12:00','14:00','Almuerzo','comedor'),C('14:00','17:00','vuelo','Entrenamiento de Quidditch'),T('17:00','20:00','Tiempo libre','terrenos',true),
   T('20:00','20:30','Cena','comedor'),C('20:30','24:00','astronomia')],
- domingo:[T('00:00','09:00','Toque de queda','profesores'),T('09:00','11:00','Desayuno tardío','comedor'),T('11:00','13:00','Estudio libre','biblioteca'),
-  T('13:00','15:00','Almuerzo','comedor'),T('15:00','19:00','Tiempo libre','terrenos'),T('19:00','20:00','Cena','comedor'),
-  T('20:00','20:30','Paseo nocturno','escalera'),C('20:30','24:00','astronomia')]};
+ domingo:[T('00:00','09:00','Toque de queda','profesores'),T('09:00','11:00','Desayuno tardío','comedor'),T('11:00','13:00','Estudio libre','biblioteca',true),
+  T('13:00','15:00','Almuerzo','comedor'),T('15:00','19:00','Tiempo libre','terrenos',true),T('19:00','20:00','Cena','comedor'),
+  T('20:00','20:30','Paseo nocturno','escalera',true),C('20:30','24:00','astronomia')]};
 
 /* ===== 3. Estado y sincronización MULTIJUGADOR ===== */
-const U=(id,username,house,points,flight_xp,role,is_admin)=>({id,username,house,points,flight_xp,role,is_admin,created_at:id});
+const U=(id,username,house,points,flight_xp,role,is_admin,look)=>({
+  id,username,house,points,flight_xp,role,is_admin,
+  look:look||DEFAULT_LOOKS[(id-1)%DEFAULT_LOOKS.length],
+  created_at:id
+});
 const socket = io();
 let db = {
- users:[U(1,'Carla R.','ravenclaw',90,35,'student',false),U(2,'Vicente D.','ravenclaw',70,20,'student',false),U(3,'Matilde S.','gryffindor',85,30,'student',false),
-  U(4,'Joaquín P.','gryffindor',95,10,'prefect',false),U(5,'Antonia V.','slytherin',88,25,'student',false),U(6,'Benjamín L.','hufflepuff',82,25,'prefect',false)],
+ users:[
+  U(1,'Carla R.','ravenclaw',90,35,'student',false,{skin:0,hair:4,style:'corto',eyes:0}),
+  U(2,'Vicente D.','ravenclaw',70,20,'student',false,{skin:1,hair:0,style:'corto',eyes:0}),
+  U(3,'Matilde S.','gryffindor',85,30,'student',false,{skin:0,hair:2,style:'largo',eyes:2}),
+  U(4,'Joaquín P.','gryffindor',95,10,'prefect',false,{skin:2,hair:1,style:'corto',eyes:1}),
+  U(5,'Antonia V.','slytherin',88,25,'student',false,{skin:0,hair:0,style:'largo',eyes:3}),
+  U(6,'Benjamín L.','hufflepuff',82,25,'prefect',false,{skin:1,hair:3,style:'rizado',eyes:0})
+ ],
  houses:[{id:'gryffindor',points:240},{id:'ravenclaw',points:224},{id:'slytherin',points:215},{id:'hufflepuff',points:195}],
  log:[], apps:[], votes:[],
  events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
@@ -436,9 +496,17 @@ let db = {
 const savedUid = Number(localStorage.getItem('castillo_uid')) || 1;
 const session={uid:savedUid,channel:'global',isAdmin:false};
 
+function ensureLooks(){
+  if(!db||!Array.isArray(db.users))return;
+  db.users.forEach((u,i)=>{
+    if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? u.id-1 : i) % DEFAULT_LOOKS.length];
+  });
+}
+
 socket.on('init_db', (serverDb) => {
   if (serverDb && serverDb.users) {
     db = serverDb;
+    ensureLooks();
     if (!db.users.some(u => u.id === session.uid) && db.users.length) {
       session.uid = db.users[0].id;
     }
@@ -449,12 +517,14 @@ socket.on('init_db', (serverDb) => {
 socket.on('sync_db', (data) => {
   if (data && data.db) {
     db = data.db;
+    ensureLooks();
     if (data.reason) toast('En vivo: ' + data.reason);
     renderAll();
   }
 });
 
 function commit(reason){
+  ensureLooks();
   socket.emit('sync_db', { db: db, reason: reason });
   renderAll();
 }
@@ -466,7 +536,7 @@ function toggleMusic() {
   else { audio.pause(); document.getElementById('musicBtn').innerText = '🔇 Música'; }
 }
 
-/* ===== 4. Reloj y horario ===== */
+/* ===== 4. Reloj, horario y exploración ===== */
 const toMin=s=>{const [h,m]=s.split(':').map(Number);return h*60+m};
 const fmt=s=>s==='24:00'?'00:00':s;
 const realDay=()=>DAYS[new Date().getDay()];
@@ -477,6 +547,15 @@ const daySched=d=>SCHEDULE[d]||[];
 function dur(m){if(m<=0)return '0 min';if(m<60)return Math.ceil(m)+' min';const h=Math.floor(m/60),r=Math.ceil(m%60);return h+' h'+(r?' '+r+' min':'')}
 function curSlot(){const n=curMin();return daySched(curDay()).find(s=>n>=toMin(s.from)&&n<toMin(s.to))||null}
 function nextSlot(){const n=curMin();return daySched(curDay()).find(s=>toMin(s.from)>=n&&toMin(s.from)>(curSlot()?toMin(curSlot().from):-1))||null}
+const roomName=id=>{const r=ROOMS.find(x=>x[0]===id);return r?r[1]:'el castillo'};
+const slotKey=()=>{const s=curSlot();return curDay()+(s?s.from:'-')};
+const canRoam=()=>{const s=curSlot();return !!(s&&s.free)||db.free};
+function userLoc(u){
+  const s=curSlot(),def=s?s.room:'comedor';
+  if(!u)return def;
+  if(canRoam()&&u.loc&&u.locSlot===slotKey()&&ROOMS.some(r=>r[0]===u.loc))return u.loc;
+  return def;
+}
 function classStatus(key){
   const day=curDay(),n=curMin();
   const today=daySched(day).filter(s=>s.type==='class'&&s.key===key);
@@ -498,24 +577,66 @@ const me=()=>{
 };
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
+const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
+const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
+
 const API={
-  register(name){
-    name=(name||'').trim();must(name,'Escribe un nombre');
+  register(name,look,house){
+    name=cleanName(name);must(name,'Escribe un nombre');
     const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
     if(existing){
+      if(look)existing.look=lookOf(look);
+      if(!existing.house&&house&&HOUSE(house))existing.house=house;
       session.uid=existing.id;
       localStorage.setItem('castillo_uid',String(existing.id));
-      renderAll();
+      commit('Entró '+existing.username);
       toast('Entraste como '+existing.username);
       return;
     }
-    const u=U(Math.max(0,...db.users.map(x=>x.id))+1,name,null,0,0,'student',false);
+    const chosenHouse=house&&HOUSE(house)?house:null;
+    const u=U(Math.max(0,...db.users.map(x=>x.id))+1,name,chosenHouse,0,0,'student',false,look?lookOf(look):null);
     db.users.push(u);session.uid=u.id;
     localStorage.setItem('castillo_uid',String(u.id));
+    if(chosenHouse)fanfare();
     commit('Nuevo alumno: '+name);
+  },
+  editChar(d){
+    const u=me();must(u,'Sin personaje');
+    const name=cleanName(d.name);must(name,'Escribe un nombre');
+    must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
+    u.username=name;
+    u.look=lookOf(d);
+    if(!u.house&&d.house&&HOUSE(d.house)){u.house=d.house;fanfare();}
+    chime();
+    commit(u.username+' actualizó su personaje');
   },
   chooseHouse(id){const u=me();must(u&&!u.house,'Ya elegiste casa');u.house=id;fanfare();commit(u.username+' fue seleccionado en '+HOUSE(id).name);},
   cooldown(key){const u=me();if(!u)return 0;const last=(db.cooldowns[u.id]||{})[key]||0;return Math.max(0,COOLDOWN-(Date.now()-last))},
+  goTo(roomId){
+    const u=me();must(u&&u.house,'Elige tu casa primero');
+    must(canRoam(),'Solo puedes moverte libremente en recreo o modo libre');
+    must(ROOMS.some(r=>r[0]===roomId),'Sala desconocida');
+    u.loc=roomId;u.locSlot=slotKey();
+    commit();
+  },
+  freeAct(){
+    const u=me();must(u&&u.house,'Elige tu casa primero');
+    must(canRoam(),'Solo disponible en tiempo libre');
+    const loc=userLoc(u),fa=FREE_ACTS[loc];
+    must(fa,'En esta sala no hay actividad libre');
+    const cdKey='free_'+loc,cd=this.cooldown(cdKey);
+    must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir`);
+    const ev=activeEvent(),mult=ev?ev.mult:1;
+    const pts=Math.round(fa.pts*mult)+(u.role==='prefect'?2:0),fx=fa.xp||0;
+    u.points+=pts;if(fx)u.flight_xp+=fx;
+    db.houses.find(h=>h.id===u.house).points+=pts;
+    (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
+    db.log.unshift({u:u.username,h:u.house,a:fa.name,p:pts,x:fx});
+    db.log.length=Math.min(db.log.length,15);
+    chime();
+    commit(`${u.username} +${pts} pts (${fa.name})`);
+    return{pts,fx};
+  },
   attend(key,extra=0,extraFlight=0){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
     if(!db.free){const s=classStatus(key);
@@ -627,18 +748,56 @@ const API={
     commit('Ronda '+(m.round-1)+' resuelta');
   }
 };
-/* ===== 6. Utilidades ===== */
+
+/* ===== 6. Utilidades y Generador de Avatares SVG ===== */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;$('toasts').appendChild(el);
   setTimeout(()=>{el.style.transition='.25s';el.style.opacity='0';setTimeout(()=>el.remove(),260)},2800)}
-function openModal(html){const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel" role="dialog" aria-modal="true">${html}</div></div>`}
+function openModal(html,wide){const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div></div>`}
 function closeModal(){const m=$('modalRoot');m.hidden=true;m.innerHTML=''}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeModal();
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.room.go')){e.preventDefault();e.target.click()}
+});
 const crest=(id,lg)=>{const h=HOUSE(id);return h?`<span class="crest ${lg?'lg':''} h-${id}" aria-hidden="true">${h.letter}</span>`:''};
 const hbadge=id=>{const h=HOUSE(id);return h?`<span class="hbadge h-${id}">${h.name}</span>`:'<span class="pill off">Sin casa</span>'};
 const slotLabel=s=>s.type==='class'?`${ACTS[s.key].name} · ${s.location}`:s.label;
-let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false;
+
+function avatar(l,house,w=40){
+  l=l||{};const sk=SKIN[l.skin]??SKIN[1],hr=HAIR[l.hair]??HAIR[1],ey=EYES[l.eyes]??EYES[0],sty=l.style||'corto';
+  const back=sty==='largo'?`<path d="M10 16C8.5 27 10.5 33 14 33L15 20ZM30 16C31.5 27 29.5 33 26 33L25 20Z" fill="${hr}"/>`:'';
+  const top=sty==='rizado'
+    ?`<g fill="${hr}"><circle cx="12.5" cy="12" r="4.5"/><circle cx="20" cy="8.5" r="5"/><circle cx="27.5" cy="12" r="4.5"/><circle cx="10.5" cy="18" r="3"/><circle cx="29.5" cy="18" r="3"/></g>`
+    :`<path d="M10.5 17C9.5 9.5 14 6 20 6S30.5 9.5 29.5 17C27 13 24 11.5 20 11.5S13 13 10.5 17Z" fill="${hr}"/>`;
+  return `<svg class="av h-${house||''}" viewBox="0 0 40 56" width="${w}" height="${Math.round(w*1.4)}" aria-hidden="true">${back}
+   <rect x="17" y="24" width="6" height="6" fill="${sk}"/>
+   <path d="M8 56V39C8 32 13 28.5 20 28.5S32 32 32 39V56Z" fill="${house?'var(--hc)':'var(--muted)'}"/>
+   <path d="M15.5 28.8L20 37L24.5 28.8" fill="none" stroke="${house?'var(--hi)':'var(--bg)'}" stroke-width="1.6" stroke-linejoin="round"/>
+   <circle cx="8.5" cy="47" r="2.6" fill="${sk}"/><circle cx="31.5" cy="47" r="2.6" fill="${sk}"/>
+   <circle cx="20" cy="17" r="9" fill="${sk}"/>${top}
+   <ellipse cx="16.3" cy="17.5" rx="2.3" ry="2.6" fill="#fff"/><ellipse cx="23.7" cy="17.5" rx="2.3" ry="2.6" fill="#fff"/>
+   <circle cx="16.3" cy="17.8" r="1.4" fill="${ey}"/><circle cx="23.7" cy="17.8" r="1.4" fill="${ey}"/>
+   <path d="M17.5 22.2Q20 24 22.5 22.2" fill="none" stroke="#7a3d2e" stroke-width="1" stroke-linecap="round"/></svg>`;
+}
+const av=(u,w)=>avatar(u&&u.look,u&&u.house,w);
+
+let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
+let draft={name:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0};
+
+function creatorHTML(){
+  const d=draft;
+  const sw=(label,arr,key,names)=>`<div class="swrow"><span>${label}</span>${arr.map((c,i)=>`<button type="button" class="sw ${d[key]===i?'on':''}" style="background:${c}" data-do="draft" data-k="${key}" data-v="${i}" aria-label="${label}: ${names?names[i]:i+1}" title="${names?names[i]:''}"></button>`).join('')}</div>`;
+  return `<div class="creator" id="creatorBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Tu túnica lleva los colores de tu casa.</p></div>
+   <div style="display:grid;gap:14px;min-width:0">
+    <div><label class="hint" for="cName">Nombre o nick</label><input id="cName" type="text" maxlength="18" value="${esc(d.name)}" placeholder="Ej: Camila N." autocomplete="off"></div>
+    ${(draftNew||!me()?.house)?`<div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="draftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>`:''}
+    ${sw('Piel',SKIN,'skin')}${sw('Pelo',HAIR,'hair',HAIRN)}${sw('Ojos',EYES,'eyes',EYEN)}
+    <div class="swrow"><span>Peinado</span>${STYLES.map(([k,n])=>`<button type="button" class="chip ${d.style===k?'on':''}" data-do="draftStyle" data-v="${k}">${n}</button>`).join('')}</div>
+    <div class="row"><button class="btn gold" type="button" data-do="saveChar">${draftNew?'Entrar al castillo':'Guardar cambios'}</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
+   </div></div>`;
+}
+function refreshCreator(){const el=$('creatorBox');if(!el)return;const nm=$('cName');if(nm)draft.name=nm.value;el.outerHTML=creatorHTML()}
 
 /* ===== 7. Render ===== */
 function renderHero(){
@@ -667,20 +826,36 @@ function renderGlasses(){
   $('copaTotal').textContent=`${db.houses.reduce((a,h)=>a+h.points,0).toLocaleString('es-ES')} puntos repartidos entre las cuatro casas en este curso.`;
 }
 function renderMap(){
-  const slot=curSlot(),active=slot?slot.room:'comedor',u=me();
+  const slot=curSlot(),u=me(),myLoc=userLoc(u),roam=!!(u&&u.house)&&canRoam();
   const term=mapTerm.trim().toLowerCase();
-  const here=db.users.filter(x=>x.house);
+  const byRoom={};
+  db.users.filter(x=>x.house).forEach(x=>{const r=userLoc(x);(byRoom[r]=byRoom[r]||[]).push(x)});
   $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col])=>{
-    const isHouse=!!HOUSE(id),isActive=id===active;
+    const isHouse=!!HOUSE(id),hereUsers=byRoom[id]||[],isMyRoom=u&&id===myLoc;
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
-    const dots=isActive?here.map(x=>`<i class="dot h-${x.house} ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)}"></i>`).join(''):'';
-    return `<div class="room ${isHouse?'house h-'+id:''} ${isActive?'active':''}" style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
-      <div class="rn">${name}</div>${dots?`<div class="dots">${dots}</div>`:''}
-      <div class="rc">${isHouse?pts+' pts':isActive?here.length+' alumnos':''}</div></div>`}).join('');
-  const room=ROOMS.find(r=>r[0]===active);
+    const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)}">${av(x,22)}</span>`).join('');
+    const foot=hereUsers.length?`${hereUsers.length} ${hereUsers.length===1?'alumno':'alumnos'}`:(isHouse?pts+' pts':'');
+    return `<div class="room ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
+      <div class="rn">${name}</div><div class="dots">${pawns}</div>
+      <div class="rc">${foot}</div></div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
-  $('nowCount').textContent=`${here.length} alumnos en ${room?room[1]:'el castillo'}`;
+  $('nowCount').textContent=`${db.users.filter(x=>x.house).length} alumnos en el castillo`;
+}
+function renderYou(){
+  const u=me(),box=$('youBar'),s=curSlot();
+  if(!u){box.innerHTML=`<span class="hint">Crea tu personaje para entrar al castillo y moverte por el mapa en tiempo libre.</span><button class="btn gold sm" type="button" data-do="openNewChar">Crear personaje</button>`;return}
+  const loc=userLoc(u),ev=activeEvent(),mult=ev?ev.mult:1;
+  let h=`<span class="pawn big me">${av(u,34)}</span><div style="min-width:0"><strong>${esc(u.username)}</strong><div class="hint">${canRoam()?`En ${esc(roomName(loc))}`:`${esc(s?slotLabel(s):'Recreo libre')}`}</div></div>`;
+  if(canRoam()&&u.house){
+    const fa=FREE_ACTS[loc],cd=fa?API.cooldown('free_'+loc):0;
+    if(fa)h+=`<button class="btn gold sm" type="button" data-do="freeact" ${cd>0?'disabled':''}>${cd>0?`Espera ${Math.ceil(cd/1000)} s`:`${fa.name} · +${Math.round(fa.pts*mult)+(u.role==='prefect'?2:0)} pts${fa.xp?' · +'+fa.xp+' XP':''}`}</button>`;
+    h+=`<div class="chips"><span class="hint" style="align-self:center">Tiempo libre · Ir a:</span>${DEST.concat(u.house).map(id=>`<button type="button" class="chip ${loc===id?'on':''}" data-do="goto" data-id="${id}">${id===u.house?'Mi sala común':roomName(id)}</button>`).join('')}</div>`;
+  }else{
+    const n=curMin(),nx=daySched(curDay()).find(x=>x.free&&toMin(x.from)>n);
+    h+=`<span class="hint" style="margin-left:auto">Puedes moverte por las salas en recreo o modo libre${nx?' (próximo a las '+nx.from+')':''}.</span>`;
+  }
+  box.innerHTML=h;
 }
 function renderSchedule(){
   const day=curDay(),n=curMin();
@@ -688,7 +863,7 @@ function renderSchedule(){
   $('schedTags').innerHTML=(db.clockMode==='mock'?`<span class="pill warn">Simulado ${db.mockTime}</span>`:'')+(db.free?'<span class="pill good">Modo libre</span>':'');
   $('slots').innerHTML=daySched(day).map(s=>{
     const now=n>=toMin(s.from)&&n<toMin(s.to),past=n>=toMin(s.to);
-    return `<div class="slot ${now?'now':''} ${past?'past':''}"><span><b>${s.from}–${fmt(s.to)}</b>${esc(slotLabel(s))}</span>${now?'<span class="pill good">Ahora</span>':''}</div>`}).join('');
+    return `<div class="slot ${now?'now':''} ${past?'past':''}"><span><b>${s.from}–${fmt(s.to)}</b>${esc(slotLabel(s))}</span>${now?'<span class="pill good">Ahora</span>':s.free?'<span class="pill">Libre</span>':''}</div>`}).join('');
   $('week').innerHTML=DAYS.slice(1).concat(DAYS[0]).map(d=>{
     const isT=d===day;
     return `<div class="day ${isT?'today':''}"><h4>${DAYL[d].slice(0,3)}</h4>${daySched(d).filter(s=>s.type==='class').map(s=>{
@@ -734,7 +909,8 @@ function renderPlay(){
   const area=$('playArea'),who=$('whoami');
   if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Crea o selecciona tu alumno para empezar.</p>';return}
   const q=u.house?API.slot(u.id,u.house):null;
-  who.innerHTML=`${crest(u.house)}<div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo</span></div></div>`;
+  const mis=((db.missions||{})[u.id]?.classes)||0;
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
@@ -815,7 +991,7 @@ function renderStudents(){
   const t=stuTerm.trim().toLowerCase();
   let l=db.users.filter(u=>(stuHouse==='all'||u.house===stuHouse)&&(!t||u.username.toLowerCase().includes(t)));
   l.sort(stuSort==='az'?(a,b)=>a.username.localeCompare(b.username,'es'):stuSort==='new'?(a,b)=>a.id-b.id:(a,b)=>b.points-a.points);
-  $('students').innerHTML=l.length?l.map(u=>`<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}">${u.house?crest(u.house):'<span class="crest" style="background:var(--line)">?</span>'}<span><strong>${esc(u.username)}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${u.points}</span></button>`).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
+  $('students').innerHTML=l.length?l.map(u=>`<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}"><span class="pawn">${av(u,28)}</span><span><strong>${esc(u.username)}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${u.points}</span></button>`).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
 }
 function renderCourses(){
   const n=['Primero','Segundo','Tercero','Cuarto','Quinto','Sexto','Séptimo'];
@@ -825,7 +1001,7 @@ function renderClock(){
   $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
   const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
 }
-function renderAll(){renderHero();renderGlasses();renderMap();renderSchedule();renderCasas();renderPrefects();renderPlay();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
+function renderAll(){ensureLooks();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
 
 /* ===== 8. Modales ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
@@ -833,13 +1009,26 @@ function practice(k){
   const glyphs=['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ'],t=glyphs[Math.floor(Math.random()*glyphs.length)];
   openModal(`<h3 style="font-size:20px">Práctica de ${ACTS[k].name}</h3><p class="muted">Elige el glifo <strong style="color:var(--gold);font-size:22px">${t}</strong> para +5 pts extra. Si fallas, ganas +2.</p>
   <div class="grid g3" style="width:100%">${glyphs.map(g=>`<button class="btn" style="font-size:24px;padding:14px" data-do="rune" data-k="${k}" data-g="${g}" data-t="${t}" type="button">${g}</button>`).join('')}</div><button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`)}
-function newStudent(){openModal(`<h3 style="font-size:20px">Nuevo alumno / Entrar</h3><label class="muted" for="newName" style="justify-self:start;font-size:13px">Nombre o nick</label><input id="newName" type="text" placeholder="Ej: Camila N." autocomplete="off" style="width:100%"><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="createStudent" type="button">Entrar al Castillo</button></div>`);setTimeout(()=>$('newName')&&$('newName').focus(),30)}
+function newStudent(){
+  draftNew=true;
+  draft={name:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
+  openModal(`<h3 style="font-size:20px">Crea tu personaje / Entrar</h3><p class="muted" style="font-size:13px">Si ya tienes cuenta, escribe tu nombre exacto para recuperarla.</p>${creatorHTML()}`,true);
+  setTimeout(()=>$('cName')&&$('cName').focus(),30);
+}
+function openEditChar(){
+  const u=me();if(!u)return newStudent();
+  draftNew=false;
+  const lk=u.look||DEFAULT_LOOKS[0];
+  draft={name:u.username,house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0};
+  openModal(`<h3 style="font-size:20px">Personalizar personaje</h3>${creatorHTML()}`,true);
+}
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
   const rank=u.house?db.users.filter(x=>x.house===u.house).sort((a,b)=>b.points-a.points).findIndex(x=>x.id===id)+1:null,q=u.house?API.slot(u.id,u.house):null;
-  openModal(`${u.house?crest(u.house,true):''}<h3 style="font-size:24px">${esc(u.username)}</h3>${hbadge(u.house)}
-   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Reserva']].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${v}</strong></div>`).join('')}</div>
+  const loc=roomName(userLoc(u));
+  openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3>${hbadge(u.house)}
+   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Reserva'],['Ubicación actual',loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
    <div class="row"><button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button><button class="btn" data-do="closeModal" type="button">Cerrar</button></div>`);
 }
 
@@ -850,6 +1039,19 @@ document.addEventListener('click',e=>{
   if(d.do==='modalBg'){if(e.target===b)closeModal();return}
   try{switch(d.do){
     case 'closeModal':closeModal();break;
+    case 'openNewChar':newStudent();break;
+    case 'editChar':openEditChar();break;
+    case 'draft':draft[d.k]=Number(d.v);refreshCreator();break;
+    case 'draftStyle':draft.style=d.v;refreshCreator();break;
+    case 'draftHouse':draft.house=d.id;refreshCreator();break;
+    case 'saveChar':{
+      const nm=$('cName');if(nm)draft.name=nm.value;
+      if(draftNew){API.register(draft.name,draft,draft.house);closeModal();}
+      else{API.editChar(draft);closeModal();toast('Apariencia actualizada');}
+      break;
+    }
+    case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));break;
+    case 'freeact':{const r=API.freeAct();toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'pickHouse':houseConfirm(d.id);break;
     case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
     case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
@@ -879,7 +1081,6 @@ document.addEventListener('click',e=>{
     case 'houseFilter':stuHouse=d.id;renderStudents();break;
     case 'openStu':studentSheet(Number(d.id));break;
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
-    case 'createStudent':API.register($('newName').value);closeModal();break;
   }}catch(err){toast(err.message)}
 });
 document.addEventListener('input',e=>{if(e.target.id==='pitch')pitchDraft=e.target.value});
@@ -892,14 +1093,34 @@ $('chGlobal').addEventListener('click',()=>{session.channel='global';renderChat(
 $('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Elige casa para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
 $('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatInput');if(!i.value.trim())return;API.say(i.value);i.value=''});
 
+/* Movimiento con flechas del teclado sobre el mapa en tiempo libre */
+$('mapbox').addEventListener('keydown',e=>{
+  const dirs={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(!dirs||!canRoam())return;
+  const u=me();if(!u||!u.house)return;
+  e.preventDefault();
+  const cur=ROOMS.find(r=>r[0]===userLoc(u))||ROOMS[7];
+  const [dx,dy]=dirs;
+  let best=null,bestDist=999;
+  for(const r of ROOMS){
+    if(r[0]===cur[0])continue;
+    const vx=r[2]-cur[2],vy=r[3]-cur[3];
+    if(dx!==0&&Math.sign(vx)!==dx)continue;
+    if(dy!==0&&Math.sign(vy)!==dy)continue;
+    const dist=Math.abs(vx)+Math.abs(vy);
+    if(dist<bestDist){bestDist=dist;best=r}
+  }
+  if(best){API.goTo(best[0]);toast('Fuiste a '+best[1])}
+});
+
 /* ===== 10. Temporizadores ===== */
 setInterval(renderClock,1000);
 setInterval(()=>{document.querySelectorAll('[id^="timer-"]').forEach(el=>{const m=db.matches.find(x=>x.id===el.id.slice(6));if(m&&m.deadline)el.textContent=Math.max(0,Math.ceil((m.deadline-Date.now())/1000))+' s'})},500);
 setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)continue;
   if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
 let sig='';
-setInterval(()=>{const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin();
-  if(s!==sig){sig=s;renderPlay();renderMap();renderSchedule();renderClock()}},2000);
+setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
+  if(s!==sig){sig=s;renderPlay();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
 /* ===== LOGIN SECRETO DE ADMIN ===== */
 document.getElementById('adminLoginBtn').addEventListener('click', () => {
