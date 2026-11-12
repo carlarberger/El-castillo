@@ -1,0 +1,876 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<audio id="bgMusic" loop volume="0.2">
+  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+</audio>
+<title>El Castillo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="/socket.io/socket.io.js"></script>
+<script>window.io=window.io||function(){const c=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('el_castillo_v2'):null,h={};if(c)c.onmessage=e=>{if(e.data&&h[e.data.ev])h[e.data.ev](e.data.p)};return{on(ev,fn){h[ev]=fn},emit(ev,p){if(c)c.postMessage({ev,p})}}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky anchor nav, compact hero, then stacked sections on one 1120px column. Dark night sky first, gold as the single accent. */
+:root{
+  --bg:#0b0a1f; --surface:#14122e; --surface-2:#1c1943; --line:#2e2a63;
+  --fg:#eeeaf8; --muted:#a09ac4; --gold:#e3bb4e; --gold-ink:#1b1405;
+  --good:#4cc38a; --warn:#e8a33d; --bad:#e5604f;
+  --gry:#c43b34; --sly:#2f9a5d; --rav:#4a6ee0; --huf:#e8b930; --huf-ink:#1b1405;
+  --glow:rgba(227,187,78,.14); --stars:.9;
+  --display:'Cinzel',Georgia,serif; --body:'Source Sans 3',system-ui,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f3f1fb; --surface:#ffffff; --surface-2:#ebe8f7; --line:#d3cee9;
+  --fg:#1b1838; --muted:#5b5681; --gold:#8c6a12; --gold-ink:#ffffff;
+  --good:#18805a; --warn:#a96a08; --bad:#b83a2b; --glow:rgba(140,106,18,.10); --stars:0; color-scheme:light;}}
+:root[data-theme="light"]{
+  --bg:#f3f1fb; --surface:#ffffff; --surface-2:#ebe8f7; --line:#d3cee9;
+  --fg:#1b1838; --muted:#5b5681; --gold:#8c6a12; --gold-ink:#ffffff;
+  --good:#18805a; --warn:#a96a08; --bad:#b83a2b; --glow:rgba(140,106,18,.10); --stars:0; color-scheme:light;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;font:16px/1.55 var(--body);background:var(--bg);color:var(--fg);padding-block:0 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:var(--stars);
+  background:
+   radial-gradient(1200px 520px at 50% -8%,rgba(92,70,190,.38),transparent 70%),
+   radial-gradient(1.2px 1.2px at 12% 18%,#fff,transparent),radial-gradient(1.2px 1.2px at 31% 9%,#fff,transparent),
+   radial-gradient(1.6px 1.6px at 56% 27%,#f3d98a,transparent),radial-gradient(1.2px 1.2px at 77% 14%,#fff,transparent),
+   radial-gradient(1.2px 1.2px at 88% 38%,#fff,transparent),radial-gradient(1.2px 1.2px at 16% 61%,#fff,transparent),
+   radial-gradient(1.6px 1.6px at 47% 74%,#f3d98a,transparent),radial-gradient(1.2px 1.2px at 91% 79%,#fff,transparent)}
+.wrap{max-width:1120px;margin:0 auto}
+h1,h2,h3,h4{font-family:var(--display);margin:0;letter-spacing:.04em;text-wrap:balance}
+p{margin:0}
+.muted{color:var(--muted)}
+.mono{font-variant-numeric:tabular-nums}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+  margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
+.nav-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:20px;height:60px}
+.brand{font-family:var(--display);font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand svg{width:26px;height:26px}
+.links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.links::-webkit-scrollbar{display:none}
+.links a{padding:8px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap}
+.links a:hover{color:var(--fg);background:var(--surface-2)}
+.clock{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);white-space:nowrap}
+.clock i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 25%,transparent)}
+body::after{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:41;background:var(--bg);pointer-events:none}
+
+/* hero */
+.hero{padding:72px 0 40px;text-align:center}
+.kicker{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.hero h1{font-size:clamp(40px,9vw,88px);font-weight:900;line-height:1;margin:14px 0 16px;text-shadow:0 0 44px var(--glow)}
+.hero p.lead{max-width:540px;margin:0 auto;font-size:19px;color:var(--muted)}
+.hero-stats{display:flex;justify-content:center;gap:28px;margin:30px 0;flex-wrap:wrap}
+.hero-stats b{display:block;font:900 34px var(--display);color:var(--gold)}
+.hero-stats span{font-size:13px;color:var(--muted)}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-weight:600;font-size:14px;text-decoration:none;transition:.15s}
+.btn:hover:not(:disabled){border-color:var(--gold);transform:translateY(-1px)}
+.btn.gold{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn.gold:hover:not(:disabled){filter:brightness(1.08)}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+
+/* sections */
+section.block{padding:44px 0}
+.sec-head{text-align:center;max-width:640px;margin:0 auto 28px}
+.sec-head h2{font-size:clamp(26px,4.4vw,38px);font-weight:700;color:var(--gold)}
+.sec-head p{margin-top:10px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
+.panel.hl{border-color:color-mix(in srgb,var(--gold) 50%,var(--line));box-shadow:0 0 0 1px var(--glow),0 16px 40px var(--glow)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--surface-2)}
+.pill.gold{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.pill.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 50%,transparent)}
+.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,transparent)}
+.pill.off{color:var(--muted)}
+.event{border:1px solid var(--gold);border-radius:14px;padding:12px 18px;margin-bottom:18px;text-align:center;background:linear-gradient(90deg,var(--glow),transparent,var(--glow))}
+
+/* house colours */
+.h-gryffindor{--hc:var(--gry);--hi:#fff}.h-slytherin{--hc:var(--sly);--hi:#fff}
+.h-ravenclaw{--hc:var(--rav);--hi:#fff}.h-hufflepuff{--hc:var(--huf);--hi:var(--huf-ink)}
+.crest{width:34px;height:40px;display:inline-grid;place-items:center;background:var(--hc);color:var(--hi);clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%);font:700 15px var(--display);flex:none}
+.crest.lg{width:56px;height:66px;font-size:24px}
+.hbadge{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;background:var(--hc);color:var(--hi);font-size:12px;font-weight:700}
+
+/* copa */
+.rules{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.rule{padding:8px 16px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px}
+.rule b{color:var(--gold);font-family:var(--display);margin-right:6px}
+.glasses{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end;padding-top:20px}
+.glass{text-align:center;position:relative}
+.glass.lead{transform:translateY(-8px)}
+.crown{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.14em;font-weight:700;background:var(--gold);color:var(--gold-ink);padding:2px 10px;border-radius:999px;white-space:nowrap}
+.hg{width:84px;height:124px;margin:0 auto 10px;position:relative}
+.hg svg{width:100%;height:100%;display:block;overflow:visible}
+.glass h3{font-size:15px;margin-bottom:2px}
+.glass .pts{font:900 30px var(--display);color:var(--fg)}
+.glass small{color:var(--muted);font-size:12px}
+.bar{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:10px}
+.bar>i{display:block;height:100%;background:var(--hc);border-radius:99px;transition:width .8s}
+
+/* map */
+.nowbar{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between;align-items:center;margin-bottom:14px}
+.nowbar h3{font-size:20px;color:var(--gold)}
+.maptools{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.maptools input{flex:1;min-width:200px}
+input[type=text],input[type=search],input[type=password],input[type=time],select,textarea{width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg)}
+select{width:auto}
+.mapbox{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--surface-2)}
+.map{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));grid-auto-rows:78px;gap:6px;padding:10px;min-width:700px}
+.room{position:relative;border-radius:10px;border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px;background:color-mix(in srgb,var(--rc,#556) 55%,var(--surface));display:flex;flex-direction:column;justify-content:space-between;min-width:0;overflow:hidden}
+.room .rn{font:700 10px var(--display);letter-spacing:.08em;text-transform:uppercase;line-height:1.25}
+.room .rc{font-size:11px;color:var(--muted)}
+.room.active{outline:2px solid var(--gold);box-shadow:0 0 24px var(--glow)}
+.room.house{background:linear-gradient(160deg,var(--hc),color-mix(in srgb,var(--hc) 45%,#000));color:var(--hi)}
+.room.house .rc{color:inherit;opacity:.85}
+.dots{display:flex;flex-wrap:wrap;gap:3px}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--hc);border:1.5px solid #fff;transition:transform .3s}
+.dot.me{box-shadow:0 0 0 3px var(--gold)}
+.dot.find{transform:scale(2);z-index:3}
+
+/* schedule */
+.slots{display:grid;gap:6px}
+.slot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);font-size:14px}
+.slot b{font-variant-numeric:tabular-nums;color:var(--gold);margin-right:12px}
+.slot.now{border-color:var(--gold);background:var(--glow)}
+.slot.past{opacity:.5}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:12px}
+.day{border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface-2);min-width:0}
+.day.today{border-color:var(--gold)}
+.day h4{font-size:12px;text-align:center;margin-bottom:6px}
+.mini{font-size:11px;padding:3px 6px;border-radius:6px;background:var(--surface);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini.now{background:var(--gold);color:var(--gold-ink)}
+
+/* classes */
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.act{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.act h4{font-size:15px;color:var(--gold)}
+.act .row{display:flex;gap:8px;margin-top:auto;padding-top:8px}
+.act .row .btn:first-child{flex:1}
+.log{display:flex;gap:8px;overflow-x:auto;padding:12px 0 2px}
+.log span{white-space:nowrap;font-size:12px;padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+
+/* casas / registro */
+.casa{text-align:center;border-radius:16px;padding:22px 16px;background:linear-gradient(170deg,var(--hc),color-mix(in srgb,var(--hc) 40%,#000));color:var(--hi);display:flex;flex-direction:column;align-items:center;gap:6px}
+.casa h3{font-size:20px}
+.casa .crest{background:rgba(255,255,255,.2);color:inherit}
+.casa ul{list-style:none;margin:8px 0 0;padding:0;font-size:13px;opacity:.95;width:100%}
+.casa li{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid rgba(255,255,255,.2)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.filters input{flex:1;min-width:200px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-size:13px}
+.chip.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:700}
+.students{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.stu{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);cursor:pointer;text-align:left;width:100%}
+.stu:hover{border-color:var(--gold)}
+.stu .crest{width:28px;height:33px;font-size:12px}
+.stu strong{display:block;line-height:1.2}
+.stu small{color:var(--muted)}
+.stu .sp{margin-left:auto;font:700 14px var(--display);color:var(--gold)}
+
+/* prefectos / cursos / pasos */
+.apps{display:grid;gap:10px;margin-top:12px}
+.app{border:1px solid var(--line);border-left:4px solid var(--hc,var(--gold));border-radius:10px;padding:12px 14px;background:var(--surface-2)}
+.app .top{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.traits{display:flex;gap:6px;flex-wrap:wrap}
+.courses{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.course{padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);text-align:center}
+.course b{display:block;font:900 26px var(--display);color:var(--gold)}
+.course.cur{border-color:var(--gold);background:var(--glow)}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;counter-reset:s}
+.step{padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--surface);counter-increment:s}
+.step::before{content:counter(s);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--gold-ink);font:900 16px var(--display);margin-bottom:10px}
+.step h3{font-size:17px;margin-bottom:6px}
+
+/* matches / chat / admin */
+.match{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface-2);margin-bottom:12px}
+.score{font:900 22px var(--display);padding:2px 14px;border-radius:8px;background:var(--bg);color:var(--gold)}
+.prow{display:flex;justify-content:space-between;font-size:12px;padding:4px 8px;border-radius:6px;background:var(--surface);margin-bottom:3px;border-left:3px solid transparent}
+.prow.ready{border-left-color:var(--good)}.prow.me{border-left-color:var(--gold)}
+.chat{height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg);display:grid;gap:6px;align-content:start}
+.msg{padding:7px 12px;border-radius:10px;background:var(--surface-2);font-size:14px;display:flex;justify-content:space-between;gap:10px}
+.msg time{font-size:11px;color:var(--muted);white-space:nowrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--gold)}
+.tablewrap{overflow-x:auto}
+.admin{border:1px dashed var(--gold);border-radius:16px;padding:20px;background:var(--surface)}
+.admin h4{font-size:12px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;letter-spacing:.12em}
+.box{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+
+/* modal + toast */
+.modal{position:fixed;inset:0;z-index:100;background:rgba(6,5,18,.72);backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px;overflow-y:auto}
+.modal .panel{max-width:440px;width:100%;text-align:center;display:grid;gap:12px;justify-items:center}
+.toasts{position:fixed;top:calc(72px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:120;display:grid;gap:8px;pointer-events:none;max-width:340px}
+.toast{background:var(--surface);border:1px solid var(--gold);padding:10px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:14px;animation:tin .25s ease}
+@keyframes tin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;display:grid;gap:8px}
+
+@media (max-width:860px){
+  .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3,.steps{grid-template-columns:1fr}
+  .g2{grid-template-columns:1fr}
+  .week{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .glasses{row-gap:34px}
+  .clock .per{display:none}
+}
+@media (max-width:560px){.links{display:none}.hero{padding-top:44px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
+</style>
+<nav class="nav" aria-label="Principal"><div class="nav-in">
+  <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
+  <div class="links">
+    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases</a><a href="#cursos-sec">Cursos</a><a href="#alumnos">Busca tu nombre</a>
+  </div>
+  <div class="row">
+    <button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
+    <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
+  </div>
+</div></nav>
+
+<main class="wrap" id="arriba">
+  <header class="hero">
+    <p class="kicker">Escuela de Magia y Hechicería</p>
+    <h1>Entra al Castillo</h1>
+    <p class="lead">El director eres tú y los alumnos son tu comunidad. Elige casa, asiste a clase y haz ganar la Copa.</p>
+    <div class="hero-stats">
+      <div><b id="statStudents">0</b><span>alumnos matriculados</span></div>
+      <div><b>4</b><span>casas en disputa</span></div>
+      <div><b id="statPoints">0</b><span>puntos en juego</span></div>
+    </div>
+    <div class="cta"><a class="btn gold" href="#alumnos">Busca tu nombre</a><a class="btn" href="#copa">Ver la Copa</a></div>
+  </header>
+
+  <div id="eventSlot"></div>
+
+  <section class="block" id="copa">
+    <div class="sec-head"><h2>La Copa de las Casas</h2>
+      <p>Cada curso dura un mes y solo gana una casa. Los puntos llenan el reloj de gemas de cada una.</p>
+      <div class="rules"><span class="rule"><b>1</b>punto por cada comentario</span><span class="rule"><b>3</b>comentarios como máximo por vídeo</span></div>
+    </div>
+    <div class="panel hl"><div class="glasses" id="glasses"></div><p class="muted center" id="copaTotal" style="text-align:center;margin-top:18px;font-size:13px"></p></div>
+  </section>
+
+  <section class="block" id="directo">
+    <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y toque de queda: cada alumno está donde le toca. Búscate y mira qué estás haciendo ahora mismo.</p></div>
+    <div class="panel">
+      <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p></div><span class="pill" id="nowCount"></span></div>
+      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"></div>
+      <div class="mapbox"><div class="map" id="map"></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:16px;align-items:start">
+      <div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h3 id="schedTitle" style="font-size:18px">Horario</h3><span id="schedTags" class="row"></span></div><div class="slots" id="slots"></div></div>
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Calendario semanal</h3><div class="week" id="week"></div></div>
+    </div>
+  </section>
+
+  <section class="block" id="casas-sec">
+    <div class="sec-head"><h2>Las cuatro casas</h2><p>Si participas, eliges tú. Si solo sigues, decide el sombrero.</p></div>
+    <div class="grid g4" id="casas"></div>
+  </section>
+
+  <section class="block" id="prefectos">
+    <div class="sec-head"><h2>Los prefectos</h2><p>Los prefectos del curso los eligen los votos de su casa. Cada prefecto suma 2 puntos extra por clase.</p></div>
+    <div class="panel" id="prefectBox"></div>
+  </section>
+
+  <section class="block" id="clases">
+    <div class="sec-head"><h2>Clases y Quidditch</h2><p>Cada clase solo abre en su horario. Cambia de alumno con el selector para probar el castillo desde distintas casas.</p></div>
+    <div class="panel" style="margin-bottom:16px">
+      <div class="row" style="justify-content:space-between;margin-bottom:14px;gap:12px">
+        <div class="row" id="whoami" style="gap:10px"></div>
+        <div class="row">
+          <label class="muted" for="userSwitch" style="font-size:13px">Simulador</label>
+          <select id="userSwitch" aria-label="Cambiar de alumno"></select>
+          <button class="btn sm" id="newStudentBtn" type="button">Nuevo alumno</button>
+        </div>
+      </div>
+      <div id="playArea"></div>
+    </div>
+    <div class="grid g2" style="align-items:start">
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos de Quidditch</h3><div id="matches"></div></div>
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
+    </div>
+    <div class="panel" style="margin-top:16px" id="chatPanel">
+      <div class="tabs"><button class="chip" id="chGlobal" type="button">Gran Comedor</button><button class="chip" id="chHouse" type="button">Sala Común</button></div>
+      <div class="chat" id="chatBox" role="log"></div>
+      <form id="chatForm" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="chatInput" type="text" maxlength="180" placeholder="Escribe un mensaje…" autocomplete="off" aria-label="Mensaje"><button class="btn gold" type="submit">Enviar</button></form>
+    </div>
+    <div id="adminSlot" style="margin-top:16px"></div>
+  </section>
+
+  <section class="block" id="alumnos">
+    <div class="sec-head"><h2>Registro de alumnos</h2><p>Busca tu nombre o mira quién defiende cada casa. Toca un alumno para ver su expediente.</p></div>
+    <div class="filters">
+      <input id="stuSearch" type="search" placeholder="Buscar alumno…" autocomplete="off" aria-label="Buscar alumno">
+      <select id="stuSort" aria-label="Ordenar"><option value="pts">Más puntos</option><option value="new">Orden de llegada</option><option value="az">Nombre (A-Z)</option></select>
+    </div>
+    <div class="chips" id="stuHouses" style="margin-bottom:14px"></div>
+    <div class="students" id="students"></div>
+    <p class="muted" style="margin-top:12px;font-size:13px;text-align:center">¿No te encuentras? Crea tu alumno en el simulador de arriba.</p>
+  </section>
+
+  <section class="block" id="cursos-sec">
+    <div class="sec-head"><h2>Siete cursos para graduarse</h2><p>Cada mes empieza un curso nuevo y los puntos vuelven a cero. Quien aguante los siete se gradúa.</p></div>
+    <div class="courses" id="courses"></div>
+  </section>
+
+  <section class="block" id="entrar">
+    <div class="sec-head"><h2>Cómo entrar</h2></div>
+    <div class="steps">
+      <div class="step"><h3>Entra como alumno</h3><p class="muted">Crea tu alumno y el sombrero te propone una casa.</p></div>
+      <div class="step"><h3>Elige tu casa</h3><p class="muted">Gryffindor, Slytherin, Ravenclaw o Hufflepuff. La decisión es definitiva.</p></div>
+      <div class="step"><h3>Suma puntos</h3><p class="muted">Asiste a las clases abiertas y juega Quidditch para que tu casa gane la Copa.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Proyecto de fans sin ánimo oficial. Sin relación con Warner Bros., J.K. Rowling ni los titulares de Harry Potter.</p>
+    <p>Los datos de esta demo viven solo en tu navegador y se sincronizan entre pestañas abiertas.</p>
+  </footer>
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="modalRoot" hidden></div>
+
+<script>
+/* ===== 1. Sonido ===== */
+let soundOn=true,actx=null;
+function tone(freqs,type,step,dur,vol){
+  if(!soundOn)return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended')actx.resume();
+    const t=actx.currentTime;
+    freqs.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.setValueAtTime(f,t+i*step);
+      g.gain.setValueAtTime(vol,t+i*step);g.gain.exponentialRampToValueAtTime(.001,t+i*step+dur);
+      o.connect(g);g.connect(actx.destination);o.start(t+i*step);o.stop(t+i*step+dur+.03);});
+  }catch(e){}
+}
+const chime=()=>tone([523.25,659.25,783.99,1046.5],'sine',.055,.35,.12);
+const fanfare=()=>tone([440,554.37,659.25,880],'triangle',.09,.45,.16);
+const snitchSnd=()=>tone([1200,2400],'triangle',.12,.25,.14);
+
+/* ===== 2. Configuración ===== */
+const HOUSES=[
+ {id:'gryffindor',name:'Gryffindor',motto:'Valentía y honor',letter:'G'},
+ {id:'slytherin',name:'Slytherin',motto:'Ambición y astucia',letter:'S'},
+ {id:'ravenclaw',name:'Ravenclaw',motto:'Sabiduría y creatividad',letter:'R'},
+ {id:'hufflepuff',name:'Hufflepuff',motto:'Lealtad y dedicación',letter:'H'}];
+const HOUSE=id=>HOUSES.find(h=>h.id===id);
+const ACTS={
+ pociones:{name:'Pociones',points:10,desc:'Filtros y brebajes en las mazmorras.',room:'mazmorras',loc:'Mazmorras'},
+ encantamientos:{name:'Encantamientos',points:10,desc:'Movimientos de varita y conjuros.',room:'encantamientos',loc:'Aula 2B'},
+ herbologia:{name:'Herbología',points:10,desc:'Mandrágoras y plantas mágicas.',room:'invernaderos',loc:'Invernaderos'},
+ defensa:{name:'Defensa contra las Artes Oscuras',points:10,desc:'Contrahechizos y protección mágica.',room:'defensa',loc:'Aula de Duelos'},
+ vuelo:{name:'Clase de Vuelo',points:10,flightXp:5,desc:'Maniobras aéreas para el equipo de Quidditch.',room:'quidditch',loc:'Campo de Quidditch'},
+ astronomia:{name:'Astronomía',points:8,desc:'Cartografía celeste desde la torre más alta.',room:'astronomia',loc:'Torre de Astronomía'},
+ runas:{name:'Runas Antiguas',points:8,desc:'Traducción de alfabetos mágicos.',room:'historia',loc:'Torre de Runas'}};
+/* Salas del mapa: [id, nombre, columna, fila, ancho, alto, color] */
+const ROOMS=[
+ ['gryffindor','Gryffindor',1,1,1,1],['slytherin','Slytherin',2,1,1,1],['ravenclaw','Ravenclaw',3,1,1,1],['hufflepuff','Hufflepuff',4,1,1,1],
+ ['astronomia','Torre de Astronomía',5,1,1,1,'#3a3a8a'],['lechuceria','Lechucería',6,1,1,1,'#6b5b3a'],
+ ['mazmorras','Mazmorras',1,2,1,1,'#2f6b4e'],['comedor','Gran Comedor',2,2,2,2,'#9a6b3a'],['transformaciones','Transformaciones',4,2,1,1,'#3f6a96'],
+ ['enfermeria','Enfermería',5,2,1,2,'#8a93a3'],['historia','Historia de la Magia',6,2,1,1,'#8a7a4a'],
+ ['encantamientos','Encantamientos',1,3,1,1,'#7a4fa6'],['defensa','Defensa',4,3,1,1,'#7a3a3a'],['menesteres','Sala de los Menesteres',6,3,1,1,'#4f4aa0'],
+ ['biblioteca','Biblioteca',1,4,1,1,'#7a4030'],['profesores','Sala de Profesores',2,4,1,1,'#5a4a78'],['quidditch','Campo de Quidditch',3,4,2,1,'#3f8a4f'],
+ ['escalera','Gran Escalera',5,4,1,1,'#78808a'],['invernaderos','Invernaderos',6,4,1,1,'#5f9a3f'],
+ ['patio','Patio',1,5,1,1,'#8a8a96'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a']];
+const PREFECT_TRAITS=['Liderazgo','Responsabilidad','Justicia','Valentía','Astucia','Lealtad','Sabiduría','Empatía'];
+const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador','Guardián'];
+const COOLDOWN=20000,ROUND_MS=15000;
+const DAYS=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+const DAYL={domingo:'Domingo',lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado'};
+const T=(from,to,label,room)=>({from,to,type:'break',label,room});
+const C=(from,to,key,loc)=>({from,to,type:'class',key,location:loc||ACTS[key].loc,room:ACTS[key].room});
+const weekday=(c,evening,eroom,night)=>[
+ T('00:00','07:00','Toque de queda','profesores'),T('07:00','08:30','Desayuno en el Gran Comedor','comedor'),
+ C('08:30','10:30',c[0]),C('10:30','12:30',c[1]),T('12:30','14:30','Almuerzo','comedor'),
+ C('14:30','16:00',c[2]),C('16:00','17:30',c[3]),T('17:30','20:00',evening,eroom),T('20:00','20:30','Cena','comedor'),C('20:30','24:00',night)];
+const SCHEDULE={
+ lunes:weekday(['pociones','encantamientos','herbologia','vuelo'],'Club de Duelos y estudio','patio','astronomia'),
+ martes:weekday(['defensa','runas','pociones','encantamientos'],'Estudio en la biblioteca','biblioteca','astronomia'),
+ miercoles:weekday(['herbologia','vuelo','runas','defensa'],'Práctica libre de Quidditch','quidditch','astronomia'),
+ jueves:weekday(['encantamientos','defensa','astronomia','herbologia'],'Estudio en la biblioteca','biblioteca','runas'),
+ viernes:weekday(['vuelo','pociones','runas','encantamientos'],'Fiesta de fin de semana','patio','astronomia'),
+ sabado:[T('00:00','08:00','Toque de queda','profesores'),T('08:00','10:00','Desayuno tardío','comedor'),C('10:00','12:00','vuelo'),
+  T('12:00','14:00','Almuerzo','comedor'),C('14:00','17:00','vuelo','Entrenamiento de Quidditch'),T('17:00','20:00','Tiempo libre','terrenos'),
+  T('20:00','20:30','Cena','comedor'),C('20:30','24:00','astronomia')],
+ domingo:[T('00:00','09:00','Toque de queda','profesores'),T('09:00','11:00','Desayuno tardío','comedor'),T('11:00','13:00','Estudio libre','biblioteca'),
+  T('13:00','15:00','Almuerzo','comedor'),T('15:00','19:00','Tiempo libre','terrenos'),T('19:00','20:00','Cena','comedor'),
+  T('20:00','20:30','Paseo nocturno','escalera'),C('20:30','24:00','astronomia')]};
+
+/* ===== 3. Estado y sincronización MULTIJUGADOR ===== */
+const U=(id,username,house,points,flight_xp,role,is_admin)=>({id,username,house,points,flight_xp,role,is_admin,created_at:id});
+const socket = io();
+let db = {
+ users:[U(1,'Carla R.','ravenclaw',90,35,'student',true),U(2,'Vicente D.','ravenclaw',70,20,'student',false),U(3,'Matilde S.','gryffindor',85,30,'student',false),
+  U(4,'Joaquín P.','gryffindor',95,10,'prefect',false),U(5,'Antonia V.','slytherin',88,25,'student',false),U(6,'Benjamín L.','hufflepuff',82,25,'prefect',false)],
+ houses:[{id:'gryffindor',points:240},{id:'ravenclaw',points:224},{id:'slytherin',points:215},{id:'hufflepuff',points:195}],
+ log:[], apps:[], votes:[],
+ events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
+ period:'application',clockMode:'real',mockTime:null,mockDay:null,free:false,
+ chat:[], matches:[], cooldowns:{}, missions:{}
+};
+const session={uid:1,channel:'global'};
+
+socket.on('init_db', (serverDb) => {
+  db = serverDb;
+  renderAll();
+});
+
+socket.on('sync_db', (data) => {
+  db = data.db;
+  if (data.reason) toast('En vivo: ' + data.reason);
+  renderAll();
+});
+
+function commit(reason){
+  socket.emit('sync_db', { db: db, reason: reason });
+  renderAll();
+}
+
+function toggleMusic() {
+  const audio = document.getElementById('bgMusic');
+  audio.volume = 0.2;
+  if (audio.paused) { audio.play(); document.getElementById('musicBtn').innerText = '🔊 Música'; }
+  else { audio.pause(); document.getElementById('musicBtn').innerText = '🔇 Música'; }
+}
+
+/* ===== 4. Reloj y horario ===== */
+const toMin=s=>{const [h,m]=s.split(':').map(Number);return h*60+m};
+const fmt=s=>s==='24:00'?'00:00':s;
+const realDay=()=>DAYS[new Date().getDay()];
+const curDay=()=>db.clockMode==='mock'&&db.mockDay?db.mockDay:realDay();
+const curTime=()=>{if(db.clockMode==='mock'&&db.mockTime)return db.mockTime;const n=new Date();return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')};
+const curMin=()=>toMin(curTime());
+const daySched=d=>SCHEDULE[d]||[];
+function dur(m){if(m<=0)return '0 min';if(m<60)return Math.ceil(m)+' min';const h=Math.floor(m/60),r=Math.ceil(m%60);return h+' h'+(r?' '+r+' min':'')}
+function curSlot(){const n=curMin();return daySched(curDay()).find(s=>n>=toMin(s.from)&&n<toMin(s.to))||null}
+function nextSlot(){const n=curMin();return daySched(curDay()).find(s=>toMin(s.from)>=n&&toMin(s.from)>(curSlot()?toMin(curSlot().from):-1))||null}
+function classStatus(key){
+  const day=curDay(),n=curMin();
+  const today=daySched(day).filter(s=>s.type==='class'&&s.key===key);
+  for(const s of today)if(n>=toMin(s.from)&&n<toMin(s.to))return{st:'open',slot:s,rem:toMin(s.to)-n};
+  const fut=today.filter(s=>toMin(s.from)>n).sort((a,b)=>toMin(a.from)-toMin(b.from));
+  if(fut.length)return{st:'soon',slot:fut[0],rem:toMin(fut[0].from)-n};
+  const i0=DAYS.indexOf(day);
+  for(let i=1;i<=7;i++){const d=DAYS[(i0+i)%7];
+    const sl=daySched(d).filter(s=>s.type==='class'&&s.key===key).sort((a,b)=>toMin(a.from)-toMin(b.from));
+    if(sl.length)return{st:'closed',slot:sl[0],day:d,rem:i*1440+toMin(sl[0].from)-n};}
+  return{st:'none'};
+}
+
+/* ===== 5. Lógica ===== */
+const me=()=>db.users.find(u=>u.id===session.uid)||null;
+const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
+const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
+const API={
+  register(name){
+    name=(name||'').trim();must(name,'Escribe un nombre');
+    must(!db.users.some(u=>u.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya existe');
+    const u=U(Math.max(0,...db.users.map(x=>x.id))+1,name,null,0,0,'student',false);
+    db.users.push(u);session.uid=u.id;commit('Nuevo alumno: '+name);
+  },
+  chooseHouse(id){const u=me();must(u&&!u.house,'Ya elegiste casa');u.house=id;fanfare();commit(u.username+' fue seleccionado en '+HOUSE(id).name);},
+  cooldown(key){const u=me();if(!u)return 0;const last=(db.cooldowns[u.id]||{})[key]||0;return Math.max(0,COOLDOWN-(Date.now()-last))},
+  attend(key,extra=0,extraFlight=0){
+    const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
+    if(!db.free){const s=classStatus(key);
+      if(s.st==='soon')throw new Error(`Abre hoy a las ${s.slot.from} (en ${dur(s.rem)})`);
+      must(s.st==='open',s.slot&&s.day?`Próxima: ${DAYL[s.day]} a las ${s.slot.from}`:'Esta clase no está disponible');}
+    const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir esta clase`);
+    
+    const ev=activeEvent(),mult=ev?ev.mult:1;
+    const pts=Math.round((cfg.points+extra)*mult)+(u.role==='prefect'?2:0),fx=(cfg.flightXp||0)+extraFlight;
+    
+    u.points+=pts;
+    if(fx) u.flight_xp+=fx;
+    db.houses.find(h=>h.id===u.house).points+=pts;
+    (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
+    
+    // ===== MISIONES DIARIAS =====
+    db.missions = db.missions || {};
+    db.missions[u.id] = db.missions[u.id] || { classes: 0 };
+    db.missions[u.id].classes++;
+    if (db.missions[u.id].classes === 3) {
+        u.points += 20;
+        db.houses.find(h => h.id === u.house).points += 20;
+        db.log.unshift({u: u.username, h: u.house, a: 'Misión Diaria (3 clases)', p: 20, x: 0});
+        toast('¡Misión Diaria completada! +20 pts extra');
+    }
+
+    db.log.unshift({u:u.username,h:u.house,a:cfg.name,p:pts,x:fx});
+    db.log.length=Math.min(db.log.length,15);
+    
+    chime();
+    commit(`${u.username} +${pts} pts (${cfg.name})`);
+    return{pts,fx};
+  },
+  apply(traits,pitch){
+    must(traits.length===3,'Elige exactamente 3 características');must(db.period==='application','La postulación no está abierta');
+    const u=me();must(u&&u.house,'Elige casa primero');must(!db.apps.some(a=>a.user_id===u.id&&a.status==='pending'),'Ya estás postulado');
+    db.apps.push({id:Math.max(0,...db.apps.map(a=>a.id))+1,user_id:u.id,house:u.house,traits,pitch:(pitch||'').trim(),votes:0,status:'pending'});
+    chime();commit(u.username+' se postuló a prefecto');
+  },
+  vote(id){
+    must(db.period==='voting','La votación no está abierta');const u=me();must(u,'Sin sesión');
+    const a=db.apps.find(x=>x.id===id&&x.status==='pending');must(a,'La postulación no existe');
+    must(a.house===u.house,'Solo puedes votar por tu casa');must(a.user_id!==u.id,'No puedes votarte');must(!db.votes.some(v=>v.voter===u.id),'Ya votaste');
+    db.votes.push({app:id,voter:u.id});a.votes++;chime();commit('Voto registrado en '+u.house);
+  },
+  setPeriod(p){
+    must(me()?.is_admin,'Solo admin');const elected=[];
+    if(p==='closed'){
+      HOUSES.forEach(h=>{const top=db.apps.filter(a=>a.house===h.id&&a.status==='pending').sort((a,b)=>b.votes-a.votes)[0];
+        if(top&&top.votes>0){const w=db.users.find(u=>u.id===top.user_id);if(w){w.role='prefect';elected.push(`${w.username} (${h.name})`);}top.status='elected';}});
+      db.apps.forEach(a=>{if(a.status==='pending')a.status='archived'});db.votes=[];if(elected.length)fanfare();
+    }else if(p==='application')db.votes=[];
+    db.period=p;commit(elected.length?'Prefectos: '+elected.join(', '):'Período: '+p);return elected;
+  },
+  teams(){const r={};HOUSES.forEach(h=>{r[h.id]=db.users.filter(u=>u.house===h.id&&u.flight_xp>0).sort((a,b)=>b.flight_xp-a.flight_xp||b.points-a.points).slice(0,7)
+    .map((p,i)=>({id:p.id,username:p.username,xp:p.flight_xp,pos:POSITIONS[i]||'Suplente',rank:i+1}))});return r},
+  slot(uid,h){return (this.teams()[h]||[]).find(p=>p.id===uid)||null},
+  launch(name,desc,mult){must(me()?.is_admin,'Solo admin');db.events.forEach(e=>e.active=false);
+    db.events.push({name:(name||'Evento mágico').trim(),desc:(desc||'Bonificación activa').trim(),mult:Number(mult)||2,active:true});fanfare();commit('Evento: '+name)},
+  stopEvent(){db.events.forEach(e=>e.active=false);commit('Evento finalizado')},
+  say(text){const u=me(),t=(text||'').trim();if(!u||!t)return;
+    db.chat.push({id:Date.now(),u:u.username,h:u.house,role:u.role,ch:session.channel,text:t,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+    if(db.chat.length>60)db.chat.shift();commit()},
+  clock(mode,t,d){must(me()?.is_admin,'Solo admin');db.clockMode=mode;
+    if(mode==='mock'){db.mockTime=t||db.mockTime||'09:00';db.mockDay=d||db.mockDay||realDay()}else{db.mockTime=null;db.mockDay=null}
+    commit(mode==='mock'?`${DAYL[db.mockDay]} a las ${db.mockTime}`:'Hora real restaurada')},
+  advance(min){must(me()?.is_admin,'Solo admin');
+    if(db.clockMode!=='mock'){db.clockMode='mock';db.mockDay=curDay();db.mockTime=curTime()}
+    let m=toMin(db.mockTime)+min,i=DAYS.indexOf(db.mockDay);
+    while(m>=1440){m-=1440;i=(i+1)%7}while(m<0){m+=1440;i=(i+6)%7}
+    db.mockTime=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');db.mockDay=DAYS[i];commit(`Avance a ${DAYL[db.mockDay]} ${db.mockTime}`)},
+  setFree(v){must(me()?.is_admin,'Solo admin');db.free=!!v;commit(v?'Modo libre activado':'Horario estricto restaurado')},
+  award(id,pts){must(me()?.is_admin,'Solo admin');const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
+    t.points+=pts;if(t.house)db.houses.find(h=>h.id===t.house).points+=pts;commit(`Admin otorgó ${pts} pts a ${t.username}`)},
+  togglePrefect(id){must(me()?.is_admin,'Solo admin');const t=db.users.find(u=>u.id===id);if(!t)return;t.role=t.role==='prefect'?'student':'prefect';commit(t.username+' ahora es '+t.role)},
+  resetPoints(){must(me()?.is_admin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
+  newMatch(a,b){must(me()?.is_admin,'Solo admin');must(a!==b,'Deben ser casas distintas');
+    db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false});
+    commit(`Partido: ${a} vs ${b}`)},
+  join(id){const u=me();must(u&&u.house,'Necesitas casa');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
+    must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
+    if(m.players.some(p=>p.uid===u.id))return;const n=m.players.filter(p=>p.house===u.house).length;must(n<7,'Equipo lleno');
+    m.players.push({uid:u.id,username:u.username,house:u.house,pos:POSITIONS[n]||'Suplente',action:null});commit(u.username+' se unió al partido')},
+  leave(id){const u=me(),m=db.matches.find(x=>x.id===id);if(!m||m.status!=='waiting')return;m.players=m.players.filter(p=>p.uid!==u.id);commit()},
+  start(id){must(me()?.is_admin,'Solo admin');const m=db.matches.find(x=>x.id===id);must(m&&m.status==='waiting','Estado inválido');
+    must(m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b),'Cada equipo necesita al menos 1 jugador');
+    m.status='active';m.round=1;m.deadline=Date.now()+ROUND_MS;m.players.forEach(p=>p.action=null);commit('Comienza el partido')},
+  act(id,action){const u=me(),m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
+    const p=m.players.find(x=>x.uid===u.id);must(p,'No estás en el partido');must(!p.action,'Ya enviaste tu acción');
+    p.action=action;commit();if(m.players.every(x=>x.action))this.resolve(id)},
+  resolve(id){const m=db.matches.find(x=>x.id===id);if(!m||m.status!=='active'||m.resolving||m.last>=m.round)return;
+    const r=m.round;m.resolving=true;
+    setTimeout(()=>{const k=db.matches.find(x=>x.id===id);if(!k||k.status!=='active'||k.last>=r||k.round!==r)return;API.finish(k)},150+Math.random()*200)},
+  finish(m){
+    m.resolving=false;m.last=m.round;
+    const pl=(h,pos,a)=>m.players.filter(p=>p.house===h&&p.pos===pos&&p.action===a);
+    const keepA=pl(m.a,'Guardián','block').length>0,keepB=pl(m.b,'Guardián','block').length>0;
+    pl(m.a,'Cazador','attack').forEach(()=>{if(Math.random()<(keepB?.17:.35)){m.sa+=10;m.log.push(`${HOUSE(m.a).name} +10`)}});
+    pl(m.b,'Cazador','attack').forEach(()=>{if(Math.random()<(keepA?.17:.35)){m.sb+=10;m.log.push(`${HOUSE(m.b).name} +10`)}});
+    if(m.round===m.snitch&&!m.caught){
+      if(pl(m.a,'Buscador','search').length&&Math.random()<.5){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
+      else if(pl(m.b,'Buscador','search').length&&Math.random()<.5){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
+      else{m.snitch+=5;m.log.push('La Snitch esquiva a todos')}}
+    m.players.forEach(p=>p.action=null);m.round++;m.deadline=Date.now()+ROUND_MS;
+    if(m.caught||m.round>m.max){m.status='finished';m.winner=m.sa>m.sb?m.a:m.sb>m.sa?m.b:'empate';
+      if(m.winner!=='empate'){db.houses.find(h=>h.id===m.winner).points+=50;
+        m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
+        m.log.push(`${HOUSE(m.winner).name} gana: +50 pts`);fanfare()}else m.log.push('Empate')}
+    commit('Ronda '+(m.round-1)+' resuelta');
+  }
+};
+/* ===== 6. Utilidades ===== */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;$('toasts').appendChild(el);
+  setTimeout(()=>{el.style.transition='.25s';el.style.opacity='0';setTimeout(()=>el.remove(),260)},2800)}
+function openModal(html){const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel" role="dialog" aria-modal="true">${html}</div></div>`}
+function closeModal(){const m=$('modalRoot');m.hidden=true;m.innerHTML=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+const crest=(id,lg)=>{const h=HOUSE(id);return h?`<span class="crest ${lg?'lg':''} h-${id}" aria-hidden="true">${h.letter}</span>`:''};
+const hbadge=id=>{const h=HOUSE(id);return h?`<span class="hbadge h-${id}">${h.name}</span>`:'<span class="pill off">Sin casa</span>'};
+const slotLabel=s=>s.type==='class'?`${ACTS[s.key].name} · ${s.location}`:s.label;
+let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false;
+
+/* ===== 7. Render ===== */
+function renderHero(){
+  $('statStudents').textContent=db.users.length;
+  $('statPoints').textContent=db.houses.reduce((a,h)=>a+h.points,0).toLocaleString('es-ES');
+  const ev=activeEvent();
+  $('eventSlot').innerHTML=ev?`<div class="event"><strong>${esc(ev.name)}</strong> <span class="pill gold" style="margin:0 8px">x${ev.mult} puntos</span><span class="muted">${esc(ev.desc)}</span></div>`:'';
+}
+function glassSvg(id,fill){
+  const t=1-fill,tv=50*t,bv=52*fill,cp='cp-'+id;
+  return `<svg viewBox="0 0 84 124" role="img" aria-label="Reloj de ${HOUSE(id).name}">
+   <defs><clipPath id="${cp}"><path d="M14 10H70C70 44 50 56 50 62C50 68 70 80 70 114H14C14 80 34 68 34 62C34 56 14 44 14 10Z"/></clipPath></defs>
+   <path d="M14 10H70C70 44 50 56 50 62C50 68 70 80 70 114H14C14 80 34 68 34 62C34 56 14 44 14 10Z" fill="color-mix(in srgb,var(--fg) 6%,transparent)"/>
+   <g clip-path="url(#${cp})" fill="var(--hc)"><rect x="10" y="${(60-tv).toFixed(1)}" width="64" height="${tv.toFixed(1)}"/><rect x="10" y="${(114-bv).toFixed(1)}" width="64" height="${bv.toFixed(1)}"/>
+   ${fill>.04&&fill<.99?'<rect x="41" y="60" width="2" height="54" opacity=".8"/>':''}</g>
+   <path d="M14 10H70C70 44 50 56 50 62C50 68 70 80 70 114H14C14 80 34 68 34 62C34 56 14 44 14 10Z" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linejoin="round"/>
+   <rect x="8" y="3" width="68" height="8" rx="3" fill="var(--gold)"/><rect x="8" y="113" width="68" height="8" rx="3" fill="var(--gold)"/></svg>`;
+}
+function renderGlasses(){
+  const sorted=[...db.houses].sort((a,b)=>b.points-a.points),max=Math.max(...sorted.map(h=>h.points),100);
+  $('glasses').innerHTML=sorted.map((h,i)=>{
+    const fill=Math.max(.05,Math.min(.95,h.points/(max*1.1))),H=HOUSE(h.id);
+    return `<div class="glass h-${h.id} ${i===0?'lead':''}">${i===0?'<span class="crown">EN CABEZA</span>':''}
+      <div class="hg">${glassSvg(h.id,fill)}</div><h3>${H.name}</h3><div class="pts mono">${h.points.toLocaleString('es-ES')}</div><small>puntos</small>
+      <div class="bar"><i style="width:${Math.round(h.points/max*100)}%"></i></div></div>`}).join('');
+  $('copaTotal').textContent=`${db.houses.reduce((a,h)=>a+h.points,0).toLocaleString('es-ES')} puntos repartidos entre las cuatro casas en este curso.`;
+}
+function renderMap(){
+  const slot=curSlot(),active=slot?slot.room:'comedor',u=me();
+  const term=mapTerm.trim().toLowerCase();
+  const here=db.users.filter(x=>x.house);
+  $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col])=>{
+    const isHouse=!!HOUSE(id),isActive=id===active;
+    const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
+    const dots=isActive?here.map(x=>`<i class="dot h-${x.house} ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)}"></i>`).join(''):'';
+    return `<div class="room ${isHouse?'house h-'+id:''} ${isActive?'active':''}" style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
+      <div class="rn">${name}</div>${dots?`<div class="dots">${dots}</div>`:''}
+      <div class="rc">${isHouse?pts+' pts':isActive?here.length+' alumnos':''}</div></div>`}).join('');
+  const room=ROOMS.find(r=>r[0]===active);
+  $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
+  $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
+  $('nowCount').textContent=`${here.length} alumnos en ${room?room[1]:'el castillo'}`;
+}
+function renderSchedule(){
+  const day=curDay(),n=curMin();
+  $('schedTitle').textContent='Horario de '+DAYL[day].toLowerCase();
+  $('schedTags').innerHTML=(db.clockMode==='mock'?`<span class="pill warn">Simulado ${db.mockTime}</span>`:'')+(db.free?'<span class="pill good">Modo libre</span>':'');
+  $('slots').innerHTML=daySched(day).map(s=>{
+    const now=n>=toMin(s.from)&&n<toMin(s.to),past=n>=toMin(s.to);
+    return `<div class="slot ${now?'now':''} ${past?'past':''}"><span><b>${s.from}–${fmt(s.to)}</b>${esc(slotLabel(s))}</span>${now?'<span class="pill good">Ahora</span>':''}</div>`}).join('');
+  $('week').innerHTML=DAYS.slice(1).concat(DAYS[0]).map(d=>{
+    const isT=d===day;
+    return `<div class="day ${isT?'today':''}"><h4>${DAYL[d].slice(0,3)}</h4>${daySched(d).filter(s=>s.type==='class').map(s=>{
+      const now=isT&&n>=toMin(s.from)&&n<toMin(s.to);
+      return `<div class="mini ${now?'now':''}" title="${s.from} ${esc(ACTS[s.key].name)}">${s.from} ${esc(ACTS[s.key].name.split(' ')[0])}</div>`}).join('')}</div>`}).join('');
+}
+function renderCasas(){
+  $('casas').innerHTML=[...db.houses].sort((a,b)=>b.points-a.points).map(h=>{
+    const H=HOUSE(h.id),mem=db.users.filter(u=>u.house===h.id).sort((a,b)=>b.points-a.points);
+    return `<article class="casa h-${h.id}">${crest(h.id,true)}<h3>${H.name}</h3><p style="font-size:14px;opacity:.9">${H.motto}</p>
+      <p style="font:900 28px var(--display)" class="mono">${h.points}</p><p style="font-size:12px;opacity:.85">${mem.length} alumnos</p>
+      <ul>${mem.slice(0,3).map(m=>`<li><span>${esc(m.username)}</span><span class="mono">${m.points}</span></li>`).join('')||'<li><span>Sin alumnos</span></li>'}</ul></article>`}).join('');
+}
+function renderPrefects(){
+  const u=me(),box=$('prefectBox'),list=db.users.filter(x=>x.role==='prefect');
+  const names={closed:'Cerrado',application:'Postulación abierta',voting:'Votación abierta'};
+  const apps=db.apps.filter(a=>a.status==='pending').map(a=>({...a,name:(db.users.find(x=>x.id===a.user_id)||{}).username||'Alumno'})).sort((a,b)=>b.votes-a.votes);
+  const myVote=u?db.votes.find(v=>v.voter===u.id):null;
+  let h=`<div class="row" style="justify-content:space-between;margin-bottom:14px"><div class="row"><strong>En ejercicio</strong>${list.length?list.map(p=>`<span class="hbadge h-${p.house}">${esc(p.username)}</span>`).join(''):'<span class="muted">Sin prefectos electos</span>'}</div><span class="pill ${db.period==='closed'?'off':'gold'}">${names[db.period]}</span></div>`;
+  if(db.period==='application'&&u&&u.house){
+    if(apps.some(a=>a.user_id===u.id))h+=`<p class="pill good" style="margin-bottom:12px">Ya estás postulado. Pide votos cuando se abra la votación.</p>`;
+    else h+=`<div class="box"><p style="margin-bottom:8px">Elige <strong>3 características</strong> (${traitsDraft.length}/3)</p><div class="chips" style="margin-bottom:12px">${PREFECT_TRAITS.map(t=>`<button type="button" class="chip ${traitsDraft.includes(t)?'on':''}" data-do="trait" data-v="${t}">${t}</button>`).join('')}</div>
+      <label class="muted" for="pitch" style="font-size:13px">Mensaje para tu casa</label><textarea id="pitch" rows="2" placeholder="Explica por qué mereces guiar a tu casa…">${esc(pitchDraft)}</textarea>
+      <button class="btn gold" style="margin-top:10px" data-do="apply" type="button">Postularme</button></div>`;
+  }else if(db.period==='voting')h+=`<p class="muted" style="margin-bottom:10px">Vota por un candidato de tu casa. No puedes votarte a ti mismo.</p>`;
+  h+=apps.length?`<div class="apps">${apps.map(a=>{
+    const can=db.period==='voting'&&u&&a.house===u.house&&a.user_id!==u.id&&!myVote;
+    return `<div class="app h-${a.house}"><div class="top"><div class="row"><strong>${esc(a.name)}</strong>${hbadge(a.house)}${u&&a.user_id===u.id?'<span class="pill">Tú</span>':''}</div><span class="pill gold mono">${a.votes} votos</span></div>
+      <div class="traits" style="margin-top:8px">${a.traits.map(t=>`<span class="pill">${esc(t)}</span>`).join('')}</div>
+      ${a.pitch?`<p class="muted" style="margin-top:8px;font-style:italic">“${esc(a.pitch)}”</p>`:''}
+      ${can?`<button class="btn sm gold" style="margin-top:10px" data-do="vote" data-id="${a.id}" type="button">Votar</button>`:''}
+      ${myVote&&myVote.app===a.id?'<p class="pill good" style="margin-top:10px">Tu voto</p>':''}</div>`}).join('')}</div>`:'<p class="muted">No hay postulaciones activas.</p>';
+  box.innerHTML=h;
+}
+function renderPlay(){
+  const u=me(),sel=$('userSwitch');
+  sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts${x.is_admin?' · admin':''}</option>`).join('');
+  const area=$('playArea'),who=$('whoami');
+  if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Elige un alumno en el simulador.</p>';return}
+  const q=u.house?API.slot(u.id,u.house):null;
+  who.innerHTML=`${crest(u.house)}<div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo</span></div></div>`;
+  if(!u.house){
+    area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
+    <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
+  const ev=activeEvent(),mult=ev?ev.mult:1,pref=u.role==='prefect'?2:0;
+  area.innerHTML=`<div class="acts">${Object.entries(ACTS).map(([k,a])=>{
+    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round(a.points*mult)+pref;
+    let badge,info;
+    if(db.free){badge='<span class="pill good">Libre</span>';info=s.slot&&s.st!=='closed'?`Hoy ${s.slot.from}–${fmt(s.slot.to)}`:'Sin restricción'}
+    else if(s.st==='open'){badge='<span class="pill good">Abierta</span>';info=`Cierra en ${dur(s.rem)}`}
+    else if(s.st==='soon'){badge='<span class="pill warn">Próxima</span>';info=`Hoy a las ${s.slot.from} · en ${dur(s.rem)}`}
+    else if(s.st==='closed'){badge='<span class="pill off">Cerrada</span>';info=`Abre el ${DAYL[s.day].toLowerCase()} a las ${s.slot.from}`}
+    else{badge='<span class="pill off">Sin clase</span>';info='No hay clase esta semana'}
+    return `<div class="act" style="${open?'':'opacity:.65'}"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
+      <p class="muted" style="font-size:13px">${a.desc}</p><p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
+      <span class="pill gold mono" style="align-self:flex-start">+${pts} pts${a.flightXp?` · +${a.flightXp} XP`:''}</span>
+      <div class="row">${!open?'<button class="btn sm" disabled type="button">Cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
+      <button class="btn sm" data-do="practice" data-k="${k}" type="button" ${(!open||cd>0)?'disabled':''} title="Práctica con bonus">Práctica</button></div></div>`}).join('')}</div>
+    <div class="log">${db.log.slice(0,8).map(l=>`<span><strong>${esc(l.u)}</strong> · ${esc(l.a)} <b style="color:var(--good)">+${l.p}</b>${l.x?` <b style="color:var(--rav)">+${l.x} XP</b>`:''}</span>`).join('')}</div>`;
+}
+function renderTeams(){
+  const t=API.teams(),u=me();
+  $('teams').innerHTML=HOUSES.map(h=>`<div class="box h-${h.id}" style="${u&&u.house===h.id?'border-color:var(--gold)':''}"><div class="row" style="justify-content:space-between;margin-bottom:6px"><strong class="row">${crest(h.id)}${h.name}</strong><span class="muted" style="font-size:12px">${t[h.id].length}/7</span></div>
+    ${t[h.id].length?t[h.id].map(p=>`<div class="prow ${u&&p.id===u.id?'me':''}"><span><b style="color:var(--gold)">#${p.rank}</b> ${esc(p.username)} <em class="muted">${p.pos}</em></span><span class="mono">${p.xp} XP</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sin jugadores. Entrena Clase de Vuelo.</p>'}</div>`).join('');
+}
+const ACTIONS={Cazador:[['attack','Atacar'],['defend','Defender']],Guardián:[['block','Bloquear'],['idle','Esperar']],Buscador:[['search','Buscar Snitch'],['idle','Esperar']],Golpeador:[['hit','Golpear'],['idle','Esperar']]};
+function renderMatches(){
+  const u=me();if(!u){$('matches').innerHTML='';return}
+  let h='';
+  if(u.is_admin)h+=`<div class="box" style="margin-bottom:12px"><div class="row"><select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><span class="muted">vs</span><select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select><button class="btn sm gold" data-do="newMatch" type="button">Crear partido</button></div></div>`;
+  const rel=db.matches.filter(m=>u.is_admin||m.a===u.house||m.b===u.house);
+  h+=rel.length?rel.map(m=>{
+    const my=m.players.find(p=>p.uid===u.id),A=HOUSE(m.a),B=HOUSE(m.b);
+    const state=m.status==='waiting'?'Esperando jugadores':m.status==='active'?`Ronda ${m.round}/${m.max}`:(m.winner==='empate'?'Empate':HOUSE(m.winner).name+' gana');
+    const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
+    let ctl='';
+    if(m.status==='active'&&my&&!my.action)ctl=`<div class="box" style="margin-top:10px"><p style="font-size:13px;margin-bottom:8px">Tu turno como ${my.pos} · <span id="timer-${m.id}" class="mono">--</span></p><div class="row">${(ACTIONS[my.pos]||[]).map(([a,l])=>`<button class="btn sm gold" data-do="act" data-m="${m.id}" data-a="${a}" type="button">${l}</button>`).join('')}</div></div>`;
+    else if(my&&my.action)ctl=`<p class="pill good" style="margin-top:10px">Acción enviada. Esperando al resto.</p>`;
+    let btn='';
+    if(m.status==='waiting'){
+      if(my)btn+=`<button class="btn sm" data-do="leave" data-m="${m.id}" type="button">Salir</button>`;
+      else if(u.house===m.a||u.house===m.b)btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
+      if(u.is_admin&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
+    return `<div class="match"><div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
+      <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
+      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos. ${u.is_admin?'Crea uno arriba.':'Pide a un admin que cree uno.'}</p>`;
+  $('matches').innerHTML=h;
+}
+function renderChat(){
+  const u=me();if(!u)return;
+  const glob=session.channel==='global';
+  $('chGlobal').className='chip '+(glob?'on':'');$('chHouse').className='chip '+(glob?'':'on');
+  $('chHouse').textContent=u.house?'Sala Común de '+HOUSE(u.house).name:'Sala Común';
+  const msgs=db.chat.filter(m=>glob?m.ch==='global':m.ch===u.house);
+  const box=$('chatBox'),atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<40;
+  box.innerHTML=msgs.length?msgs.map(m=>`<div class="msg"><span>${hbadge(m.h)} <strong>${esc(m.u)}</strong>${m.role==='prefect'?' <span class="pill gold">Prefecto</span>':''} ${esc(m.text)}</span><time>${esc(m.time)}</time></div>`).join(''):'<p class="muted" style="text-align:center;padding:30px 0">Sin mensajes todavía. Saluda.</p>';
+  if(atEnd)box.scrollTop=box.scrollHeight;
+}
+function renderAdmin(){
+  const u=me(),slot=$('adminSlot');
+  if(!u||!u.is_admin){slot.innerHTML='';return}
+  const ev=activeEvent(),active=document.activeElement&&slot.contains(document.activeElement)&&document.activeElement.id;
+  const dsel=db.mockDay||curDay(),tval=db.mockTime||'09:00';
+  slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">Panel de administración</h3><div class="grid g2" style="align-items:start">
+   <div class="box"><h4>Período de prefectos</h4><div class="row"><button class="btn sm ${db.period==='application'?'gold':''}" data-do="period" data-v="application" type="button">Postulación</button><button class="btn sm ${db.period==='voting'?'gold':''}" data-do="period" data-v="voting" type="button">Votación</button><button class="btn sm ${db.period==='closed'?'gold':''}" data-do="period" data-v="closed" type="button">Cerrar y elegir</button></div></div>
+   <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
+   <div class="box" style="grid-column:1/-1"><h4>Reloj y horario</h4>
+    <p style="margin-bottom:10px;font-size:14px">${DAYL[curDay()]} · <b class="mono">${curTime()}</b> · modo ${db.clockMode==='mock'?'simulado':'real'}</p>
+    <div class="row" style="margin-bottom:10px"><select id="mockDay" aria-label="Día simulado">${DAYS.map(d=>`<option value="${d}" ${d===dsel?'selected':''}>${DAYL[d]}</option>`).join('')}</select><input id="mockTime" type="time" value="${tval}" style="width:auto" aria-label="Hora simulada"><button class="btn sm gold" data-do="mock" type="button">Simular</button><button class="btn sm" data-do="real" type="button">Hora real</button></div>
+    <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
+    <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
+   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button></td></tr>`).join('')}</tbody></table></div>
+    <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
+  if(active){const el=$(active);if(el&&el.focus)el.focus()}
+}
+function renderStudents(){
+  $('stuHouses').innerHTML=[['all','Todas']].concat(HOUSES.map(h=>[h.id,h.name])).map(([id,n])=>`<button type="button" class="chip ${stuHouse===id?'on':''}" data-do="houseFilter" data-id="${id}">${n}</button>`).join('');
+  const t=stuTerm.trim().toLowerCase();
+  let l=db.users.filter(u=>(stuHouse==='all'||u.house===stuHouse)&&(!t||u.username.toLowerCase().includes(t)));
+  l.sort(stuSort==='az'?(a,b)=>a.username.localeCompare(b.username,'es'):stuSort==='new'?(a,b)=>a.id-b.id:(a,b)=>b.points-a.points);
+  $('students').innerHTML=l.length?l.map(u=>`<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}">${u.house?crest(u.house):'<span class="crest" style="background:var(--line)">?</span>'}<span><strong>${esc(u.username)}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${u.points}</span></button>`).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
+}
+function renderCourses(){
+  const n=['Primero','Segundo','Tercero','Cuarto','Quinto','Sexto','Séptimo'];
+  $('courses').innerHTML=n.map((x,i)=>`<div class="course ${i===0?'cur':''}"><b>${i+1}</b><span>${x} curso</span>${i===0?'<div class="pill gold" style="margin-top:8px">En curso</div>':''}</div>`).join('');
+}
+function renderClock(){
+  $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
+  const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
+}
+function renderAll(){renderHero();renderGlasses();renderMap();renderSchedule();renderCasas();renderPrefects();renderPlay();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
+
+/* ===== 8. Modales ===== */
+function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
+function practice(k){
+  const glyphs=['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ'],t=glyphs[Math.floor(Math.random()*glyphs.length)];
+  openModal(`<h3 style="font-size:20px">Práctica de ${ACTS[k].name}</h3><p class="muted">Elige el glifo <strong style="color:var(--gold);font-size:22px">${t}</strong> para +5 pts extra. Si fallas, ganas +2.</p>
+  <div class="grid g3" style="width:100%">${glyphs.map(g=>`<button class="btn" style="font-size:24px;padding:14px" data-do="rune" data-k="${k}" data-g="${g}" data-t="${t}" type="button">${g}</button>`).join('')}</div><button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`)}
+function newStudent(){openModal(`<h3 style="font-size:20px">Nuevo alumno</h3><label class="muted" for="newName" style="justify-self:start;font-size:13px">Nombre</label><input id="newName" type="text" placeholder="Ej: Camila N." autocomplete="off" style="width:100%"><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="createStudent" type="button">Crear alumno</button></div>`);setTimeout(()=>$('newName')&&$('newName').focus(),30)}
+function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
+function studentSheet(id){
+  const u=db.users.find(x=>x.id===id);if(!u)return;
+  const rank=u.house?db.users.filter(x=>x.house===u.house).sort((a,b)=>b.points-a.points).findIndex(x=>x.id===id)+1:null,q=u.house?API.slot(u.id,u.house):null;
+  openModal(`${u.house?crest(u.house,true):''}<h3 style="font-size:24px">${esc(u.username)}</h3>${hbadge(u.house)}
+   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Reserva']].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${v}</strong></div>`).join('')}</div>
+   <div class="row"><button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button><button class="btn" data-do="closeModal" type="button">Cerrar</button></div>`);
+}
+
+/* ===== 9. Eventos ===== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-do]');if(!b)return;
+  const d=b.dataset;
+  if(d.do==='modalBg'){if(e.target===b)closeModal();return}
+  try{switch(d.do){
+    case 'closeModal':closeModal();break;
+    case 'pickHouse':houseConfirm(d.id);break;
+    case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
+    case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
+    case 'practice':practice(d.k);break;
+    case 'rune':{const hit=d.g===d.t,r=API.attend(d.k,hit?5:2,d.k==='vuelo'&&hit?3:0);closeModal();toast(hit?`Perfecto: +${r.pts} pts`:`Clase completada: +${r.pts} pts`);break}
+    case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
+      if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
+    case 'apply':API.apply(traitsDraft,$('pitch')?.value||'');traitsDraft=[];pitchDraft='';toast('Postulación enviada');break;
+    case 'vote':API.vote(Number(d.id));toast('Voto registrado');break;
+    case 'period':{const w=API.setPeriod(d.v);toast(w.length?'Prefectos electos: '+w.join(', '):'Período actualizado');break}
+    case 'evQuick':API.launch('Torneo de los Tres Magos','Puntos dobles en todas las clases.',2);break;
+    case 'evCustom':customEvent();break;
+    case 'evGo':API.launch($('evName').value,$('evDesc').value,parseFloat($('evMult').value));closeModal();break;
+    case 'evStop':API.stopEvent();toast('Evento detenido');break;
+    case 'mock':API.clock('mock',$('mockTime').value,$('mockDay').value);break;
+    case 'real':API.clock('real');break;
+    case 'adv':API.advance(parseInt(d.n));break;
+    case 'free':API.setFree(!db.free);break;
+    case 'award':API.award(Number(d.id),10);break;
+    case 'togglePref':API.togglePrefect(Number(d.id));break;
+    case 'reset':if(!resetArmed){resetArmed=true;renderAdmin();setTimeout(()=>{resetArmed=false;renderAdmin()},4000)}else{resetArmed=false;API.resetPoints()}break;
+    case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value);break;
+    case 'join':API.join(d.m);break;
+    case 'leave':API.leave(d.m);break;
+    case 'start':API.start(d.m);break;
+    case 'act':API.act(d.m,d.a);break;
+    case 'houseFilter':stuHouse=d.id;renderStudents();break;
+    case 'openStu':studentSheet(Number(d.id));break;
+    case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
+    case 'createStudent':API.register($('newName').value);closeModal();toast('Alumno creado');break;
+  }}catch(err){toast(err.message)}
+});
+document.addEventListener('input',e=>{if(e.target.id==='pitch')pitchDraft=e.target.value});
+$('mapSearch').addEventListener('input',e=>{mapTerm=e.target.value;renderMap()});
+$('stuSearch').addEventListener('input',e=>{stuTerm=e.target.value;renderStudents()});
+$('stuSort').addEventListener('change',e=>{stuSort=e.target.value;renderStudents()});
+$('userSwitch').addEventListener('change',e=>{session.uid=Number(e.target.value);session.channel='global';toast('Ahora eres '+me().username);renderAll()});
+$('newStudentBtn').addEventListener('click',newStudent);
+$('chGlobal').addEventListener('click',()=>{session.channel='global';renderChat()});
+$('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Elige casa para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
+$('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatInput');if(!i.value.trim())return;API.say(i.value);i.value=''});
+
+/* ===== 10. Temporizadores ===== */
+setInterval(renderClock,1000);
+setInterval(()=>{document.querySelectorAll('[id^="timer-"]').forEach(el=>{const m=db.matches.find(x=>x.id===el.id.slice(6));if(m&&m.deadline)el.textContent=Math.max(0,Math.ceil((m.deadline-Date.now())/1000))+' s'})},500);
+setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)continue;
+  if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
+let sig='';
+setInterval(()=>{const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin();
+  if(s!==sig){sig=s;renderPlay();renderMap();renderSchedule();renderClock()}},2000);
+renderCourses();renderAll();
+</script>
+
+</body></html>
