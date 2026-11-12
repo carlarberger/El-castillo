@@ -65,8 +65,20 @@ io.on('connection', async (socket) => {
 
     socket.on('sync_db', async (data) => {
       if (data && data.db) {
+        // Validación básica: Evitar que inunden la base de datos con usuarios falsos de golpe
+        if (data.db.users.length > 150) {
+           console.log('⚠️ Intento de creación masiva de usuarios bloqueado.');
+           return; 
+        }
+
+        // Guardar en MongoDB
         await saveState(data.db);
-        socket.broadcast.emit('sync_db', { db: data.db, reason: data.reason || null });
+        
+        // Retransmitir a los demás
+        socket.broadcast.emit('sync_db', {
+          db: data.db,
+          reason: data.reason || null
+        });
       }
     });
   } catch (err) {
