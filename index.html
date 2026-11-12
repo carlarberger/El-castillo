@@ -292,14 +292,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </section>
 
   <section class="block" id="clases">
-    <div class="sec-head"><h2>Clases y Quidditch</h2><p>Cada clase solo abre en su horario. Cambia de alumno con el selector para probar el castillo desde distintas casas.</p></div>
+    <div class="sec-head"><h2>Clases y Quidditch</h2><p>Cada clase solo abre en su horario. Crea tu alumno o selecciónalo para participar con tu casa.</p></div>
     <div class="panel" style="margin-bottom:16px">
       <div class="row" style="justify-content:space-between;margin-bottom:14px;gap:12px">
         <div class="row" id="whoami" style="gap:10px"></div>
-        <div class="row" id="adminControls" style="display:none;">
-          <label class="muted" for="userSwitch" style="font-size:13px">Simulador</label>
-          <select id="userSwitch" aria-label="Cambiar de alumno"></select>
-          <button class="btn sm" id="newStudentBtn" type="button">Nuevo alumno</button>
+        <div class="row">
+          <div class="row" id="adminControls" style="display:none;">
+            <label class="muted" for="userSwitch" style="font-size:13px">Simulador</label>
+            <select id="userSwitch" aria-label="Cambiar de alumno"></select>
+          </div>
+          <button class="btn sm gold" id="newStudentBtn" type="button">Nuevo alumno</button>
         </div>
       </div>
       <div id="playArea"></div>
@@ -324,7 +326,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     </div>
     <div class="chips" id="stuHouses" style="margin-bottom:14px"></div>
     <div class="students" id="students"></div>
-    <p class="muted" style="margin-top:12px;font-size:13px;text-align:center">¿No te encuentras? Crea tu alumno en el simulador de arriba.</p>
+    <p class="muted" style="margin-top:12px;font-size:13px;text-align:center">¿No te encuentras? Pulsa el botón «Nuevo alumno» en la sección de Clases.</p>
   </section>
 
   <section class="block" id="cursos-sec">
@@ -423,7 +425,7 @@ const SCHEDULE={
 const U=(id,username,house,points,flight_xp,role,is_admin)=>({id,username,house,points,flight_xp,role,is_admin,created_at:id});
 const socket = io();
 let db = {
- users:[U(1,'Carla R.','ravenclaw',90,35,'student',true),U(2,'Vicente D.','ravenclaw',70,20,'student',false),U(3,'Matilde S.','gryffindor',85,30,'student',false),
+ users:[U(1,'Carla R.','ravenclaw',90,35,'student',false),U(2,'Vicente D.','ravenclaw',70,20,'student',false),U(3,'Matilde S.','gryffindor',85,30,'student',false),
   U(4,'Joaquín P.','gryffindor',95,10,'prefect',false),U(5,'Antonia V.','slytherin',88,25,'student',false),U(6,'Benjamín L.','hufflepuff',82,25,'prefect',false)],
  houses:[{id:'gryffindor',points:240},{id:'ravenclaw',points:224},{id:'slytherin',points:215},{id:'hufflepuff',points:195}],
  log:[], apps:[], votes:[],
@@ -431,17 +433,25 @@ let db = {
  period:'application',clockMode:'real',mockTime:null,mockDay:null,free:false,
  chat:[], matches:[], cooldowns:{}, missions:{}
 };
-const session={uid:1,channel:'global'};
+const savedUid = Number(localStorage.getItem('castillo_uid')) || 1;
+const session={uid:savedUid,channel:'global',isAdmin:false};
 
 socket.on('init_db', (serverDb) => {
-  db = serverDb;
-  renderAll();
+  if (serverDb && serverDb.users) {
+    db = serverDb;
+    if (!db.users.some(u => u.id === session.uid) && db.users.length) {
+      session.uid = db.users[0].id;
+    }
+    renderAll();
+  }
 });
 
 socket.on('sync_db', (data) => {
-  db = data.db;
-  if (data.reason) toast('En vivo: ' + data.reason);
-  renderAll();
+  if (data && data.db) {
+    db = data.db;
+    if (data.reason) toast('En vivo: ' + data.reason);
+    renderAll();
+  }
 });
 
 function commit(reason){
@@ -481,15 +491,28 @@ function classStatus(key){
 }
 
 /* ===== 5. Lógica ===== */
-const me=()=>db.users.find(u=>u.id===session.uid)||null;
+const me=()=>{
+  const u=db.users.find(u=>u.id===session.uid)||db.users[0]||null;
+  if(!u)return null;
+  return Object.assign(u,{is_admin:!!session.isAdmin});
+};
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
 const API={
   register(name){
     name=(name||'').trim();must(name,'Escribe un nombre');
-    must(!db.users.some(u=>u.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya existe');
+    const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
+    if(existing){
+      session.uid=existing.id;
+      localStorage.setItem('castillo_uid',String(existing.id));
+      renderAll();
+      toast('Entraste como '+existing.username);
+      return;
+    }
     const u=U(Math.max(0,...db.users.map(x=>x.id))+1,name,null,0,0,'student',false);
-    db.users.push(u);session.uid=u.id;commit('Nuevo alumno: '+name);
+    db.users.push(u);session.uid=u.id;
+    localStorage.setItem('castillo_uid',String(u.id));
+    commit('Nuevo alumno: '+name);
   },
   chooseHouse(id){const u=me();must(u&&!u.house,'Ya elegiste casa');u.house=id;fanfare();commit(u.username+' fue seleccionado en '+HOUSE(id).name);},
   cooldown(key){const u=me();if(!u)return 0;const last=(db.cooldowns[u.id]||{})[key]||0;return Math.max(0,COOLDOWN-(Date.now()-last))},
@@ -702,20 +725,14 @@ function renderPrefects(){
 }
 function renderPlay(){
   const u=me(),sel=$('userSwitch');
-  
-  // Lógica para mostrar u ocultar el simulador
   if (u && u.is_admin) {
     $('adminControls').style.display = 'flex';
-    sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts${x.is_admin?' · admin':''}</option>`).join('');
+    sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts</option>`).join('');
   } else {
     $('adminControls').style.display = 'none';
   }
-
   const area=$('playArea'),who=$('whoami');
-  // ... el resto de tu función renderPlay queda igual ...
-  sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts${x.is_admin?' · admin':''}</option>`).join('');
-  const area=$('playArea'),who=$('whoami');
-  if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Elige un alumno en el simulador.</p>';return}
+  if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Crea o selecciona tu alumno para empezar.</p>';return}
   const q=u.house?API.slot(u.id,u.house):null;
   who.innerHTML=`${crest(u.house)}<div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo</span></div></div>`;
   if(!u.house){
@@ -816,7 +833,7 @@ function practice(k){
   const glyphs=['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ'],t=glyphs[Math.floor(Math.random()*glyphs.length)];
   openModal(`<h3 style="font-size:20px">Práctica de ${ACTS[k].name}</h3><p class="muted">Elige el glifo <strong style="color:var(--gold);font-size:22px">${t}</strong> para +5 pts extra. Si fallas, ganas +2.</p>
   <div class="grid g3" style="width:100%">${glyphs.map(g=>`<button class="btn" style="font-size:24px;padding:14px" data-do="rune" data-k="${k}" data-g="${g}" data-t="${t}" type="button">${g}</button>`).join('')}</div><button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`)}
-function newStudent(){openModal(`<h3 style="font-size:20px">Nuevo alumno</h3><label class="muted" for="newName" style="justify-self:start;font-size:13px">Nombre</label><input id="newName" type="text" placeholder="Ej: Camila N." autocomplete="off" style="width:100%"><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="createStudent" type="button">Crear alumno</button></div>`);setTimeout(()=>$('newName')&&$('newName').focus(),30)}
+function newStudent(){openModal(`<h3 style="font-size:20px">Nuevo alumno / Entrar</h3><label class="muted" for="newName" style="justify-self:start;font-size:13px">Nombre o nick</label><input id="newName" type="text" placeholder="Ej: Camila N." autocomplete="off" style="width:100%"><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="createStudent" type="button">Entrar al Castillo</button></div>`);setTimeout(()=>$('newName')&&$('newName').focus(),30)}
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
@@ -862,14 +879,14 @@ document.addEventListener('click',e=>{
     case 'houseFilter':stuHouse=d.id;renderStudents();break;
     case 'openStu':studentSheet(Number(d.id));break;
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
-    case 'createStudent':API.register($('newName').value);closeModal();toast('Alumno creado');break;
+    case 'createStudent':API.register($('newName').value);closeModal();break;
   }}catch(err){toast(err.message)}
 });
 document.addEventListener('input',e=>{if(e.target.id==='pitch')pitchDraft=e.target.value});
 $('mapSearch').addEventListener('input',e=>{mapTerm=e.target.value;renderMap()});
 $('stuSearch').addEventListener('input',e=>{stuTerm=e.target.value;renderStudents()});
 $('stuSort').addEventListener('change',e=>{stuSort=e.target.value;renderStudents()});
-$('userSwitch').addEventListener('change',e=>{session.uid=Number(e.target.value);session.channel='global';toast('Ahora eres '+me().username);renderAll()});
+$('userSwitch').addEventListener('change',e=>{session.uid=Number(e.target.value);localStorage.setItem('castillo_uid',String(session.uid));session.channel='global';toast('Ahora eres '+me().username);renderAll()});
 $('newStudentBtn').addEventListener('click',newStudent);
 $('chGlobal').addEventListener('click',()=>{session.channel='global';renderChat()});
 $('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Elige casa para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
@@ -886,21 +903,24 @@ setInterval(()=>{const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return
 
 /* ===== LOGIN SECRETO DE ADMIN ===== */
 document.getElementById('adminLoginBtn').addEventListener('click', () => {
+  if (session.isAdmin) {
+    session.isAdmin = false;
+    renderAll();
+    toast('Modo Administrador cerrado.');
+    return;
+  }
   const pass = prompt('Introduce la contraseña de Administrador:');
   if (pass === 'alohomora') {
-    const u = me();
-    if (u) {
-      u.is_admin = true;
-      commit(`${u.username} ha iniciado sesión como Administrador`);
-      toast('Acceso concedido. Ahora eres Admin.');
-    }
+    session.isAdmin = true;
+    renderAll();
+    toast('Acceso concedido. Ahora eres Admin en este navegador.');
   } else if (pass !== null) {
     toast('Contraseña incorrecta');
   }
 });
 
-renderCourses();renderAll();
-renderCourses();renderAll();
+renderCourses();
+renderAll();
 </script>
 
 </body></html>
