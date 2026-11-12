@@ -702,6 +702,17 @@ function renderPrefects(){
 }
 function renderPlay(){
   const u=me(),sel=$('userSwitch');
+  
+  // Lógica para mostrar u ocultar el simulador
+  if (u && u.is_admin) {
+    $('adminControls').style.display = 'flex';
+    sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts${x.is_admin?' · admin':''}</option>`).join('');
+  } else {
+    $('adminControls').style.display = 'none';
+  }
+
+  const area=$('playArea'),who=$('whoami');
+  // ... el resto de tu función renderPlay queda igual ...
   sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts${x.is_admin?' · admin':''}</option>`).join('');
   const area=$('playArea'),who=$('whoami');
   if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Elige un alumno en el simulador.</p>';return}
