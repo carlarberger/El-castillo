@@ -883,6 +883,23 @@ setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)
 let sig='';
 setInterval(()=>{const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin();
   if(s!==sig){sig=s;renderPlay();renderMap();renderSchedule();renderClock()}},2000);
+
+/* ===== LOGIN SECRETO DE ADMIN ===== */
+document.getElementById('adminLoginBtn').addEventListener('click', () => {
+  const pass = prompt('Introduce la contraseña de Administrador:');
+  if (pass === 'alohomora') {
+    const u = me();
+    if (u) {
+      u.is_admin = true;
+      commit(`${u.username} ha iniciado sesión como Administrador`);
+      toast('Acceso concedido. Ahora eres Admin.');
+    }
+  } else if (pass !== null) {
+    toast('Contraseña incorrecta');
+  }
+});
+
+renderCourses();renderAll();
 renderCourses();renderAll();
 </script>
 
