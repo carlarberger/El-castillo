@@ -272,6 +272,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .mg-card.open{border-color:var(--gold);background:var(--glow);color:var(--gold)}
 .mg-card.matched{border-color:var(--good);background:color-mix(in srgb,var(--good) 20%,var(--surface));color:var(--good)}
 
+
+/* ===== ARCADE CANVAS 2D ===== */
+.arcade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
+.arcade-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:linear-gradient(165deg,var(--surface-2),var(--surface));display:flex;flex-direction:column;gap:6px;transition:.15s}
+.arcade-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.arcade-card h4{font-size:15px;color:var(--gold);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.arcade-Controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.ctrl-btn{min-width:52px;height:44px;border-radius:10px;border:1px solid var(--gold);background:var(--surface-2);color:var(--gold);font-weight:700;font-size:16px;cursor:pointer;user-select:none;touch-action:manipulation;display:inline-flex;align-items:center;justify-content:center;padding:0 14px}
+.ctrl-btn:active{background:var(--gold);color:var(--gold-ink)}
+
 @media (max-width:860px){
   .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g3,.steps,.creator{grid-template-columns:1fr}
@@ -357,6 +367,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       </div>
       <div id="playArea"></div>
     </div>
+    <div class="panel hl" style="margin-bottom:16px" id="arcadePanel">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div>
+          <h3 style="font-size:20px;color:var(--gold)">🕹️ Sala de Minijuegos del Castillo (Canvas 2D)</h3>
+          <p class="muted" style="font-size:13px">Juega en tiempo real con teclado, ratón o controles táctiles. Los puntos ganados se sincronizan al instante en la Copa de las Casas.</p>
+        </div>
+        <span class="pill gold">6 Minijuegos</span>
+      </div>
+      <div class="arcade-grid" id="arcadeGrid"></div>
+    </div>
     <div class="grid g2" style="align-items:start">
       <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos de Quidditch</h3><div id="matches"></div></div>
       <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
@@ -403,6 +423,27 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div id="modalRoot" hidden></div>
+<div id="minigameModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(6,5,18,0.92); backdrop-filter:blur(6px); z-index:1000; display:none; flex-direction:column; align-items:center; justify-content:center; padding:16px;">
+  <div class="row" style="justify-content:space-between; width:800px; max-width:95%; margin-bottom:10px;">
+    <div>
+      <h3 id="mgCanvasTitle" style="font-size:20px; color:var(--gold);">Minijuego</h3>
+      <p id="mgCanvasSub" class="muted" style="font-size:13px;">¡Suma puntos para tu casa!</p>
+    </div>
+    <div class="row">
+      <span id="mgCanvasHud" class="pill gold mono">--</span>
+      <button onclick="closeMinigame()" class="btn sm danger" type="button">✕ Salir</button>
+    </div>
+  </div>
+  <canvas id="gameCanvas" width="800" height="400" style="background:#14122e; border:2px solid var(--gold); border-radius:14px; max-width:95%; max-height:62vh; aspect-ratio:2/1; box-shadow:0 0 36px rgba(227,187,78,.2); touch-action:none;"></canvas>
+  <div id="mgTouchBar" class="arcade-Controls">
+    <button type="button" class="ctrl-btn" data-key="ArrowLeft">◀ Izq</button>
+    <button type="button" class="ctrl-btn" data-key="ArrowUp">▲ Arriba / Saltar</button>
+    <button type="button" class="ctrl-btn" data-key="ArrowDown">▼ Abajo</button>
+    <button type="button" class="ctrl-btn" data-key="ArrowRight">▶ Der</button>
+    <button type="button" class="ctrl-btn" data-key=" " style="background:var(--gold);color:var(--gold-ink)">⚡ Acción / Atacar</button>
+  </div>
+  <p id="mgControlsHint" class="muted" style="margin-top:8px; font-size:12px; text-align:center;">Controles: Flechas / WASD para moverte · Espacio o clic en el lienzo para interactuar.</p>
+</div>
 
 <script>
 /* ===== 1. Sonido ===== */
@@ -1054,7 +1095,7 @@ function renderClock(){
   $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
   const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
 }
-function renderAll(){ensureLooks();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
+function renderAll(){ensureLooks();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderArcade();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
@@ -1381,6 +1422,810 @@ function studentSheet(id){
    <div class="row"><button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button><button class="btn" data-do="closeModal" type="button">Cerrar</button></div>`);
 }
 
+
+/* ===== 8.5. CATÁLOGO DE 6 MINIJUEGOS EN HTML5 CANVAS ===== */
+const ARCADE_CD = 12000;
+const ARCADE_GAMES = [
+  { id: 'troll', name: '1. Troll en las Mazmorras', mech: 'Acción / Esquivar', ptsLabel: '3-5 pts', basePts: 5, xp: 0, desc: 'Controla a tu mago, esquiva las rocas y ondas del troll y contraataca cuando quede aturdido.' },
+  { id: 'duelo', name: '2. Duelo de Hechizos', mech: 'Ritmo / Reflejos', ptsLabel: '3 pts', basePts: 3, xp: 0, desc: 'Observa la secuencia de orbes mágicos en el lienzo y lanza los hechizos en el orden y tiempo correctos.' },
+  { id: 'snitch', name: '3. Caza de la Snitch Dorada', mech: 'Puntería / Precisión', ptsLabel: '2-5 pts · +3 XP', basePts: 5, xp: 3, desc: 'La Snitch vuela a toda velocidad por el estadio; haz clic o tócala varias veces antes de que escape.' },
+  { id: 'defensa_copa', name: '4. Defensa de la Copa', mech: 'Tower Defense / Estrategia', ptsLabel: '5 pts', basePts: 5, xp: 0, desc: 'Coloca escudos Protego y torretas mágicas en los carriles para evitar que las criaturas lleguen a la Copa.' },
+  { id: 'pocion_exp', name: '5. Poción Explosiva', mech: 'Lógica / Memoria', ptsLabel: '4 pts', basePts: 4, xp: 0, desc: 'Memoriza la receta del pergamino y selecciona los ingredientes en el orden exacto de la mesa desordenada.' },
+  { id: 'escobas', name: '6. Carrera de Escobas', mech: 'Reflejos / Esquivar', ptsLabel: '3-5 pts · +4 XP', basePts: 5, xp: 4, desc: 'Carrera contrarreloj a 60 FPS esquivando bludgers y rivales mientras atraviesas aros dorados.' }
+];
+
+function arcadeCooldown(id) {
+  const u = me(); if (!u) return 0;
+  const last = (db.cooldowns[u.id] || {})['arc_' + id] || 0;
+  return Math.max(0, ARCADE_CD - (Date.now() - last));
+}
+
+function renderArcade() {
+  const box = $('arcadeGrid'); if (!box) return;
+  const u = me(), ev = activeEvent(), mult = ev ? ev.mult : 1;
+  box.innerHTML = ARCADE_GAMES.map(g => {
+    const cd = arcadeCooldown(g.id);
+    return `<div class="arcade-card">
+      <h4><span>${esc(g.name)}</span><span class="pill gold mono">${esc(g.ptsLabel)}</span></h4>
+      <span class="pill" style="align-self:flex-start;font-size:11px">${esc(g.mech)}${mult > 1 ? ` · Evento x${mult}` : ''}</span>
+      <p class="muted" style="font-size:13px;flex:1">${esc(g.desc)}</p>
+      <button class="btn sm gold" type="button" data-do="playArcade" data-g="${g.id}" ${(!u || !u.house || cd > 0) ? 'disabled' : ''} style="margin-top:6px">
+        ${!u || !u.house ? 'Elige casa primero' : cd > 0 ? `Espera ${Math.ceil(cd / 1000)} s` : '🎮 ¡Jugar Minijuego!'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let gameLoop = null, mgActive = false, mgClickHandler = null;
+const keys = {};
+
+document.addEventListener('keydown', e => {
+  if (!mgActive) return;
+  keys[e.key] = true;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+document.querySelectorAll('#mgTouchBar .ctrl-btn').forEach(btn => {
+  const k = btn.dataset.key;
+  const press = e => { e.preventDefault(); keys[k] = true; };
+  const release = e => { e.preventDefault(); keys[k] = false; };
+  btn.addEventListener('mousedown', press);
+  btn.addEventListener('mouseup', release);
+  btn.addEventListener('mouseleave', release);
+  btn.addEventListener('touchstart', press, { passive: false });
+  btn.addEventListener('touchend', release, { passive: false });
+});
+
+canvas.addEventListener('pointerdown', e => {
+  if (!mgActive || !mgClickHandler) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+  mgClickHandler(x, y);
+});
+
+function closeMinigame() {
+  mgActive = false;
+  mgClickHandler = null;
+  if (gameLoop) { cancelAnimationFrame(gameLoop); gameLoop = null; }
+  Object.keys(keys).forEach(k => keys[k] = false);
+  const modal = document.getElementById('minigameModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', flightXp = 0, gameId = 'troll') {
+  const user = me();
+  if (!user || !user.house) { closeMinigame(); return; }
+  const ev = activeEvent(), mult = ev ? ev.mult : 1;
+  const points = Math.round(basePoints * mult) + (user.role === 'prefect' ? 2 : 0);
+
+  user.points += points;
+  if (flightXp) user.flight_xp = (user.flight_xp || 0) + flightXp;
+  const house = db.houses.find(h => h.id === user.house);
+  if (house) house.points += points;
+
+  (db.cooldowns[user.id] = db.cooldowns[user.id] || {})['arc_' + gameId] = Date.now();
+  db.log.unshift({ u: user.username, h: user.house, a: gameName, p: points, x: flightXp });
+  db.log.length = Math.min(db.log.length, 15);
+
+  fanfare();
+  closeMinigame();
+  commit(`${user.username} ganó +${points} pts en ${gameName}`);
+  toast(`¡Has ganado +${points} puntos para ${HOUSE(user.house).name}${flightXp ? ` y +${flightXp} XP de vuelo` : ''}!`);
+}
+
+function houseHex(h) {
+  return h === 'gryffindor' ? '#c43b34' : h === 'slytherin' ? '#2f9a5d' : h === 'hufflepuff' ? '#e8b930' : '#4a6ee0';
+}
+
+function openCanvasModal(title, sub, hint, showTouch = true) {
+  if (gameLoop) cancelAnimationFrame(gameLoop);
+  Object.keys(keys).forEach(k => keys[k] = false);
+  mgActive = true;
+  mgClickHandler = null;
+  $('mgCanvasTitle').textContent = title;
+  $('mgCanvasSub').textContent = sub;
+  $('mgControlsHint').textContent = hint;
+  $('mgTouchBar').style.display = showTouch ? 'flex' : 'none';
+  $('minigameModal').style.display = 'flex';
+}
+
+function playArcade(id) {
+  const u = me();
+  must(u && u.house, 'Elige tu casa primero');
+  const cd = arcadeCooldown(id);
+  must(cd <= 0, `Espera ${Math.ceil(cd / 1000)} s para volver a jugar`);
+  if (id === 'troll') return startTrollMinigame();
+  if (id === 'duelo') return startDuelMinigame();
+  if (id === 'snitch') return startSnitchCanvasMinigame();
+  if (id === 'defensa_copa') return startTowerDefenseMinigame();
+  if (id === 'pocion_exp') return startExplosivePotionMinigame();
+  if (id === 'escobas') return startBroomRaceMinigame();
+}
+
+/* 1. TROLL EN LAS MAZMORRAS (Acción / Esquivar - 3 a 5 pts) */
+function startTrollMinigame() {
+  const u = me();
+  openCanvasModal(
+    '🧌 1. Troll en las Mazmorras',
+    'Esquiva las rocas y ondas del Troll. ¡Cuando se canse y quede ATURDIDO, dispara con Espacio o ⚡ Acción!',
+    'Controles: A/D o Flechas ◀/▶ para moverte · W/▲ para saltar ondas · Espacio o ⚡ Acción para lanzar hechizo.',
+    true
+  );
+
+  const player = { x: 110, y: 300, vy: 0, w: 38, h: 48, hp: 3, inv: 0, cd: 0, color: houseHex(u?.house) };
+  const troll = { x: 640, y: 210, w: 92, h: 138, hp: 3, maxHp: 3, state: 'attack', timer: 140, rocksThrown: 0 };
+  const projectiles = [];
+  const spells = [];
+  const particles = [];
+
+  function spawnParticles(x, y, col, n = 10) {
+    for (let i = 0; i < n; i++) {
+      particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 24, col });
+    }
+  }
+
+  function gameLoopUpdate() {
+    if (!mgActive) return;
+
+    // Movimiento jugador
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x = Math.max(24, player.x - 4.8);
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x = Math.min(540, player.x + 4.8);
+    if ((keys['ArrowUp'] || keys['w'] || keys['W']) && player.y >= 300) { player.vy = -11.5; tone([360, 520], 'sine', 0.03, 0.12, 0.06); }
+    player.y += player.vy;
+    if (player.y < 300) player.vy += 0.58; else { player.y = 300; player.vy = 0; }
+    if (player.inv > 0) player.inv--;
+    if (player.cd > 0) player.cd--;
+
+    // Disparo del jugador
+    if (keys[' '] && player.cd <= 0) {
+      spells.push({ x: player.x + player.w, y: player.y + 18, vx: 9.5, r: 7 });
+      player.cd = 18;
+      tone([660, 880], 'triangle', 0.03, 0.12, 0.08);
+    }
+
+    // IA del Troll
+    troll.timer--;
+    if (troll.state === 'attack') {
+      if (troll.timer % 45 === 0) {
+        const isWave = Math.random() < 0.35;
+        projectiles.push({
+          x: troll.x,
+          y: isWave ? 334 : 245 + Math.random() * 65,
+          vx: -(5.4 + Math.random() * 2.2),
+          r: isWave ? 16 : 13,
+          wave: isWave
+        });
+        troll.rocksThrown++;
+        tone([150], 'sawtooth', 0, 0.14, 0.07);
+      }
+      if (troll.rocksThrown >= 4) {
+        troll.state = 'stunned';
+        troll.timer = 155; // ~2.5s aturdido
+        troll.rocksThrown = 0;
+      }
+    } else if (troll.state === 'stunned') {
+      if (troll.timer <= 0) {
+        troll.state = 'attack';
+        troll.timer = 160;
+      }
+    }
+
+    // Actualizar proyectiles del troll
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      p.x += p.vx;
+      if (p.x < -30) { projectiles.splice(i, 1); continue; }
+      if (player.inv <= 0 &&
+          p.x + p.r > player.x && p.x - p.r < player.x + player.w &&
+          p.y + p.r > player.y && p.y - p.r < player.y + player.h) {
+        player.hp--;
+        player.inv = 45;
+        spawnParticles(player.x + 20, player.y + 20, '#e5604f', 12);
+        buzzSnd();
+        projectiles.splice(i, 1);
+        if (player.hp <= 0) {
+          awardMinigamePoints(3, 'Troll en las Mazmorras', 0, 'troll');
+          return;
+        }
+      }
+    }
+
+    // Actualizar hechizos del jugador
+    for (let i = spells.length - 1; i >= 0; i--) {
+      const s = spells[i];
+      s.x += s.vx;
+      if (s.x > 820) { spells.splice(i, 1); continue; }
+      if (s.x > troll.x && s.x < troll.x + troll.w && s.y > troll.y && s.y < troll.y + troll.h) {
+        spells.splice(i, 1);
+        if (troll.state === 'stunned') {
+          troll.hp--;
+          spawnParticles(troll.x + 40, troll.y + 50, '#e3bb4e', 16);
+          chime();
+          troll.state = 'attack';
+          troll.timer = 140;
+          if (troll.hp <= 0) {
+            awardMinigamePoints(5, 'Troll en las Mazmorras', 0, 'troll');
+            return;
+          }
+        } else {
+          spawnParticles(troll.x, s.y, '#888', 6);
+          tone([240], 'sine', 0, 0.08, 0.06);
+        }
+      }
+    }
+
+    // Dibujar escenario de Mazmorras
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#120f24';
+    ctx.fillRect(0, 0, 800, 400);
+    ctx.fillStyle = '#231e3d';
+    ctx.fillRect(0, 348, 800, 52);
+    ctx.strokeStyle = '#3b3469';
+    ctx.strokeRect(0, 348, 800, 2);
+
+    // Dibujar Jugador
+    ctx.save();
+    if (player.inv > 0 && Math.floor(player.inv / 4) % 2 === 0) ctx.globalAlpha = 0.45;
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.roundRect(player.x, player.y, player.w, player.h, 8);
+    ctx.fill();
+    ctx.fillStyle = '#f6d7bd';
+    ctx.beginPath();
+    ctx.arc(player.x + player.w / 2, player.y + 12, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // Varita
+    ctx.strokeStyle = '#e3bb4e';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(player.x + player.w - 4, player.y + 24);
+    ctx.lineTo(player.x + player.w + 10, player.y + 18);
+    ctx.stroke();
+    ctx.restore();
+
+    // Dibujar Troll
+    ctx.fillStyle = troll.state === 'stunned' ? '#63a87b' : '#3f8a4f';
+    ctx.beginPath();
+    ctx.roundRect(troll.x, troll.y, troll.w, troll.h, 12);
+    ctx.fill();
+    ctx.fillStyle = '#1b1405';
+    ctx.fillRect(troll.x + 18, troll.y + 24, 12, 12);
+    ctx.fillRect(troll.x + 52, troll.y + 24, 12, 12);
+    // Barra de vida del Troll
+    ctx.fillStyle = '#2a1820';
+    ctx.fillRect(troll.x, troll.y - 18, troll.w, 8);
+    ctx.fillStyle = '#4cc38a';
+    ctx.fillRect(troll.x, troll.y - 18, (troll.hp / troll.maxHp) * troll.w, 8);
+    if (troll.state === 'stunned') {
+      ctx.fillStyle = '#e3bb4e';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('💫 ¡ATURDIDO! ¡ATACA!', troll.x - 32, troll.y - 26);
+    }
+
+    // Dibujar Proyectiles del Troll
+    projectiles.forEach(p => {
+      ctx.fillStyle = p.wave ? '#e8a33d' : '#8d88a8';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Dibujar Hechizos del Jugador
+    spells.forEach(s => {
+      ctx.fillStyle = '#e3bb4e';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const pt = particles[i];
+      pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+      ctx.fillStyle = pt.col;
+      ctx.fillRect(pt.x, pt.y, 4, 4);
+      if (pt.life <= 0) particles.splice(i, 1);
+    }
+
+    $('mgCanvasHud').textContent = `❤️ Vidas: ${player.hp} · 🧌 Troll HP: ${troll.hp}/3`;
+    gameLoop = requestAnimationFrame(gameLoopUpdate);
+  }
+
+  mgClickHandler = () => { keys[' '] = true; setTimeout(() => keys[' '] = false, 120); };
+  gameLoopUpdate();
+}
+
+/* 2. DUELO DE HECHIZOS (Ritmo / Reflejos - 3 pts) */
+function startDuelMinigame() {
+  openCanvasModal(
+    '🪄 2. Duelo de Hechizos',
+    'Observa la secuencia de colores mágicos y pulsa los orbes en el mismo orden.',
+    'Haz clic o toca cada orbe en el lienzo (o usa las flechas / teclas 1-4).',
+    false
+  );
+  const ORBS = [
+    { name: 'Expelliarmus', col: '#e5604f', x: 170, y: 210, freq: 440 },
+    { name: 'Stupefy', col: '#4a6ee0', x: 325, y: 210, freq: 554.37 },
+    { name: 'Protego', col: '#4cc38a', x: 480, y: 210, freq: 659.25 },
+    { name: 'Lumos', col: '#e3bb4e', x: 635, y: 210, freq: 880 }
+  ];
+  let round = 1, seq = [], step = 0, lit = -1, accepting = false;
+
+  function playSeq() {
+    accepting = false; step = 0;
+    seq.push(Math.floor(Math.random() * 4));
+    if (round === 1 && seq.length === 1) { seq.push(Math.floor(Math.random() * 4), Math.floor(Math.random() * 4)); }
+    seq.forEach((idx, i) => {
+      setTimeout(() => {
+        if (!mgActive) return;
+        lit = idx;
+        tone([ORBS[idx].freq], 'triangle', 0, 0.24, 0.14);
+        setTimeout(() => { lit = -1; }, 340);
+      }, 500 + i * 560);
+    });
+    setTimeout(() => { if (mgActive) accepting = true; }, 500 + seq.length * 560 + 150);
+  }
+
+  playSeq();
+
+  mgClickHandler = (mx, my) => {
+    if (!accepting) return;
+    const idx = ORBS.findIndex(o => Math.hypot(mx - o.x, my - o.y) <= 56);
+    if (idx === -1) return;
+    lit = idx;
+    setTimeout(() => { lit = -1; }, 220);
+    if (idx === seq[step]) {
+      tone([ORBS[idx].freq], 'sine', 0, 0.18, 0.13);
+      step++;
+      if (step >= seq.length) {
+        if (round >= 3) {
+          awardMinigamePoints(3, 'Duelo de Hechizos', 0, 'duelo');
+          return;
+        }
+        round++;
+        setTimeout(playSeq, 450);
+      }
+    } else {
+      buzzSnd();
+      awardMinigamePoints(2, 'Duelo de Hechizos', 0, 'duelo');
+    }
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#120f26';
+    ctx.fillRect(0, 0, 800, 400);
+    ctx.fillStyle = '#eeeaf8';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(accepting ? `¡Tu turno! Pulsa el hechizo (${step}/${seq.length})` : 'Observa el conjuro del rival…', 400, 72);
+
+    ORBS.forEach((o, i) => {
+      ctx.save();
+      const isLit = lit === i;
+      ctx.fillStyle = o.col;
+      ctx.globalAlpha = isLit ? 1 : 0.42;
+      if (isLit) { ctx.shadowColor = o.col; ctx.shadowBlur = 32; }
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, isLit ? 56 : 48, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = isLit ? 4 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText(o.name, o.x, o.y + 76);
+      ctx.restore();
+    });
+    $('mgCanvasHud').textContent = `Ronda ${round}/3 · Progreso ${step}/${seq.length}`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* 3. CAZA DE LA SNITCH DORADA EN CANVAS (Puntería / Precisión - 2 a 5 pts + 3 XP) */
+function startSnitchCanvasMinigame() {
+  openCanvasModal(
+    '🟡 3. Caza de la Snitch Dorada',
+    'Haz clic o toca la Snitch Dorada 5 veces antes de que se agoten los 12 segundos.',
+    'Puntería directa sobre el lienzo (ratón o pantalla táctil).',
+    false
+  );
+  const snitch = { x: 400, y: 200, vx: 4.8, vy: 3.6, r: 22 };
+  const trail = [];
+  let hits = 0, startTime = Date.now(), duration = 12000;
+
+  mgClickHandler = (mx, my) => {
+    if (Math.hypot(mx - snitch.x, my - snitch.y) <= snitch.r + 18) {
+      hits++;
+      snitchSnd();
+      snitch.x = 80 + Math.random() * 640;
+      snitch.y = 70 + Math.random() * 260;
+      const spd = 5 + hits * 0.9;
+      const ang = Math.random() * Math.PI * 2;
+      snitch.vx = Math.cos(ang) * spd;
+      snitch.vy = Math.sin(ang) * spd;
+      if (hits >= 5) {
+        awardMinigamePoints(5, 'Caza de la Snitch Dorada', 3, 'snitch');
+      }
+    } else {
+      tone([240], 'sine', 0, 0.06, 0.05);
+    }
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    const rem = Math.max(0, duration - (Date.now() - startTime));
+    if (rem <= 0) {
+      const pts = Math.max(2, Math.min(5, hits + 1));
+      awardMinigamePoints(pts, 'Caza de la Snitch Dorada', hits >= 3 ? 2 : 1, 'snitch');
+      return;
+    }
+
+    snitch.x += snitch.vx;
+    snitch.y += snitch.vy;
+    if (snitch.x < 36 || snitch.x > 764) snitch.vx *= -1;
+    if (snitch.y < 36 || snitch.y > 364) snitch.vy *= -1;
+    if (Math.random() < 0.04) {
+      const ang = Math.random() * Math.PI * 2, spd = Math.hypot(snitch.vx, snitch.vy);
+      snitch.vx = Math.cos(ang) * spd;
+      snitch.vy = Math.sin(ang) * spd;
+    }
+    trail.push({ x: snitch.x, y: snitch.y, life: 16 });
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#0d1530';
+    ctx.fillRect(0, 0, 800, 400);
+
+    // Aros de Quidditch de fondo
+    ctx.strokeStyle = 'rgba(227,187,78,0.22)';
+    ctx.lineWidth = 3;
+    [160, 400, 640].forEach(ax => {
+      ctx.beginPath(); ctx.arc(ax, 180, 38, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ax, 218); ctx.lineTo(ax, 400); ctx.stroke();
+    });
+
+    // Estela dorada
+    for (let i = trail.length - 1; i >= 0; i--) {
+      const t = trail[i]; t.life--;
+      ctx.fillStyle = `rgba(227,187,78,${t.life / 24})`;
+      ctx.beginPath(); ctx.arc(t.x, t.y, (t.life / 16) * 10, 0, Math.PI * 2); ctx.fill();
+      if (t.life <= 0) trail.splice(i, 1);
+    }
+
+    // Alas y Snitch
+    const flap = Math.sin(Date.now() / 45) * 10;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(snitch.x - 14, snitch.y);
+    ctx.lineTo(snitch.x - 42, snitch.y - 12 + flap);
+    ctx.moveTo(snitch.x + 14, snitch.y);
+    ctx.lineTo(snitch.x + 42, snitch.y - 12 + flap);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e3bb4e';
+    ctx.beginPath();
+    ctx.arc(snitch.x, snitch.y, snitch.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff4b8';
+    ctx.stroke();
+
+    $('mgCanvasHud').textContent = `🟡 Capturas: ${hits}/5 · ⏱️ ${(rem / 1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* 4. DEFENSA DE LA COPA (Tower Defense / Estrategia - 5 pts) */
+function startTowerDefenseMinigame() {
+  openCanvasModal(
+    '🛡️ 4. Defensa de la Copa',
+    'Haz clic o toca en cualquiera de los 3 carriles para colocar Torretas Mágicas (costo: 30 maná) y proteger la Copa.',
+    'Estrategia en tiempo real: coloca defensas en los carriles para detener a las criaturas oscuras.',
+    false
+  );
+  const LANES = [100, 210, 320];
+  const towers = [];
+  const enemies = [];
+  const bolts = [];
+  let mana = 60, cupHp = 3, startTime = Date.now(), duration = 15000, spawnTick = 0;
+
+  mgClickHandler = (mx, my) => {
+    if (mx < 110 || mx > 680) return;
+    let laneIdx = 0, bestD = 999;
+    LANES.forEach((ly, i) => { if (Math.abs(my - ly) < bestD) { bestD = Math.abs(my - ly); laneIdx = i; } });
+    if (mana < 30) { toast('Necesitas 30 de maná'); return; }
+    const gx = Math.round(mx / 90) * 90;
+    if (towers.some(t => t.lane === laneIdx && Math.abs(t.x - gx) < 50)) return;
+    mana -= 30;
+    towers.push({ x: gx, y: LANES[laneIdx], lane: laneIdx, cd: 0 });
+    tone([523.25, 659.25], 'sine', 0.04, 0.15, 0.1);
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    const rem = Math.max(0, duration - (Date.now() - startTime));
+    if (rem <= 0) {
+      awardMinigamePoints(5, 'Defensa de la Copa', 0, 'defensa_copa');
+      return;
+    }
+    mana = Math.min(100, mana + 0.22);
+    spawnTick++;
+    if (spawnTick % 55 === 0) {
+      const l = Math.floor(Math.random() * 3);
+      enemies.push({ x: 780, y: LANES[l], lane: l, hp: 2, spd: 1.6 + Math.random() * 0.9 });
+    }
+
+    // Torretas disparan
+    towers.forEach(t => {
+      if (t.cd > 0) t.cd--;
+      else {
+        const hasTarget = enemies.some(e => e.lane === t.lane && e.x > t.x);
+        if (hasTarget) {
+          bolts.push({ x: t.x + 18, y: t.y, lane: t.lane, vx: 7.5 });
+          t.cd = 38;
+        }
+      }
+    });
+
+    // Proyectiles
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      const b = bolts[i]; b.x += b.vx;
+      if (b.x > 800) { bolts.splice(i, 1); continue; }
+      const hitIdx = enemies.findIndex(e => e.lane === b.lane && Math.abs(e.x - b.x) < 22);
+      if (hitIdx !== -1) {
+        enemies[hitIdx].hp--;
+        bolts.splice(i, 1);
+        if (enemies[hitIdx].hp <= 0) {
+          enemies.splice(hitIdx, 1);
+          mana = Math.min(100, mana + 12);
+          tone([780], 'sine', 0, 0.08, 0.07);
+        }
+      }
+    }
+
+    // Enemigos avanzan
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i]; e.x -= e.spd;
+      if (e.x < 75) {
+        enemies.splice(i, 1);
+        cupHp--;
+        buzzSnd();
+        if (cupHp <= 0) {
+          awardMinigamePoints(3, 'Defensa de la Copa', 0, 'defensa_copa');
+          return;
+        }
+      }
+    }
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#121028';
+    ctx.fillRect(0, 0, 800, 400);
+
+    // Carriles y Copa
+    LANES.forEach(ly => {
+      ctx.strokeStyle = '#2e2a63';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(90, ly - 36, 680, 72);
+      ctx.fillStyle = '#e3bb4e';
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏆', 48, ly + 10);
+    });
+
+    // Dibujar Torretas
+    towers.forEach(t => {
+      ctx.fillStyle = '#4a6ee0';
+      ctx.beginPath(); ctx.arc(t.x, t.y, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif'; ctx.fillText('🛡️', t.x, t.y + 6);
+    });
+
+    // Dibujar Enemigos
+    enemies.forEach(e => {
+      ctx.fillStyle = '#e5604f';
+      ctx.beginPath(); ctx.arc(e.x, e.y, 20, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif'; ctx.fillText('🕷️', e.x, e.y + 6);
+    });
+
+    // Dibujar rayos
+    bolts.forEach(b => {
+      ctx.fillStyle = '#e3bb4e';
+      ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI * 2); ctx.fill();
+    });
+
+    $('mgCanvasHud').textContent = `✨ Maná: ${Math.floor(mana)} (Torreta=30) · 🏆 Copa: ${cupHp}/3 · ⏱️ ${(rem / 1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* 5. POCIÓN EXPLOSIVA (Lógica / Memoria - 4 pts) */
+function startExplosivePotionMinigame() {
+  openCanvasModal(
+    '🧪 5. Poción Explosiva',
+    'Memoriza los 4 ingredientes de la receta durante 3.5 segundos y luego selecciónalos en orden de la lista.',
+    'Haz clic o toca los ingredientes en el orden exacto de la receta antes de que el caldero explote.',
+    false
+  );
+  const POOL = [
+    { ic: '🕷️', n: 'Araña' }, { ic: '🌿', n: 'Asfódelo' }, { ic: '💎', n: 'Bezoar' }, { ic: '🍄', n: 'Hongo' },
+    { ic: '🩸', n: 'Draco' }, { ic: '🌙', n: 'Lunar' }, { ic: '🪶', n: 'Pluma' }, { ic: '🐚', n: ' Nácar' }
+  ];
+  const recipe = [...POOL].sort(() => Math.random() - 0.5).slice(0, 4);
+  const shuffled = [...POOL].sort(() => Math.random() - 0.5);
+  let phase = 'memorize', step = 0, start = Date.now();
+
+  mgClickHandler = (mx, my) => {
+    if (phase !== 'pick') return;
+    shuffled.forEach((item, idx) => {
+      const col = idx % 4, row = Math.floor(idx / 4);
+      const bx = 110 + col * 155, by = 180 + row * 95;
+      if (mx >= bx && mx <= bx + 135 && my >= by && my <= by + 76) {
+        if (item.n === recipe[step].n) {
+          step++;
+          tone([520 + step * 90], 'sine', 0, 0.16, 0.11);
+          if (step >= 4) {
+            awardMinigamePoints(4, 'Poción Explosiva', 0, 'pocion_exp');
+          }
+        } else {
+          buzzSnd();
+          awardMinigamePoints(2, 'Poción Explosiva', 0, 'pocion_exp');
+        }
+      }
+    });
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    const elapsed = Date.now() - start;
+    if (phase === 'memorize' && elapsed >= 3500) {
+      phase = 'pick';
+      start = Date.now();
+    } else if (phase === 'pick' && elapsed >= 10000) {
+      buzzSnd();
+      awardMinigamePoints(2, 'Poción Explosiva', 0, 'pocion_exp');
+      return;
+    }
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#14112a';
+    ctx.fillRect(0, 0, 800, 400);
+    ctx.textAlign = 'center';
+
+    if (phase === 'memorize') {
+      ctx.fillStyle = '#e3bb4e';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('📜 MEMORIZA LA RECETA EN ORDEN (1 → 4)', 400, 75);
+      recipe.forEach((r, i) => {
+        const x = 140 + i * 170, y = 195;
+        ctx.fillStyle = '#1c1943';
+        ctx.beginPath(); ctx.roundRect(x - 65, y - 55, 130, 110, 14); ctx.fill();
+        ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = '38px sans-serif'; ctx.fillText(r.ic, x, y);
+        ctx.fillStyle = '#eeeaf8'; ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(`${i + 1}. ${r.n}`, x, y + 36);
+      });
+      $('mgCanvasHud').textContent = `Memorizando… ${Math.ceil((3500 - elapsed) / 1000)} s`;
+    } else {
+      ctx.fillStyle = '#eeeaf8';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(`⚗️ Selecciona el ingrediente #${step + 1} de 4 antes de que explote`, 400, 62);
+      shuffled.forEach((item, idx) => {
+        const col = idx % 4, row = Math.floor(idx / 4);
+        const bx = 110 + col * 155, by = 150 + row * 100;
+        const already = recipe.slice(0, step).some(r => r.n === item.n);
+        ctx.fillStyle = already ? '#1d3b2f' : '#1c1943';
+        ctx.beginPath(); ctx.roundRect(bx, by, 135, 80, 12); ctx.fill();
+        ctx.strokeStyle = already ? '#4cc38a' : '#3a346e'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.font = '28px sans-serif'; ctx.fillText(item.ic, bx + 67, by + 38);
+        ctx.fillStyle = '#eeeaf8'; ctx.font = '13px sans-serif'; ctx.fillText(item.n, bx + 67, by + 64);
+      });
+      $('mgCanvasHud').textContent = `Progreso: ${step}/4 · 💥 Explota en ${Math.ceil((10000 - elapsed) / 1000)} s`;
+    }
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* 6. CARRERA DE ESCOBAS (Reflejos / Esquivar - 3 a 5 pts + 4 XP Vuelo) */
+function startBroomRaceMinigame() {
+  const u = me();
+  openCanvasModal(
+    '🧹 6. Carrera de Escobas',
+    'Esquiva las Bludgers y atraviesa los Aros Dorados de velocidad hasta cruzar la meta.',
+    'Controles: W/S o Flechas ▲/▼ (o botones táctiles) para subir y bajar tu escoba.',
+    true
+  );
+  const flyer = { x: 120, y: 200, r: 18, color: houseHex(u?.house), rings: 0, hits: 0 };
+  const obstacles = [];
+  let start = Date.now(), duration = 12000, tick = 0;
+
+  function loop() {
+    if (!mgActive) return;
+    const rem = Math.max(0, duration - (Date.now() - start));
+    if (rem <= 0) {
+      const pts = Math.max(3, Math.min(5, 4 + Math.floor(flyer.rings / 2) - flyer.hits));
+      awardMinigamePoints(pts, 'Carrera de Escobas', 4, 'escobas');
+      return;
+    }
+
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) flyer.y = Math.max(40, flyer.y - 5.2);
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) flyer.y = Math.min(360, flyer.y + 5.2);
+
+    tick++;
+    if (tick % 34 === 0) {
+      const isRing = Math.random() < 0.42;
+      obstacles.push({
+        x: 830,
+        y: 50 + Math.random() * 300,
+        vx: -(6.2 + Math.random() * 2.5),
+        r: isRing ? 22 : 16,
+        ring: isRing
+      });
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.x += o.vx;
+      if (o.x < -40) { obstacles.splice(i, 1); continue; }
+      if (Math.hypot(o.x - flyer.x, o.y - flyer.y) < o.r + flyer.r) {
+        if (o.ring) {
+          flyer.rings++;
+          tone([660, 880], 'sine', 0.03, 0.14, 0.1);
+        } else {
+          flyer.hits++;
+          buzzSnd();
+        }
+        obstacles.splice(i, 1);
+      }
+    }
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#0c132c';
+    ctx.fillRect(0, 0, 800, 400);
+
+    // Líneas de velocidad
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    for (let i = 0; i < 6; i++) {
+      const lx = ((800 - (tick * 9 + i * 140) % 800));
+      ctx.beginPath(); ctx.moveTo(lx, 45 + i * 60); ctx.lineTo(lx + 45, 45 + i * 60); ctx.stroke();
+    }
+
+    // Obstáculos y Aros
+    obstacles.forEach(o => {
+      if (o.ring) {
+        ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.fillStyle = '#e5604f';
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('⚫', o.x, o.y + 5);
+      }
+    });
+
+    // Jugador en escoba
+    ctx.strokeStyle = '#a8622a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(flyer.x - 28, flyer.y + 6); ctx.lineTo(flyer.x + 24, flyer.y + 2); ctx.stroke();
+    ctx.fillStyle = flyer.color;
+    ctx.beginPath(); ctx.arc(flyer.x, flyer.y - 4, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f6d7bd';
+    ctx.beginPath(); ctx.arc(flyer.x + 4, flyer.y - 14, 8, 0, Math.PI * 2); ctx.fill();
+
+    $('mgCanvasHud').textContent = `⭕ Aros: ${flyer.rings} · 💥 Golpes: ${flyer.hits} · ⏱️ ${(rem / 1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
 /* ===== 9. Eventos ===== */
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-do]');if(!b)return;
@@ -1405,6 +2250,7 @@ document.addEventListener('click',e=>{
     case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
     case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'practice':practice(d.k);break;
+    case 'playArcade':playArcade(d.g);break;
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
       if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
     case 'apply':API.apply(traitsDraft,$('pitch')?.value||'');traitsDraft=[];pitchDraft='';toast('Postulación enviada');break;
@@ -1468,7 +2314,7 @@ setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)
   if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
 let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
-  if(s!==sig){sig=s;renderPlay();renderMap();renderYou();renderSchedule();renderClock()}},2000);
+  if(s!==sig){sig=s;renderPlay();renderArcade();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
 /* ===== LOGIN SECRETO DE ADMIN ===== */
 document.getElementById('adminLoginBtn').addEventListener('click', () => {
