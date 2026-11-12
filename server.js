@@ -19,42 +19,77 @@ app.get('/', (req, res) => {
   else res.status(404).send('No se encontró el archivo del juego.');
 });
 
-// ⚠️ AQUÍ VA TU CONEXIÓN A MONGODB
-// Lo leeremos desde Render para que no esté en el código público
 const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri, {
-  serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
+let client = null;
+let db = null;
+
+const U = (id, username, house, points, flight_xp, role, is_admin) => ({
+  id, username, house, points, flight_xp, role, is_admin, created_at: id
 });
 
-let db;
 const defaultDb = {
   users: [
-    { id: 1, username: 'Carla R.', house: 'ravenclaw', points: 90, flight_xp: 35, role: 'student', is_admin: true },
-    { id: 2, username: 'Vicente D.', house: 'ravenclaw', points: 70, flight_xp: 20, role: 'student', is_admin: false }
+    U(1, 'Carla R.', 'ravenclaw', 90, 35, 'student', false),
+    U(2, 'Vicente D.', 'ravenclaw', 70, 20, 'student', false),
+    U(3, 'Matilde S.', 'gryffindor', 85, 30, 'student', false),
+    U(4, 'Joaquín P.', 'gryffindor', 95, 10, 'prefect', false),
+    U(5, 'Antonia V.', 'slytherin', 88, 25, 'student', false),
+    U(6, 'Benjamín L.', 'hufflepuff', 82, 25, 'prefect', false)
   ],
   houses: [
-    { id: 'gryffindor', points: 240 }, { id: 'ravenclaw', points: 224 },
-    { id: 'slytherin', points: 215 }, { id: 'hufflepuff', points: 195 }
+    { id: 'gryffindor', points: 240 },
+    { id: 'ravenclaw', points: 224 },
+    { id: 'slytherin', points: 215 },
+    { id: 'hufflepuff', points: 195 }
   ],
-  log: [], apps: [], votes: [],
-  events: [{ name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }],
-  period: 'application', clockMode: 'real', mockTime: null, mockDay: null, free: false,
-  chat: [], matches: [], cooldowns: {}, missions: {}
+  log: [],
+  apps: [],
+  votes: [],
+  events: [
+    { name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }
+  ],
+  period: 'application',
+  clockMode: 'real',
+  mockTime: null,
+  mockDay: null,
+  free: false,
+  chat: [],
+  matches: [],
+  cooldowns: {},
+  missions: {}
 };
 
+// Respaldo local en memoria/archivo si no hay MONGODB_URI configurado en local
+const DB_FILE = path.join(__dirname, 'db.json');
+let memoryState = defaultDb;
+if (fs.existsSync(DB_FILE)) {
+  try {
+    memoryState = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  } catch (e) {
+    console.error('Error leyendo db.json local:', e);
+  }
+}
+
 async function loadState() {
+  if (!db) return memoryState;
   const collection = db.collection('gameState');
   let state = await collection.findOne({ _id: 'global' });
   if (!state) {
     await collection.insertOne({ _id: 'global', ...defaultDb });
-    state = { _id: 'global', ...defaultDb };
+    return { ...defaultDb };
   }
-  return state;
+  const { _id, ...cleanState } = state;
+  return cleanState;
 }
 
 async function saveState(newState) {
-  const collection = db.collection('gameState');
   const { _id, ...stateToSave } = newState;
+  memoryState = stateToSave;
+  if (!db) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(stateToSave, null, 2));
+    return;
+  }
+  const collection = db.collection('gameState');
   await collection.updateOne({ _id: 'global' }, { $set: stateToSave }, { upsert: true });
 }
 
@@ -65,16 +100,13 @@ io.on('connection', async (socket) => {
 
     socket.on('sync_db', async (data) => {
       if (data && data.db) {
-        // Validación básica: Evitar que inunden la base de datos con usuarios falsos de golpe
-        if (data.db.users.length > 150) {
-           console.log('⚠️ Intento de creación masiva de usuarios bloqueado.');
-           return; 
+        if (Array.isArray(data.db.users) && data.db.users.length > 150) {
+          console.log('⚠️ Intento de creación masiva de usuarios bloqueado.');
+          return;
         }
 
-        // Guardar en MongoDB
         await saveState(data.db);
-        
-        // Retransmitir a los demás
+
         socket.broadcast.emit('sync_db', {
           db: data.db,
           reason: data.reason || null
@@ -87,20 +119,23 @@ io.on('connection', async (socket) => {
 });
 
 async function startServer() {
-  if (!uri) {
-    console.log('❌ ERROR: Falta la variable MONGODB_URI en Render.');
-    return;
+  if (uri) {
+    try {
+      client = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
+      });
+      await client.connect();
+      db = client.db('elcastillo');
+      console.log('✅ Conectado a MongoDB Atlas');
+    } catch (err) {
+      console.error('❌ Error al conectar a MongoDB, usando respaldo local db.json:', err.message);
+    }
+  } else {
+    console.log('⚠️ Variable MONGODB_URI no detectada: funcionando en modo local con db.json.');
   }
-  try {
-    await client.connect();
-    db = client.db('elcastillo');
-    console.log('✅ Conectado a MongoDB Atlas');
-    
-    const PORT = process.env.PORT || 3000;
-    server.listen(PORT, () => console.log(`🏰 Servidor en http://localhost:${PORT}`));
-  } catch (err) {
-    console.error('❌ Error al conectar a MongoDB:', err);
-  }
+
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => console.log(`🏰 Servidor en http://localhost:${PORT}`));
 }
 
 startServer();
