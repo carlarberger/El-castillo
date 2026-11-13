@@ -1819,6 +1819,80 @@ const API={
     t.role=t.role==='prefect'?'student':'prefect';
     commit(t.username+' ahora es '+t.role);
   },
+  awardGaleones(id,amt){
+    must(session.isAdmin,'Solo admin');
+    const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
+    t.galeones=Math.max(0,(t.galeones||0)+amt);
+    commit(`Admin otorgó ${amt} 🪙 a ${t.username}`);
+    toast(`${t.username} ahora tiene ${t.galeones} 🪙 Galeones.`);
+  },
+  toggleQuidditch(id){
+    must(session.isAdmin,'Solo admin');
+    const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
+    t.quidditch_approved=!t.quidditch_approved;
+    if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved)t.npc_path='quidditch';}
+    commit(`${t.username} ${t.quidditch_approved?'entró al':'salió del'} equipo de Quidditch`);
+  },
+  deleteUser(id){
+    must(session.isAdmin,'Solo admin');
+    const idx=db.users.findIndex(u=>u.id===id);must(idx!==-1,'Alumno no encontrado');
+    const name=db.users[idx].username;
+    db.users.splice(idx,1);
+    if(session.uid===id){session.uid=null;session.passHash='';}
+    commit(`Admin eliminó a ${name}`);
+    toast(`${name} eliminado del registro.`);
+  },
+  resetMatches(){
+    must(session.isAdmin,'Solo admin');
+    db.matches=[];
+    commit('Torneo y partidos de Quidditch reiniciados');
+    toast('Todos los partidos de Quidditch fueron eliminados.');
+  },
+  animagusAdvance(){
+    const u=me();must(u&&u.house,'Inicia sesión primero');
+    const st=u.animagus_stage||0;
+    if(st===0){
+      must((u.academic_progress||0)>=50,'Necesitas 50 de Avance Académico (tienes '+(u.academic_progress||0)+').');
+      u.animagus_stage=1;
+      toast('¡Fase 1 completada! Ahora mantén la hoja de Mandrágora.');
+    }else if(st===1){
+      u.animagus_stage=2;
+      toast('¡Fase 2 completada! Espera una tormenta (Jueves o Viernes).');
+    }else if(st===2){
+      const d=curDay();
+      must(d==='jueves'||d==='viernes','Solo puedes invocar la tormenta en Jueves o Viernes (hoy es '+DAYL[d]+').');
+      u.animagus_stage=3;
+      toast('¡Fase 3 completada! Bebe la poción cuando tengas 60+ de Felicidad.');
+    }else if(st===3){
+      must((u.happiness||0)>=60,'Necesitas 60 de Felicidad (tienes '+(u.happiness||0)+').');
+      const form=ANIMAGUS_FORMS[Math.floor(Math.random()*ANIMAGUS_FORMS.length)];
+      u.animagus=form.id;
+      u.animagus_stage=4;
+      u.points+=25;
+      db.log.unshift({u:u.username,h:u.house,a:`Ritual Animago (${form.name})`,p:25,x:0});
+      fanfare();
+      toast(`¡Completaste el Ritual Animago! Tu forma es: ${form.icon} ${form.name} (+25 pts).`);
+    }
+    commit(u.username+' avanzó en el Ritual Animago');
+  },
+  darkMarkAction(action){
+    const u=me();must(u&&u.house,'Inicia sesión primero');
+    if(action==='join'){
+      u.pride=Math.min(100,(u.pride||50)+10);
+      u.happiness=Math.max(0,(u.happiness||50)-15);
+      u.points=Math.max(0,u.points-10);
+      db.log.unshift({u:u.username,h:u.house,a:'Tentación Oscura',p:-10,x:0});
+      buzzSnd();
+      toast('Aceptaste el llamado oscuro (-10 pts, +10 Orgullo, -15 Felicidad).');
+    }else{
+      u.points+=15;
+      u.pride=Math.min(100,(u.pride||50)+8);
+      db.log.unshift({u:u.username,h:u.house,a:'Defensa contra Mortífagos',p:15,x:0});
+      chime();
+      toast('¡Resististe y defendiste el Castillo! +15 pts y +8 Orgullo.');
+    }
+    commit(u.username+' actuó ante la Amenaza Mortífaga');
+  },
   resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
   newMatch(a,b,type='amistoso'){
     must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
@@ -2325,26 +2399,44 @@ function renderAdmin(){
   const ev=activeEvent(),active=document.activeElement&&slot.contains(document.activeElement)&&document.activeElement.id;
   const dsel=db.mockDay||curDay(),tval=db.mockTime||'09:00';
   const npcCount=db.users.filter(x=>x.is_npc).length;
-  slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">Panel de administración</h3><div class="grid g2" style="align-items:start">
+  const elims=db.matches.filter(m=>m.type==='eliminatoria');
+  const elimsDone=elims.filter(m=>m.status==='finished').length;
+  slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">🔐 Panel de administración completo</h3><div class="grid g2" style="align-items:start">
    <div class="box"><h4>Período de prefectos</h4><div class="row"><button class="btn sm ${db.period==='application'?'gold':''}" data-do="period" data-v="application" type="button">Postulación</button><button class="btn sm ${db.period==='voting'?'gold':''}" data-do="period" data-v="voting" type="button">Votación</button><button class="btn sm ${db.period==='closed'?'gold':''}" data-do="period" data-v="closed" type="button">Cerrar y elegir</button></div></div>
-   <div class="box" style="grid-column:1/-1"><h4>🎓 Año Escolar del Castillo (Curso de la generación de Harry y jugadores: ${db.schoolYear||1}.º)</h4>
-    <p class="muted" style="font-size:13px;margin-bottom:8px">En el Año 1, Harry y tú están en 1.º curso, Cedric, Fred y George en 3.º, Cho en 2.º, y Ginny y Luna aún no ingresan (entran a 1.º en el Año 2).</p>
-    <div class="row">${[1,2,3,4,5,6,7].map(yr=>`<button class="btn sm ${(db.schoolYear||1)===yr?'gold':''}" data-do="setSchoolYear" data-y="${yr}" type="button">Año ${yr} (${yr}.º curso)</button>`).join('')}</div></div>
    <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
+   <div class="box" style="grid-column:1/-1"><h4>🎓 Año Escolar del Castillo (Actual: ${db.schoolYear||1}.º)</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Cambia el año escolar para avanzar la generación y desbloquear magia de cursos superiores.</p>
+    <div class="row">${[1,2,3,4,5,6,7].map(yr=>`<button class="btn sm ${(db.schoolYear||1)===yr?'gold':''}" data-do="setSchoolYear" data-y="${yr}" type="button">Año ${yr} (${yr}.º curso)</button>`).join('')}</div></div>
    <div class="box" style="grid-column:1/-1"><h4>🤖 Alumnos IA / NPCs (${npcCount} activos)</h4>
-    <p class="muted" style="font-size:13px;margin-bottom:8px">Los NPCs exploran salas, entrenan en clases, participan en Quidditch y conversan en el Gran Comedor automáticamente.</p>
     <div class="row">
       <button class="btn sm ${db.npcAi?'gold':''}" data-do="toggleNpcAi" type="button">${db.npcAi?'🤖 IA Automática: ACTIVA':'🤖 IA Automática: PAUSADA'}</button>
       <button class="btn sm" data-do="npcNow" type="button">⚡ Simular acción IA ahora</button>
-      <button class="btn sm" data-do="spawnNpc" type="button">➕ NPC Aleatorio</button><button class="btn sm gold" data-do="openCustomNpc" type="button">🎨 Crear NPC Personalizado</button>
+      <button class="btn sm" data-do="spawnNpc" type="button">➕ NPC Aleatorio</button>
+      <button class="btn sm gold" data-do="openCustomNpc" type="button">🎨 Crear NPC Personalizado</button>
     </div></div>
+   <div class="box" style="grid-column:1/-1"><h4>🧹 Gestión Rápida de Quidditch (${db.matches.length} partidos · Eliminatorias ${elimsDone}/6)</h4>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn sm" data-do="genElims" type="button" ${elims.length>=6?'disabled':''}>⚔️ Generar 6 Eliminatorias</button>
+      <button class="btn sm gold" data-do="genFinal" type="button" ${elimsDone>=6?'':'disabled'}>👑 Crear Final (Top 2)</button>
+      <button class="btn sm danger" data-do="resetMatches" type="button" ${db.matches.length?'':'disabled'}>🗑️ Borrar todos los partidos</button>
+    </div>
+    ${db.matches.length?`<div class="row" style="gap:6px">${db.matches.map(m=>`<span class="pill">${HOUSE(m.a).letter} vs ${HOUSE(m.b).letter} (${m.type||'amistoso'}) <button type="button" class="btn sm danger" style="padding:1px 6px;margin-left:4px" data-do="delMatch" data-m="${m.id}" title="Eliminar partido">✕</button></span>`).join('')}</div>`:'<span class="muted" style="font-size:12px">Sin partidos creados.</span>'}
+   </div>
    <div class="box" style="grid-column:1/-1"><h4>Reloj y horario</h4>
     <p style="margin-bottom:10px;font-size:14px">${DAYL[curDay()]} · <b class="mono">${curTime()}</b> · modo ${db.clockMode==='mock'?'simulado':'real'}</p>
     <div class="row" style="margin-bottom:10px"><select id="mockDay" aria-label="Día simulado">${DAYS.map(d=>`<option value="${d}" ${d===dsel?'selected':''}>${DAYL[d]}</option>`).join('')}</select><input id="mockTime" type="time" value="${tval}" style="width:auto" aria-label="Hora simulada"><button class="btn sm gold" data-do="mock" type="button">Simular</button><button class="btn sm" data-do="real" type="button">Hora real</button></div>
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
-   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button></td></tr>`).join('')}</tbody></table></div>
+   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>🪙</th><th>Vuelo</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}${x.quidditch_approved?' · 🧹':''}</td><td class="row" style="gap:4px">
+      <button class="btn sm" data-do="award" data-id="${x.id}" type="button" title="Sumar 10 puntos">+10</button>
+      <button class="btn sm danger" data-do="deduct" data-id="${x.id}" type="button" title="Restar 10 puntos">-10</button>
+      <button class="btn sm" data-do="awardGal" data-id="${x.id}" type="button" title="Dar 10 Galeones">+10🪙</button>
+      <button class="btn sm ${x.quidditch_approved?'gold':''}" data-do="toggleQuid" data-id="${x.id}" type="button" title="Aprobar/Quitar Quidditch">🧹</button>
+      <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar pref.':'Prefecto'}</button>
+      <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado (Solo 7.º)">${x.role==='delegado'?'Quitar del.':'Delegado'}</button>
+      <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar alumno/NPC">🗑️</button>
+    </td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -4295,6 +4387,11 @@ document.addEventListener('click',e=>{
     case 'adv':API.advance(parseInt(d.n));break;
     case 'free':API.setFree(!db.free);break;
     case 'award':API.award(Number(d.id),10);break;
+    case 'deduct':API.award(Number(d.id),-10);break;
+    case 'awardGal':API.awardGaleones(Number(d.id),10);break;
+    case 'toggleQuid':API.toggleQuidditch(Number(d.id));break;
+    case 'delUser':API.deleteUser(Number(d.id));break;
+    case 'resetMatches':API.resetMatches();break;
     case 'togglePref':API.togglePrefect(Number(d.id));break; case 'toggleDel':API.toggleDelegado(Number(d.id));break;
     case 'reset':if(!resetArmed){resetArmed=true;renderAdmin();setTimeout(()=>{resetArmed=false;renderAdmin()},4000)}else{resetArmed=false;API.resetPoints()}break;
     case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value,$('mType')?.value||'amistoso');break;
