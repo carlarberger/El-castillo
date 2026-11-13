@@ -325,9 +325,9 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </div>
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
+    <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button> <!-- ⬅️ AÑADIR ESTA LÍNEA -->
     <button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button>
     <button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button>
-    <button class="btn sm" onclick="toggleMusic()"  id="musicBtn" style="margin-right:10px">🎵 Música</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
   </div>
 </div></nav>
@@ -2543,6 +2543,56 @@ function openHogsmeadeModal(tab='Zonko') {
   openModal(html, true);
 }
 
+function openBackpackModal() {
+  const u = me();
+  if (!u) return toast('Inicia sesión primero');
+  
+  const inv = u.inv || {};
+  const items = Object.keys(inv).filter(id => inv[id] > 0);
+  
+  let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:12px">
+    <h3 style="font-size:20px;color:var(--gold)">🎒 Tu Mochila</h3>
+    <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
+  </div>`;
+
+  if (!items.length) {
+    html += `<div class="box" style="width:100%;text-align:center;padding:30px 10px;">
+      <p class="muted" style="font-size:16px;margin-bottom:10px">Tu mochila está vacía.</p>
+      <p class="muted" style="font-size:13px">Ve a Hogsmeade para comprar objetos mágicos.</p>
+    </div>`;
+  } else {
+    html += `<div class="grid g2" style="width:100%;text-align:left">`;
+    items.forEach(id => {
+      const item = TIENDA_HOGSMEADE[id];
+      if (!item) return;
+      
+      let icon = '📦';
+      if (id === 'bomba_fetida') icon = '💣';
+      if (id === 'polvo_oscuridad') icon = '🌫️';
+      if (id === 'rana_chocolate') icon = '🐸';
+      if (id === 'grageas_bertie') icon = '🍬';
+      if (id === 'cerveza_mantequilla') icon = '🍺';
+
+      html += `<div class="box" style="display:flex;flex-direction:column;gap:8px;border-left:3px solid var(--gold)">
+        <div class="row" style="justify-content:space-between">
+          <strong style="font-size:15px">${icon} ${item.nombre}</strong>
+          <span class="pill gold mono">x${inv[id]}</span>
+        </div>
+        <p class="muted" style="font-size:12px;flex:1">${item.desc}</p>
+        <button class="btn sm gold" data-do="useFromBackpack" data-id="${id}">✨ Usar objeto</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="row" style="margin-top:16px;justify-content:center">
+    <button class="btn sm" data-do="openHogsmeade">🛍️ Ir a Hogsmeade</button>
+    <button class="btn sm" data-do="closeModal" type="button">Cerrar Mochila</button>
+  </div>`;
+  
+  openModal(html, true);
+}
+
 function openAlbumModal() {
   const u = me();
   if (!u) return toast('Inicia sesión primero');
@@ -4227,6 +4277,11 @@ document.addEventListener('click',e=>{
     case 'buyItem':API.buyItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'useItem':API.useItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'openAlbum':openAlbumModal();break;
+    case 'openBackpack':openBackpackModal();break; // ⬅️ AÑADIR ESTA LÍNEA
+    case 'useFromBackpack': // ⬅️ Y ESTE BLOQUE
+      API.useItem(d.id); 
+      openBackpackModal(); // Recarga la mochila para actualizar la cantidad (x0, x1...)
+      break;
     case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
     case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
     case 'delMatch':API.deleteMatch(d.m);break;
