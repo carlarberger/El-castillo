@@ -1,13 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
-/* ===== HOGSMEADE & ÁLBUM DE CROMOS ===== */
-.cromo-card{background:var(--surface-2);border:2px solid var(--gold);border-radius:12px;padding:12px;text-align:center;position:relative;display:flex;flex-direction:column;gap:6px;align-items:center}
-.cromo-card.bloqueado{border-color:var(--line);opacity:.48;filter:grayscale(100%)}
-.cromo-rareza{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block}
-.rareza-Legendario{background:#b8860b;color:#fff}
-.rareza-Raro{background:#4a3b8c;color:#fff}
-.rareza-Común{background:#2c4a3e;color:#fff}
-.cromo-repetido{position:absolute;top:8px;right:8px;background:var(--gold);color:var(--gold-ink);font-weight:900;font-size:11px;padding:2px 7px;border-radius:8px}
-</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <audio id="bgMusic" loop volume="0.2">
   <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
 </audio>
@@ -173,7 +164,7 @@ select{width:auto}
 .mini.now{background:var(--gold);color:var(--gold-ink)}
 
 /* classes */
-.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .act{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
 .act h4{font-size:15px;color:var(--gold)}
 .act .row{display:flex;gap:8px;margin-top:auto;padding-top:8px}
@@ -321,10 +312,10 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
   <div class="links">
-    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#quidditch-sec">Quidditch</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
+    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
   </div>
   <div class="row">
-    <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span><button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button><button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button><button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
+    <button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
   </div>
 </div></nav>
@@ -462,29 +453,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       </div>
       <div id="relationsBox"></div>
     </div>
-
+    <div class="grid g2" style="align-items:start">
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos de Quidditch</h3><div id="matches"></div></div>
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
+    </div>
     <div class="panel" style="margin-top:16px" id="chatPanel">
       <div class="tabs"><button class="chip" id="chGlobal" type="button">Gran Comedor</button><button class="chip" id="chHouse" type="button">Sala Común</button></div>
       <div class="chat" id="chatBox" role="log"></div>
       <form id="chatForm" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="chatInput" type="text" maxlength="180" placeholder="Escribe un mensaje…" autocomplete="off" aria-label="Mensaje"><button class="btn gold" type="submit">Enviar</button></form>
     </div>
     <div id="adminSlot" style="margin-top:16px"></div>
-  </section>
-
-  <section class="block" id="quidditch-sec">
-    <div class="sec-head">
-      <h2>🧹 Estadio y Copa de Quidditch</h2>
-      <p>Torneo oficial entre las cuatro casas: 6 partidos de eliminatoria (todos contra todos) y una Gran Final entre los 2 mejores, además de partidos amistosos.</p>
-    </div>
-    <div class="panel hl" style="margin-bottom:16px" id="quidditchStandingsBox"></div>
-    <div class="grid g2" style="align-items:start">
-      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos Activos y Convocatorias</h3><div id="matches"></div></div>
-      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
-    </div>
-    <div class="panel" style="margin-top:16px">
-      <h3 style="font-size:18px;margin-bottom:12px">📜 Registro de Partidos y Resultados</h3>
-      <div id="quidditchHistory"></div>
-    </div>
   </section>
 
   <section class="block" id="alumnos">
@@ -580,114 +558,100 @@ const ACTS={
  historia:{name:'Historia de la Magia',mg:'👻 Crónicas de Binns',points:8,desc:'Domina los hitos históricos del mundo mágico sin dormirte con el Prof. Binns.',room:'historia',loc:'Aula 4F',prof:'Cuthbert Binns'},
  vuelo:{name:'Clase de Vuelo',mg:'🟡 Caza de la Snitch',points:10,flightXp:5,desc:'Atrapa la Snitch Dorada esquivando las Bludgers con Rolanda Hooch.',room:'quidditch',loc:'Campo de Quidditch',prof:'Rolanda Hooch'},
  astronomia:{name:'Astronomía',mg:'✨ Mapa Celeste',points:8,desc:'Conecta las estrellas de la constelación en orden con Aurora Sinistra.',room:'astronomia',loc:'Torre de Astronomía',prof:'Aurora Sinistra'},
- runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,minYear:3,desc:'Encuentra las parejas de glifos antiguos ocultos en los pergaminos.',room:'biblioteca',loc:'Torre de Runas',prof:'Bathsheda Babbling'}};
+ runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,desc:'Encuentra las parejas de glifos antiguos ocultos en los pergaminos.',room:'biblioteca',loc:'Torre de Runas',prof:'Bathsheda Babbling'}};
 
 const CURRICULUM = {
-  encantamientos: {
-    1: { name: 'Lumos / Wingardium Leviosa', desc: 'Ilumina la varita y hace levitar objetos pequeños.', diff: 1 },
-    2: { name: 'Expelliarmus / Rictusempra', desc: 'Desarma al oponente y lanza cosquillas mágicas.', diff: 2 },
-    3: { name: 'Expecto Patronum (Iniciación)', desc: 'Conjura una neblina plateada protectora.', diff: 3 },
-    4: { name: 'Accio / Depulso', desc: 'Atrae o repele objetos a distancia.', diff: 3 },
-    5: { name: 'Stupefy / Protego (T.I.M.O.)', desc: 'Aturde rivales y levanta escudos mágicos.', diff: 4 },
-    6: { name: 'Encantamientos No Verbales (É.X.T.A.S.I.S.)', desc: 'Ejecuta conjuros complejos sin pronunciar palabra.', diff: 5 },
-    7: { name: 'Expecto Patronum Corpóreo / Fianto Duri', desc: 'Invoca un guardián completo y refuerza defensas arcanas.', diff: 5 }
-  },
   pociones: {
-    1: { name: 'Poción para curar forúnculos', desc: 'Elixir básico con ortigas secas y colmillos de serpiente.', diff: 1 },
-    2: { name: 'Poción Herbovitalizante', desc: 'Restaura la energía y cura resfriados mágicos.', diff: 2 },
-    3: { name: 'Poción Encogedora', desc: 'Reduce temporalmente el tamaño de criaturas u objetos.', diff: 3 },
-    4: { name: 'Antídoto contra venenos comunes', desc: 'Neutraliza toxinas en clase de nivel intermedio.', diff: 3 },
-    5: { name: 'Filtro de la Paz (T.I.M.O.)', desc: 'Calma la ansiedad; requiere control estricto del vapor.', diff: 4 },
-    6: { name: 'Amortentia / Felix Felicis (É.X.T.A.S.I.S.)', desc: 'Pociones maestras de aroma personal y suerte líquida.', diff: 5 },
-    7: { name: 'Elixir de Maestría Alquímica', desc: 'Destilación avanzada de nivel É.X.T.A.S.I.S. y magia superior.', diff: 5 }
+    1: { name: 'Poción para curar forúnculos', desc: 'Elimina erupciones cutáneas y ampollas.', diff: 1 },
+    2: { name: 'Solución para encoger', desc: 'Reduce a un ser vivo a una etapa más joven.', diff: 2 },
+    3: { name: 'Antídoto contra venenos comunes', desc: 'Neutraliza toxinas y mordeduras estándar.', diff: 3 },
+    4: { name: 'Poción Crecehuesos (Skele-Gro)', desc: 'Regenera huesos desaparecidos en una noche.', diff: 3 },
+    5: { name: 'Filtro de la Paz', desc: 'Calma la ansiedad extrema (un error induce sueño irreversible).', diff: 3 },
+    6: { name: 'Amortentia', desc: 'El filtro de amor más poderoso; genera obsesión.', diff: 4 },
+    7: { name: 'Felix Felicis (Suerte Líquida)', desc: 'Garantiza el éxito en todo lo que se emprende.', diff: 5 }
   },
   transformaciones: {
-    1: { name: 'Cerilla en aguja', desc: 'Transfiguración inanimada básica de primer año.', diff: 1 },
-    2: { name: 'Escarabajos en botones', desc: 'Transfiguración animal pequeña con precisión.', diff: 2 },
-    3: { name: 'Animales en copas de agua', desc: 'Transformación de vertebrados con varita.', diff: 3 },
-    4: { name: 'Transformación entre especies', desc: 'Cambia rasgos físicos entre distintas criaturas.', diff: 3 },
-    5: { name: 'Desvanecimiento de Mamíferos (T.I.M.O.)', desc: 'Haz desaparecer objetos y pequeños mamíferos.', diff: 4 },
-    6: { name: 'Transformación No Verbal (É.X.T.A.S.I.S.)', desc: 'Transfigura sin conjuro hablado.', diff: 5 },
-    7: { name: 'Transformación Humana Completa', desc: 'Dominio total de transfiguración humana y avanzada.', diff: 5 }
+    1: { name: 'Cerilla en aguja', desc: 'Convierte una cerilla de madera en una aguja metálica.', diff: 1 },
+    2: { name: 'Escarabajos en botones', desc: 'Convierte escarabajos vivos en botones funcionales.', diff: 2 },
+    3: { name: 'Tetera en tortuga', desc: 'Transforma una tetera de cerámica en una tortuga viva.', diff: 3 },
+    4: { name: 'Erizo en alfiletero', desc: 'Transforma un erizo vivo en un alfiletero.', diff: 3 },
+    5: { name: 'Desvanecimiento de mamíferos', desc: 'Desvanece ratones y gatitos.', diff: 4 },
+    6: { name: 'Transformación No Verbal', desc: 'Ejecutar cambios de forma sin pronunciar el conjuro.', diff: 4 },
+    7: { name: 'Transformación Humana Completa', desc: 'Convierte por completo a una persona en un animal o mueble.', diff: 5 }
   },
-  defensa: {
-    1: { name: 'Flipendo / Chispas básicas', desc: 'Empuje mágico y defensa elemental contra plagas.', diff: 1 },
-    2: { name: 'Duelo básico y detección de maleficios', desc: 'Postura de duelo y reflejos iniciales.', diff: 2 },
-    3: { name: 'Riddikulus (Boggarts)', desc: 'Convierte tus peores miedos en algo ridículo.', diff: 3 },
-    4: { name: 'Defensa contra Maldiciones', desc: 'Resistencia mental y contrahechizos tácticos.', diff: 3 },
-    5: { name: 'Protego y Duelo T.I.M.O.', desc: 'Desvía maleficios y contraataca en tiempo real.', diff: 4 },
-    6: { name: 'Defensa No Verbal (É.X.T.A.S.I.S.)', desc: 'Bloquea ataques sin delatar tu conjuro.', diff: 5 },
-    7: { name: 'Protego Horribilis / Duelo de Aurores', desc: 'Barreras oscuras de élite contra magia letal.', diff: 5 }
-  },
-  herbologia: {
-    1: { name: 'Díctamo y Lazo del Diablo', desc: 'Curación herbal básica y reacción ante la luz.', diff: 1 },
-    2: { name: 'Mandrágoras jóvenes', desc: 'Trasplante seguro usando orejeras protectoras.', diff: 2 },
-    3: { name: 'Higos secos y plantas saltarinas', desc: 'Recolección ágil de flora inquieta.', diff: 3 },
-    4: { name: 'Bubotubérculos', desc: 'Extracción cuidadosa de pus curativo.', diff: 3 },
-    5: { name: 'Arbusto Autofertilizante (T.I.M.O.)', desc: 'Control de especies agresivas en el invernadero.', diff: 4 },
-    6: { name: 'Tentácula Venenosa (É.X.T.A.S.I.S.)', desc: 'Poda de flora letal con reflejos rápidos.', diff: 5 },
-    7: { name: 'Flora Alquímica Letal', desc: 'Cultivo de especímenes raros y altamente peligrosos.', diff: 5 }
+  encantamientos: {
+    1: { name: 'Lumos / Wingardium Leviosa', desc: 'Enciende la varita y hace levitar objetos.', diff: 1 },
+    2: { name: 'Expelliarmus', desc: 'Desarma al oponente lanzando su varita por los aires.', diff: 2 },
+    3: { name: 'Riddikulus', desc: 'Transforma un Boggart en algo cómico.', diff: 2 },
+    4: { name: 'Accio', desc: 'Encantamiento convocador que atrae objetos a distancia.', diff: 3 },
+    5: { name: 'Protego', desc: 'Crea un escudo invisible que desvía maldiciones.', diff: 3 },
+    6: { name: 'Aguamenti', desc: 'Conjura un chorro continuo de agua potable.', diff: 3 },
+    7: { name: 'Expecto Patronum', desc: 'Invoca un guardián de energía positiva contra Dementores.', diff: 5 }
   },
   criaturas: {
-    1: { name: 'Puffskein y Gusarajos', desc: 'Cuidado dócil de criaturas clasificadas X–XX.', diff: 1 },
-    2: { name: 'Duendecillos de Cornualles', desc: 'Contención de criaturas traviesas de nivel XXX.', diff: 2 },
-    3: { name: 'Hipogrifo (Buckbeak)', desc: 'Reverencia obligatoria ante criaturas orgullosas.', diff: 3 },
-    4: { name: 'Escregutos de Cola Explosiva', desc: 'Manejo de híbridos ígneos de nivel XXXX.', diff: 3 },
-    5: { name: 'Bowtruckles y Knarls (T.I.M.O.)', desc: 'Observación y trato de criaturas esquivas.', diff: 4 },
-    6: { name: 'Unicornios y Occamys (É.X.T.A.S.I.S.)', desc: 'Acercamiento respetuoso a seres de alta pureza.', diff: 5 },
-    7: { name: 'Fénix y Criaturas XXXXX', desc: 'Estudio de criaturas legendarias y letales.', diff: 5 }
+    1: { name: 'Familiares reglamentarios', desc: 'Lechuzas, gatos, sapos. Alimentación e higiene.', diff: 1 },
+    2: { name: 'Mooncalf', desc: 'Recolectar su estiércol plateado antes del amanecer.', diff: 2 },
+    3: { name: 'Hipogrifo', desc: 'Mantener contacto visual, hacer una reverencia y esperar.', diff: 3 },
+    4: { name: 'Escarbato (Niffler)', desc: 'Criatura excavadora atraída por objetos brillantes.', diff: 2 },
+    5: { name: 'Thestral', desc: 'Caballo alado esquelético visible solo para quienes han visto la muerte.', diff: 3 },
+    6: { name: 'Occamy', desc: 'Serpiente emplumada que crece o se encoge para llenar espacios.', diff: 4 },
+    7: { name: 'Fénix', desc: 'Ave inmortal que renace de sus cenizas y posee lágrimas curativas.', diff: 4 }
   },
-  astronomia: {
-    1: { name: 'Uso del Telescopio', desc: 'Calibración básica y fases lunares.', diff: 1 },
-    2: { name: 'Constelaciones del Hemisferio Norte', desc: 'Identificación de estrellas principales.', diff: 2 },
-    3: { name: 'Órbitas de Júpiter y sus Lunas', desc: 'Seguimiento planetario nocturno.', diff: 3 },
-    4: { name: 'Eclipses Mágicos y Mareas', desc: 'Influencia lunar en ingredientes de pociones.', diff: 3 },
-    5: { name: 'Cartas Estelares (T.I.M.O.)', desc: 'Cartografía celeste de precisión.', diff: 4 },
-    6: { name: 'Alineaciones Planetarias (É.X.T.A.S.I.S.)', desc: 'Predicción astronómica compleja.', diff: 5 },
-    7: { name: 'Efemérides y Astronomía Arcana', desc: 'Cálculo estelar de nivel maestro.', diff: 5 }
+  defensa: {
+    1: { name: 'Flipendo', desc: 'Empuja hacia atrás al objetivo o derriba objetos pequeños.', diff: 1 },
+    2: { name: 'Control de Duendecillos', desc: 'Inmovilización y captura de plagas agresivas.', diff: 2 },
+    3: { name: 'Riddikulus / Defensa contra Boggarts', desc: 'Obliga a un Boggart a adoptar una forma ridícula.', diff: 2 },
+    4: { name: 'Identificación de Maldiciones Imperdonables', desc: 'Reconocimiento y resistencia mental básica al Imperio.', diff: 4 },
+    5: { name: 'Protego / Stupefy', desc: 'Escudo invisible y aturdimiento.', diff: 3 },
+    6: { name: 'Defensa No Verbal', desc: 'Ejecutar escudos y ataques sin pronunciar el conjuro.', diff: 4 },
+    7: { name: 'Contrahechizos oscuros complejos', desc: 'Neutralización de maldiciones avanzadas.', diff: 4 }
   },
-  vuelo: {
-    1: { name: 'Levantar la escoba (¡Arriba!)', desc: 'Control básico y vuelo raso sobre el césped.', diff: 1 },
-    2: { name: 'Giros cerrados y esquiva básica', desc: 'Maniobras de agilidad en el campo.', diff: 2 },
-    3: { name: 'Persecución de Snitch en tormenta', desc: 'Vuelo rápido con visibilidad reducida.', diff: 3 },
-    4: { name: 'Maniobras de Quidditch competitivo', desc: 'Tácticas aéreas contra Bludgers.', diff: 3 },
-    5: { name: 'Finta de Wronski (T.I.M.O.)', desc: 'Picado extremo de Buscador.', diff: 4 },
-    6: { name: 'Vuelo acrobático sin manos (É.X.T.A.S.I.S.)', desc: 'Equilibrio total en escoba de carreras.', diff: 5 },
-    7: { name: 'Maestría aérea de Buscador Profesional', desc: 'Reflejos de élite en el estadio.', diff: 5 }
+  herbologia: {
+    1: { name: 'Díctamo (Dittany)', desc: 'Planta curativa que cierra heridas superficiales.', diff: 1 },
+    2: { name: 'Trasplante de Mandrágoras jóvenes', desc: 'Exige orejeras bien ajustadas por el grito.', diff: 2 },
+    3: { name: 'Bulbo Botador', desc: 'Planta esférica que salta violentamente para golpear.', diff: 3 },
+    4: { name: 'Bubotubérculos', desc: 'Hay que exprimir su pus amarillento con guantes gruesos.', diff: 3 },
+    5: { name: 'Geranio Colmilludo', desc: 'Flor equipada con colmillos retráctiles que muerden.', diff: 3 },
+    6: { name: 'Tentácula Venenosa', desc: 'Planta carnívora que escupe veneno letal.', diff: 4 },
+    7: { name: 'Cosecha de Mandrágoras adultas', desc: 'El llanto es mortal; exige sellado hermético.', diff: 4 }
   },
   historia: {
-    1: { name: 'Fundadores de Hogwarts', desc: 'Orígenes del castillo y las cuatro casas.', diff: 1 },
-    2: { name: 'La Cámara Secreta y mitos antiguos', desc: 'Leyendas históricas del colegio.', diff: 2 },
-    3: { name: 'Juicios de brujas medievales', desc: 'Historia de la relación entre magos y muggles.', diff: 3 },
-    4: { name: 'Rebeliones de los Duendes (1289)', desc: 'Conflictos históricos con el Prof. Binns.', diff: 3 },
-    5: { name: 'Estatuto del Secreto (T.I.M.O.)', desc: 'Leyes internacionales de ocultamiento.', diff: 4 },
-    6: { name: 'Guerras de los Gigantes (É.X.T.A.S.I.S.)', desc: 'Crónicas de conflictos mágicos antiguos.', diff: 5 },
-    7: { name: 'Historiografía mágica contemporánea', desc: 'Análisis histórico de nivel maestro.', diff: 5 }
+    1: { name: 'Fundación de Hogwarts', desc: 'Estudio de los cuatro fundadores.', diff: 1 },
+    2: { name: 'La Convención de 1289', desc: 'Repaso de las rebeliones de los duendes.', diff: 2 },
+    3: { name: 'Los juicios de brujas', desc: 'Historia de la persecución muggle.', diff: 3 },
+    4: { name: 'Torneo de los Tres Magos', desc: 'Historia del torneo y sus pruebas.', diff: 3 },
+    5: { name: 'Las Guerras de los Duendes', desc: 'Conflictos históricos del mundo mágico.', diff: 3 },
+    6: { name: 'La Orden del Fénix', desc: 'Historia de la resistencia contra las Artes Oscuras.', diff: 4 },
+    7: { name: 'La Segunda Guerra Mágica', desc: 'Análisis de la caída de Voldemort.', diff: 4 }
+  },
+  vuelo: {
+    1: { name: 'Manejo básico de escoba', desc: 'Despegar, aterrizar y mantener el equilibrio.', diff: 1 },
+    2: { name: 'Cambios de dirección', desc: 'Giros cerrados y esquivas básicas.', diff: 2 },
+    3: { name: 'Caza de la Snitch', desc: 'Persecución de la bola dorada.', diff: 3 },
+    4: { name: 'Evasión de Bludgers', desc: 'Esquivar las bolas de hierro.', diff: 3 },
+    5: { name: 'Tácticas de Buscador', desc: 'Movimientos avanzados de búsqueda.', diff: 4 },
+    6: { name: 'Vuelo en condiciones adversas', desc: 'Tormentas y vientos fuertes.', diff: 4 },
+    7: { name: 'Maestría en el aire', desc: 'Acrobacias y control absoluto.', diff: 5 }
+  },
+  astronomia: {
+    1: { name: 'Manejo del telescopio', desc: 'Calibración de lentes y mapas estelares.', diff: 1 },
+    2: { name: 'Lunas de Júpiter', desc: 'Diferenciación y trazado orbital.', diff: 2 },
+    3: { name: 'Influencia lunar en criaturas', desc: 'Correlación con hombres lobo.', diff: 3 },
+    4: { name: 'Sincronización lunar para Pociones', desc: 'Determinación exacta de luna llena.', diff: 3 },
+    5: { name: 'Trazado de carta estelar en vivo', desc: 'Registro de posiciones reales.', diff: 3 },
+    6: { name: 'Astrofísica mágica', desc: 'Radiación estelar y minerales.', diff: 4 },
+    7: { name: 'Ventanas cósmicas en Alquimia', desc: 'Determinación de alineaciones críticas.', diff: 4 }
   },
   runas: {
-    3: { name: 'Alfabeto rúnico básico', desc: 'Optativa de 3.º año: glifos fundamentales.', diff: 3 },
-    4: { name: 'Traducción de inscripciones nórdicas', desc: 'Lectura de tablillas antiguas.', diff: 3 },
-    5: { name: 'Textos arcanos (T.I.M.O.)', desc: 'Traducción avanzada de runas mágicas.', diff: 4 },
-    6: { name: 'Runas No Verbales (É.X.T.A.S.I.S.)', desc: 'Encantamientos rúnicos de alto nivel.', diff: 5 },
-    7: { name: 'Descifrado de códices milenarios', desc: 'Maestría absoluta en runas antiguas.', diff: 5 }
+    1: { name: 'Alfabeto rúnico básico', desc: 'Traducción de textos simples.', diff: 1 },
+    2: { name: 'Runas de protección', desc: 'Inscripción de escudos básicos.', diff: 2 },
+    3: { name: 'Runas de fuego', desc: 'Símbolos de calor y combustión.', diff: 3 },
+    4: { name: 'Runas de hielo', desc: 'Símbolos de frío y congelación.', diff: 3 },
+    5: { name: 'Runas de luz', desc: 'Símbolos de iluminación y verdad.', diff: 3 },
+    6: { name: 'Runas de oscuridad', desc: 'Símbolos de sombra y miedo.', diff: 4 },
+    7: { name: 'Runas de alma', desc: 'Símbolos de protección vital.', diff: 4 }
   }
 };
-
-function getClassSpec(key, u) {
-  const rawYr = typeof userYear === 'function' ? userYear(u) : 1;
-  const minYear = ACTS[key]?.minYear || 1;
-  const isMaster = rawYr === 8;
-  const yr = isMaster ? 7 : Math.max(1, Math.min(7, rawYr));
-  const locked = rawYr === 0 || (!isMaster && yr < minYear);
-  const curr = CURRICULUM[key] || {};
-  const entry = curr[yr] || curr[minYear] || { name: ACTS[key]?.name || key, desc: ACTS[key]?.desc || '', diff: 1 };
-  const diff = isMaster ? 5 : entry.diff;
-  const labels = { 1: 'Iniciación', 2: 'Básico', 3: 'Intermedio', 4: 'T.I.M.O.', 5: isMaster ? 'Maestro' : 'É.X.T.A.S.I.S.' };
-  const stars = '★'.repeat(diff) + '☆'.repeat(5 - diff);
-  const bonusPts = (diff - 1) * 2;
-  const bonusGal = diff;
-  return { yr, rawYr, minYear, locked, isMaster, diff, label: labels[diff], stars, topic: entry.name, desc: entry.desc, bonusPts, bonusGal };
-}
 
 const PROFESSORS=[
  {id:'dumbledore',name:'Albus Dumbledore',title:'Director de Hogwarts',subject:'Dirección y Magia Antigua',room:'comedor',house:'gryffindor',look:{skin:0,hair:3,style:'largo',eyes:1},quote:'«Son nuestras elecciones, mucho más que nuestras habilidades, las que muestran lo que verdaderamente somos.»',taskQ:'¿Qué criatura mágica acompaña a Albus Dumbledore y renace de sus cenizas?',opts:['El fénix Fawkes','Un hipogrifo','Un dragón galés'],ans:0},
@@ -797,7 +761,6 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   personality: personality,
-  galeones:15,inv:{},cromos:{},inmunidadFilchHasta:0,buffDobleGaleon:false,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
@@ -991,11 +954,6 @@ function ensureDbIntegrity(){
     if (typeof u.pride === 'undefined') { u.pride = 50; changed = true; }
     if (typeof u.academic_progress === 'undefined') { u.academic_progress = 0; changed = true; }
     if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
-    if (typeof u.galeones !== 'number') { u.galeones = 15; changed = true; }
-    if (!u.inv || typeof u.inv !== 'object') { u.inv = {}; changed = true; }
-    if (!u.cromos || typeof u.cromos !== 'object') { u.cromos = {}; changed = true; }
-    if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
-    if (typeof u.buffDobleGaleon !== 'boolean') { u.buffDobleGaleon = false; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1154,7 +1112,7 @@ function relTier(rel){
   if(!rel) return {label:'🌱 Conocido',col:'off',bonus:0};
   if(rel.rival) return {label:`⚔️ Rival (${rel.score} pts)`,col:'warn',bonus:1};
   if(rel.score>=80) return {label:'💖 Vínculo Inquebrantable',col:'gold',bonus:3};
-  if(rel.score>=goal0) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
+  if(rel.score>=50) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
   if(rel.score>=20) return {label:'🤝 Amigo',col:'good',bonus:1};
   return {label:'🌱 Conocido',col:'off',bonus:0};
 }
@@ -1184,119 +1142,7 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
 const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
-
-const TIENDA_HOGSMEADE={
-  bomba_fetida:{id:'bomba_fetida',tienda:'Zonko',nombre:'Bomba Fétida',precio:15,desc:'Distrae a Filch y te da 60s de inmunidad en el toque de queda.'},
-  polvo_oscuridad:{id:'polvo_oscuridad',tienda:'Zonko',nombre:'Polvo de Oscuridad Peruano',precio:25,desc:'Escapa al instante a tu Sala Común durante el toque de queda o recreo.'},
-  rana_chocolate:{id:'rana_chocolate',tienda:'Honeydukes',nombre:'Rana de Chocolate',precio:12,desc:'Otorga +5 pts para tu Casa y revela un cromo aleatorio de mago.'},
-  grageas_bertie:{id:'grageas_bertie',tienda:'Honeydukes',nombre:'Grageas de Todos los Sabores',precio:8,desc:'Efecto sorpresa: gana entre +1 y +3 pts para tu Casa (o un sabor terrible).'},
-  cerveza_mantequilla:{id:'cerveza_mantequilla',tienda:'Honeydukes',nombre:'Cerveza de Mantequilla',precio:18,desc:'Duplica los Galeones que ganes en tu próximo minijuego.'}
-};
-
-const CROMOS_MAGOS=[
-  {id:'dumbledore',nombre:'Albus Dumbledore',rareza:'Legendario',desc:'Director de Hogwarts, descubridor de los 12 usos de la sangre de dragón.'},
-  {id:'merlin',nombre:'Merlín',rareza:'Legendario',desc:'El mago más famoso de todos los tiempos; perteneció a Slytherin.'},
-  {id:'rowena',nombre:'Rowena Ravenclaw',rareza:'Raro',desc:'Cofundadora de Hogwarts, célebre por su ingenio y sabiduría.'},
-  {id:'godric',nombre:'Godric Gryffindor',rareza:'Raro',desc:'Cofundador de Hogwarts, duelista incomparable.'},
-  {id:'helga',nombre:'Helga Hufflepuff',rareza:'Raro',desc:'Cofundadora de Hogwarts, maestra en encantamientos culinarios.'},
-  {id:'salazar',nombre:'Salazar Slytherin',rareza:'Raro',desc:'Cofundador de Hogwarts, hablante de pársel.'},
-  {id:'newt',nombre:'Newt Scamander',rareza:'Común',desc:'Magizoólogo y autor de Animales Fantásticos y Dónde Encontrarlos.'},
-  {id:'morgana',nombre:'Morgana le Fay',rareza:'Común',desc:'Poderosa hechicera medieval y enemiga de Merlín.'},
-  {id:'flamel',nombre:'Nicolas Flamel',rareza:'Común',desc:'Alquimista y único creador conocido de la Piedra Filosofal.'}
-];
-
-const VALOR_CANJE_CROMO={'Común':4,'Raro':8,'Legendario':15};
-
-function sortearCromoRana(){
-  const t=Math.random();
-  let pool=CROMOS_MAGOS.filter(c=>c.rareza==='Común');
-  if(t>0.90) pool=CROMOS_MAGOS.filter(c=>c.rareza==='Legendario');
-  else if(t>0.60) pool=CROMOS_MAGOS.filter(c=>c.rareza==='Raro');
-  return pool[Math.floor(Math.random()*pool.length)];
-}
-
 const API={
-  buyItem(itemId){
-    const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
-    const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
-    must((u.galeones||0)>=item.precio,`Te faltan Galeones (cuesta ${item.precio} 🪙)`);
-    u.galeones-=item.precio;
-    u.inv=u.inv||{};
-    u.inv[itemId]=(u.inv[itemId]||0)+1;
-    chime();
-    commit(`${u.username} compró ${item.nombre} en ${item.tienda}`);
-    toast(`Compraste ${item.nombre} (-${item.precio} 🪙)`);
-  },
-  useItem(itemId){
-    const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
-    const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
-    u.inv=u.inv||{};
-    must((u.inv[itemId]||0)>0,'No tienes este objeto en tu mochila');
-    u.inv[itemId]--;
-    let msg=`Usaste ${item.nombre}.`;
-    if(itemId==='bomba_fetida'){
-      u.inmunidadFilchHasta=Date.now()+60000;
-      msg='💣 ¡Lanzaste una Bomba Fétida! Filch está distraído por 60 segundos.';
-    }else if(itemId==='polvo_oscuridad'){
-      u.loc=u.house;u.locSlot=slotKey();
-      msg='🌫️ ¡Polvo de Oscuridad! Escapaste al instante a tu Sala Común.';
-    }else if(itemId==='rana_chocolate'){
-      u.points+=5;
-      u.cromos=u.cromos||{};
-      const cromo=sortearCromoRana();
-      const esNuevo=!u.cromos[cromo.id];
-      u.cromos[cromo.id]=(u.cromos[cromo.id]||0)+1;
-      db.log.unshift({u:u.username,h:u.house,a:`Rana de Chocolate (${cromo.nombre})`,p:5,x:0});
-      db.log.length=Math.min(db.log.length,15);
-      msg=esNuevo?`🐸 ¡+5 pts y NUEVO CROMO: ${cromo.nombre} (${cromo.rareza})!`:`🐸 ¡+5 pts! Te salió ${cromo.nombre} (repetido).`;
-    }else if(itemId==='cerveza_mantequilla'){
-      u.buffDobleGaleon=true;
-      msg='🍺 ¡Salud! Tu próximo minijuego o clase dará el doble de Galeones.';
-    }else if(itemId==='grageas_bertie'){
-      if(Math.random()>0.3){
-        const pts=Math.floor(Math.random()*3)+1;
-        u.points+=pts;
-        msg=`🍬 ¡Sabor a fresa! Ganaste +${pts} pts para ${HOUSE(u.house).name}.`;
-      }else{
-        msg='🤢 ¡Puaj, sabor a cera de oído! No pasa nada, pero qué asco.';
-      }
-    }
-    chime();
-    commit(`${u.username} usó ${item.nombre}`);
-    toast(msg);
-  },
-  tradeCromo(cromoId){
-    const u=me();must(u,'Inicia sesión primero');
-    const cromo=CROMOS_MAGOS.find(c=>c.id===cromoId);must(cromo,'Cromo no encontrado');
-    u.cromos=u.cromos||{};
-    must((u.cromos[cromoId]||0)>1,'Solo puedes canjear cromos repetidos');
-    const valor=VALOR_CANJE_CROMO[cromo.rareza]||4;
-    u.cromos[cromoId]--;
-    u.galeones=(u.galeones||0)+valor;
-    chime();
-    commit(`${u.username} canjeó un cromo repetido`);
-    toast(`Canjeaste ${cromo.nombre} por +${valor} 🪙 Galeones`);
-  },
-  tradeAllCromos(){
-    const u=me();must(u,'Inicia sesión primero');
-    u.cromos=u.cromos||{};
-    let totalGal=0,totalCromos=0;
-    Object.keys(u.cromos).forEach(id=>{
-      const qty=u.cromos[id]||0;
-      if(qty>1){
-        const c=CROMOS_MAGOS.find(x=>x.id===id);
-        const extras=qty-1;
-        totalGal+=extras*(c?(VALOR_CANJE_CROMO[c.rareza]||4):4);
-        totalCromos+=extras;
-        u.cromos[id]=1;
-      }
-    });
-    must(totalCromos>0,'No tienes cromos repetidos para canjear');
-    u.galeones=(u.galeones||0)+totalGal;
-    fanfare();
-    commit(`${u.username} canjeó ${totalCromos} cromos repetidos`);
-    toast(`Canjeaste ${totalCromos} cromos repetidos por +${totalGal} 🪙 Galeones`);
-  },
   register(name,pass,look,house){
     name=cleanName(name);must(name,'Escribe un nombre para tu personaje');
     pass=String(pass||'').trim();must(pass.length>=3,'Pon una contraseña de al menos 3 caracteres');
@@ -1394,8 +1240,7 @@ const API={
     const u=me();must(u&&u.house,'Inicia sesión primero');
     must(isCurfew()&&!db.free,'Solo puedes escabullirte en el toque de queda');
     
-    const inmune = u.inmunidadFilchHasta && u.inmunidadFilchHasta > Date.now();
-    const caught = inmune ? false : Math.random() < 0.45;
+    const caught = Math.random() < 0.45;
     if(caught){
       u.points = Math.max(0, u.points - 10);
       u.happiness = Math.max(0, u.happiness - 10);
@@ -1433,22 +1278,21 @@ const API={
   },
   attend(key,extra=0,extraFlight=0){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
-    const _sp=getClassSpec(key,u);must(!_sp.locked,`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);
     if(!db.free){const s=classStatus(key);
       if(s.st==='soon')throw new Error(`Abre hoy a las ${s.slot.from} (en ${dur(s.rem)})`);
       must(s.st==='open',s.slot&&s.day?`Próxima: ${DAYL[s.day]} a las ${s.slot.from}`:'Esta clase no está disponible');}
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir esta clase`);
     
-    const spec=getClassSpec(key,u);
-    const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round((cfg.points+spec.bonusPts+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
+    const yr = Math.min(7, userYear(u));
+    const subjectData = CURRICULUM[key] && CURRICULUM[key][yr] ? CURRICULUM[key][yr] : {name: 'Conocimiento Avanzado', desc: 'Práctica libre', diff:1};
+    const basePoints = 5 + (subjectData.diff * 3);
     
-    const _galAtt = Math.round((1 + spec.bonusGal) * mult) * (u.buffDobleGaleon ? 2 : 1);
-    u.buffDobleGaleon = false;
-    u.galeones = (u.galeones || 0) + _galAtt;
+    const ev=activeEvent(),mult=ev?ev.mult:1;
+    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
+    
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
-    u.academic_progress += 1;
+    u.academic_progress += 1 + subjectData.diff;
     u.happiness = Math.min(100, u.happiness + 2);
     
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
@@ -1465,36 +1309,35 @@ const API={
         toast('¡Misión Diaria completada! +20 pts extra');
     }
 
-    db.log.unshift({u:u.username,h:u.house,a:cfg.name,p:pts,x:fx});
+    db.log.unshift({u:u.username,h:u.house,a:`${cfg.name} (${subjectData.name})`,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
     
     chime();
-    commit(`${u.username} +${pts} pts (${cfg.name})`);
+    commit(`${u.username} +${pts} pts (${subjectData.name})`);
     return{pts,fx};
   },
   trainMinigame(key,hit){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
-    const _sp=getClassSpec(key,u);must(!_sp.locked,`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);
     const open=db.free||classStatus(key).st==='open';
     if(open){
       return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0);
     }
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);
-    const spec=getClassSpec(key,u);
+    
+    const yr = Math.min(7, userYear(u));
+    const subjectData = CURRICULUM[key] && CURRICULUM[key][yr] ? CURRICULUM[key][yr] : {name: 'Conocimiento Avanzado', desc: 'Práctica libre', diff:1};
+    const basePoints = hit ? (3 + (subjectData.diff * 2)) : 1;
+    
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const base=(hit?5:2)+Math.floor(spec.bonusPts/2);
-    const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
-    const _galTr = Math.round(((hit?2:1) + Math.floor(spec.bonusGal/2)) * mult) * (u.buffDobleGaleon ? 2 : 1);
-    u.buffDobleGaleon = false;
-    u.galeones = (u.galeones || 0) + _galTr;
+    const pts=Math.round(basePoints*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
     u.points+=pts;if(fx)u.flight_xp+=fx;
     u.academic_progress += hit?1:0;
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
-    db.log.unshift({u:u.username,h:u.house,a:`${cfg.mg} (${cfg.name})`,p:pts,x:fx});
+    db.log.unshift({u:u.username,h:u.house,a:`Práctica: ${subjectData.name}`,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
     chime();
-    commit(`${u.username} +${pts} pts en ${cfg.mg}`);
+    commit(`${u.username} +${pts} pts en ${subjectData.name}`);
     return{pts,fx,trained:true};
   },
   completeQuidditchTryout(pos, success) {
@@ -1579,16 +1422,16 @@ const API={
     }
     npc.locSlot=slotKey();
 
-    const actKeys=Object.keys(ACTS).filter(k=>(k!=='vuelo'||npc.npc_quidditch)&&!getClassSpec(k,npc).locked);
+    const actKeys=Object.keys(ACTS).filter(k=>k!=='vuelo'||npc.npc_quidditch);
     const k=actKeys[Math.floor(Math.random()*actKeys.length)];
-    const cfg=ACTS[k], npcSpec=getClassSpec(k,npc);
-    const pts=Math.round((cfg.points+npcSpec.bonusPts)*0.5);
+    const cfg=ACTS[k];
+    const pts=Math.round(cfg.points*0.5);
     const fx=(cfg.flightXp && npc.npc_quidditch)?2:0;
     npc.points+=pts;
     if(fx)npc.flight_xp+=fx;
     const hObj=db.houses.find(h=>h.id===npc.house);
     if(hObj)hObj.points+=pts;
-    db.log.unshift({u:'🤖 '+npc.username,h:npc.house,a:`${cfg.name} (${npcSpec.topic})`,p:pts,x:fx});
+    db.log.unshift({u:'🤖 '+npc.username,h:npc.house,a:cfg.name,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
 
     if(Math.random()<0.35){
@@ -1819,147 +1662,10 @@ const API={
     t.role=t.role==='prefect'?'student':'prefect';
     commit(t.username+' ahora es '+t.role);
   },
-  awardGaleones(id,amt){
-    must(session.isAdmin,'Solo admin');
-    const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
-    t.galeones=Math.max(0,(t.galeones||0)+amt);
-    commit(`Admin otorgó ${amt} 🪙 a ${t.username}`);
-    toast(`${t.username} ahora tiene ${t.galeones} 🪙 Galeones.`);
-  },
-  toggleQuidditch(id){
-    must(session.isAdmin,'Solo admin');
-    const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
-    t.quidditch_approved=!t.quidditch_approved;
-    if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved)t.npc_path='quidditch';}
-    commit(`${t.username} ${t.quidditch_approved?'entró al':'salió del'} equipo de Quidditch`);
-  },
-  deleteUser(id){
-    must(session.isAdmin,'Solo admin');
-    const idx=db.users.findIndex(u=>u.id===id);must(idx!==-1,'Alumno no encontrado');
-    const name=db.users[idx].username;
-    db.users.splice(idx,1);
-    if(session.uid===id){session.uid=null;session.passHash='';}
-    commit(`Admin eliminó a ${name}`);
-    toast(`${name} eliminado del registro.`);
-  },
-  resetMatches(){
-    must(session.isAdmin,'Solo admin');
-    db.matches=[];
-    commit('Torneo y partidos de Quidditch reiniciados');
-    toast('Todos los partidos de Quidditch fueron eliminados.');
-  },
-  animagusAdvance(){
-    const u=me();must(u&&u.house,'Inicia sesión primero');
-    const st=u.animagus_stage||0;
-    if(st===0){
-      must((u.academic_progress||0)>=50,'Necesitas 50 de Avance Académico (tienes '+(u.academic_progress||0)+').');
-      u.animagus_stage=1;
-      toast('¡Fase 1 completada! Ahora mantén la hoja de Mandrágora.');
-    }else if(st===1){
-      u.animagus_stage=2;
-      toast('¡Fase 2 completada! Espera una tormenta (Jueves o Viernes).');
-    }else if(st===2){
-      const d=curDay();
-      must(d==='jueves'||d==='viernes','Solo puedes invocar la tormenta en Jueves o Viernes (hoy es '+DAYL[d]+').');
-      u.animagus_stage=3;
-      toast('¡Fase 3 completada! Bebe la poción cuando tengas 60+ de Felicidad.');
-    }else if(st===3){
-      must((u.happiness||0)>=60,'Necesitas 60 de Felicidad (tienes '+(u.happiness||0)+').');
-      const form=ANIMAGUS_FORMS[Math.floor(Math.random()*ANIMAGUS_FORMS.length)];
-      u.animagus=form.id;
-      u.animagus_stage=4;
-      u.points+=25;
-      db.log.unshift({u:u.username,h:u.house,a:`Ritual Animago (${form.name})`,p:25,x:0});
-      fanfare();
-      toast(`¡Completaste el Ritual Animago! Tu forma es: ${form.icon} ${form.name} (+25 pts).`);
-    }
-    commit(u.username+' avanzó en el Ritual Animago');
-  },
-  darkMarkAction(action){
-    const u=me();must(u&&u.house,'Inicia sesión primero');
-    if(action==='join'){
-      u.pride=Math.min(100,(u.pride||50)+10);
-      u.happiness=Math.max(0,(u.happiness||50)-15);
-      u.points=Math.max(0,u.points-10);
-      db.log.unshift({u:u.username,h:u.house,a:'Tentación Oscura',p:-10,x:0});
-      buzzSnd();
-      toast('Aceptaste el llamado oscuro (-10 pts, +10 Orgullo, -15 Felicidad).');
-    }else{
-      u.points+=15;
-      u.pride=Math.min(100,(u.pride||50)+8);
-      db.log.unshift({u:u.username,h:u.house,a:'Defensa contra Mortífagos',p:15,x:0});
-      chime();
-      toast('¡Resististe y defendiste el Castillo! +15 pts y +8 Orgullo.');
-    }
-    commit(u.username+' actuó ante la Amenaza Mortífaga');
-  },
   resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
-  newMatch(a,b,type='amistoso'){
-    must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
-    const validType=['amistoso','eliminatoria','final'].includes(type)?type:'amistoso';
-    if(validType==='eliminatoria'){
-      const elimCount=db.matches.filter(m=>m.type==='eliminatoria').length;
-      must(elimCount<6,'Ya existen los 6 partidos de la fase eliminatoria.');
-      const dup=db.matches.some(m=>m.type==='eliminatoria'&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a)));
-      must(!dup,'Estas dos casas ya tienen un partido de eliminatoria registrado.');
-    }
-    db.matches.push({id:'m'+Date.now()+Math.floor(Math.random()*100),a,b,type:validType,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()});
-    commit(`Partido (${validType}): ${HOUSE(a).name} vs ${HOUSE(b).name}`);
-  },
-  deleteMatch(id){
-    must(session.isAdmin,'Solo admin');
-    const idx=db.matches.findIndex(m=>m.id===id);
-    must(idx!==-1,'Partido no encontrado');
-    const m=db.matches[idx];
-    db.matches.splice(idx,1);
-    commit(`Partido eliminado: ${HOUSE(m.a).name} vs ${HOUSE(m.b).name}`);
-    toast('Partido de Quidditch eliminado.');
-  },
-  generateEliminatorias(){
-    must(session.isAdmin,'Solo admin');
-    const pairs=[['gryffindor','slytherin'],['gryffindor','ravenclaw'],['gryffindor','hufflepuff'],['slytherin','ravenclaw'],['slytherin','hufflepuff'],['ravenclaw','hufflepuff']];
-    let added=0;
-    pairs.forEach(([a,b],i)=>{
-      const exists=db.matches.some(m=>m.type==='eliminatoria'&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a)));
-      if(!exists){
-        db.matches.push({id:'m'+Date.now()+'_'+i,a,b,type:'eliminatoria',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()+i});
-        added++;
-      }
-    });
-    must(added>0,'Los 6 cruces de eliminatoria ya están creados.');
-    commit(`Generados ${added} partidos de eliminatoria`);
-    toast(`Se crearon ${added} partidos de eliminatoria.`);
-  },
-  generateFinal(){
-    must(session.isAdmin,'Solo admin');
-    const elims=db.matches.filter(m=>m.type==='eliminatoria');
-    must(elims.length>=6 && elims.every(m=>m.status==='finished'),'Deben completarse los 6 partidos de eliminatoria primero.');
-    must(!db.matches.some(m=>m.type==='final' && m.status!=='finished'),'Ya hay una Final activa o esperando.');
-    const table=quidditchStandings();
-    const top1=table[0].id, top2=table[1].id;
-    db.matches.push({id:'m'+Date.now()+'_final',a:top1,b:top2,type:'final',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()});
-    fanfare();
-    commit(`¡Gran Final de Quidditch: ${HOUSE(top1).name} vs ${HOUSE(top2).name}!`);
-  },
-  createCustomNpc(d){
-    must(session.isAdmin,'Solo admin');
-    const name=cleanName(d.name);must(name,'Escribe un nombre para el NPC');
-    must(!db.users.some(u=>u.username.toLowerCase()===name.toLowerCase()),'Ya existe un personaje con ese nombre');
-    must(HOUSE(d.house),'Elige una casa válida');
-    const sy=Math.max(1,Math.min(7,Number(db.schoolYear)||1));
-    const targetYr=Math.max(1,Math.min(7,Number(d.year)||sy));
-    const yearOffset=targetYr-sy;
-    const newId=Math.max(300,...db.users.map(x=>x.id))+1;
-    const npc=U(newId,name,d.house,Number(d.points)||30,d.quidditch?15:0,'student',false,lookOf(d),true,'',d.house,(d.trait||'Alumno del castillo').trim(),false,yearOffset,[d.pers||'lealtad']);
-    npc.quidditch_approved=!!d.quidditch;
-    npc.npc_quidditch=!!d.quidditch;
-    npc.npc_decided=!!d.quidditch;
-    if(d.quidditch) npc.npc_path='quidditch';
-    db.users.push(npc);
-    chime();
-    commit(`Nuevo NPC personalizado: ${name} (${HOUSE(d.house).name})`);
-    toast(`NPC ${name} creado en ${HOUSE(d.house).name}.`);
-  },
+  newMatch(a,b){must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
+    db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
+    commit(`Partido: ${a} vs ${b}`)},
   join(id){const u=me();must(u&&u.house,'Necesitas iniciar sesión con tu personaje');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
     must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
     if(m.players.some(p=>p.uid===u.id))return;const n=m.players.filter(p=>p.house===u.house).length;must(n<7,'Equipo lleno');
@@ -1998,6 +1704,49 @@ const API={
         m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
         m.log.push(`${HOUSE(m.winner).name} gana: +50 pts`);fanfare()}else m.log.push('Empate')}
     commit('Ronda '+(m.round-1)+' resuelta');
+  },
+  animagusAdvance(){
+    const u=me();must(u&&u.house,'Inicia sesión');
+    const st = u.animagus_stage || 0;
+    if (st === 0) {
+        must(u.academic_progress >= 50, 'Requiere 50 de Avance Académico para iniciar la poción.');
+        u.animagus_stage = 1;
+        u.academic_progress -= 50;
+        toast('Has iniciado la poción. Ahora debes sostener la hoja de mandrágora un mes (3 días en el juego).');
+    } else if (st === 1) {
+        u.animagus_stage = 2;
+        toast('Has terminado el mes con la hoja en la boca. Ahora espera la tormenta eléctrica.');
+    } else if (st === 2) {
+        must(curDay() === 'jueves' || curDay() === 'viernes', 'Solo hay tormentas mágicas los jueves y viernes.');
+        u.animagus_stage = 3;
+        toast('¡La tormenta ha llegado! La poción está lista para ser tomada.');
+    } else if (st === 3) {
+        must(u.happiness >= 60, 'Requiere 60 de Felicidad para sobrevivir a la transformación.');
+        u.animagus_stage = 4;
+        u.animagus = ANIMAGUS_FORMS[Math.floor(Math.random()*ANIMAGUS_FORMS.length)].id;
+        toast(`¡Te has transformado en Animago con éxito! Tu forma es ${ANIMAGUS_FORMS.find(a=>a.id===u.animagus).name}`);
+    }
+    commit('Avance en el Ritual Animago');
+  },
+  darkMarkAction(action){
+    const u=me();must(u&&u.house,'Inicia sesión');
+    if (action === 'join') {
+        must(u.pride >= 80 || u.happiness <= 20, 'Necesitas 80 de Orgullo o 20 de Felicidad para unirte a los Mortífagos.');
+        u.points += 50;
+        u.happiness = Math.max(0, u.happiness - 30);
+        u.pride = Math.min(100, u.pride + 10);
+        db.log.unshift({u:u.username,h:u.house,a:'Se unió a los Mortífagos',p:50,x:0});
+        toast('Te has unido a las fuerzas oscuras. +50 pts, -30 Felicidad.');
+    } else if (action === 'fight') {
+        must(u.pride >= 50, 'Necesitas 50 de Orgullo para luchar contra los Mortífagos.');
+        const pts = 20 + Math.floor(u.pride / 10);
+        u.points += pts;
+        u.pride = Math.min(100, u.pride + 5);
+        u.happiness = Math.min(100, u.happiness + 10);
+        db.log.unshift({u:u.username,h:u.house,a:'Luchó contra Mortífagos',p:pts,x:0});
+        toast(`¡Has luchado valientemente! +${pts} pts, +5 Orgullo, +10 Felicidad.`);
+    }
+    commit('Acción Mortífaga');
   }
 };
 
@@ -2247,30 +1996,38 @@ function renderPlay(){
     <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
   </div>`;
 
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">🪙 ${u.galeones||0} G · ${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
   
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
   
   const ev=activeEvent(),mult=ev?ev.mult:1,pref=u.role==='prefect'?2:0;
+  const yr = Math.min(7, userYear(u));
+  
   area.innerHTML=`<div class="acts">${Object.entries(ACTS).map(([k,a])=>{
-    const spec=getClassSpec(k,u);
-    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round((a.points+spec.bonusPts)*mult)+pref;
+    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k);
+    const subjData = CURRICULUM[k] && CURRICULUM[k][yr] ? CURRICULUM[k][yr] : {name: a.name, desc: 'Conocimiento avanzado', diff:1};
+    const basePts = 5 + (subjData.diff * 3);
+    const pts=Math.round(basePts*mult)+pref;
+    
     let badge,info;
     if(db.free){badge='<span class="pill good">Libre</span>';info=s.slot&&s.st!=='closed'?`Hoy ${s.slot.from}–${fmt(s.slot.to)}`:'Sin restricción'}
     else if(s.st==='open'){badge='<span class="pill good">Abierta</span>';info=`Cierra en ${dur(s.rem)}`}
     else if(s.st==='soon'){badge='<span class="pill warn">Próxima</span>';info=`Hoy a las ${s.slot.from} · en ${dur(s.rem)}`}
     else if(s.st==='closed'){badge='<span class="pill off">Cerrada</span>';info=`Abre el ${DAYL[s.day].toLowerCase()} a las ${s.slot.from}`}
     else{badge='<span class="pill off">Sin clase</span>';info='No hay clase esta semana'}
+    
     return `<div class="act"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
-      <div class="row" style="gap:6px"><span class="pill ${spec.isMaster?'gold':''}" style="font-size:11px">${spec.isMaster?'🎓 Maestro':`Año ${spec.yr}`} · ${spec.stars} (${spec.label})</span></div>
-      <p style="font-size:12px;color:var(--fg)"><strong>${spec.locked?`🔒 Requiere ${spec.minYear}.º curso`:`Tema de ${spec.yr}.º:`}</strong> ${spec.locked?'':esc(spec.topic)}</p>
-      <p class="muted" style="font-size:12px">${spec.locked?'Este conocimiento es demasiado avanzado para tu año actual.':esc(spec.desc)}</p>
+      <div class="box" style="padding:8px; margin:4px 0; border-left:3px solid var(--gold)">
+        <p style="font-size:13px;font-weight:700;color:var(--gold)">${esc(subjData.name)}</p>
+        <p class="muted" style="font-size:12px">${esc(subjData.desc)}</p>
+        <p style="font-size:11px;margin-top:4px">Dificultad: <b>${subjData.diff}/5</b></p>
+      </div>
       <p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
-      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts · +${1+spec.bonusGal}🪙`:`Práctica: +${Math.round((5+Math.floor(spec.bonusPts/2))*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
-      <div class="row">${spec.locked?`<button class="btn sm" disabled type="button">🔒 Nivel ${spec.minYear}.º</button>`:!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
-      <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${(cd>0||spec.locked)?'disabled':''} title="${a.mg}">${spec.locked?'🔒 Bloqueado':cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
+      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts`:`Práctica: +${Math.round(basePts*0.7*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
+      <div class="row">${!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
+      <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${cd>0?'disabled':''} title="${a.mg}">${cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
     <div class="log">${db.log.slice(0,8).map(l=>`<span><strong>${esc(l.u)}</strong> · ${esc(l.a)} <b style="color:var(--good)">+${l.p}</b>${l.x?` <b style="color:var(--rav)">+${l.x} XP</b>`:''}</span>`).join('')}</div>`;
 }
 function renderTeams(){
@@ -2280,108 +2037,53 @@ function renderTeams(){
     ${u&&u.house===h.id&&!u.quidditch_approved?`<button class="btn sm gold" data-do="openTryout" type="button" style="width:100%;margin-top:8px">🧹 Prueba de Selección</button>`:''}</div>`).join('');
 }
 const ACTIONS={Cazador:[['attack','Atacar'],['defend','Defender']],Guardián:[['block','Bloquear'],['idle','Esperar']],Buscador:[['search','Buscar Snitch'],['idle','Esperar']],Golpeador:[['hit','Golpear'],['idle','Esperar']]};
-
-function quidditchStandings(){
-  const map={};
-  HOUSES.forEach(h=>{map[h.id]={id:h.id,name:h.name,pj:0,pg:0,pp:0,pe:0,pf:0,pc:0,pts:0};});
-  db.matches.filter(m=>m.status==='finished' && m.type==='eliminatoria').forEach(m=>{
-    const A=map[m.a],B=map[m.b];
-    if(!A||!B)return;
-    A.pj++;B.pj++;
-    A.pf+=m.sa;A.pc+=m.sb;
-    B.pf+=m.sb;B.pc+=m.sa;
-    if(m.winner===m.a){A.pg++;A.pts+=3;B.pp++;}
-    else if(m.winner===m.b){B.pg++;B.pts+=3;A.pp++;}
-    else{A.pe++;B.pe++;A.pts+=1;B.pts+=1;}
-  });
-  return Object.values(map).sort((a,b)=>b.pts-a.pts||(b.pf-b.pc)-(a.pf-a.pc)||b.pf-a.pf);
-}
-
 function renderMatches(){
   const u=me();
-  const typeLabel={amistoso:'🤝 Amistoso',eliminatoria:'⚔️ Eliminatoria',final:'🏆 Gran Final'};
-  const standings=quidditchStandings();
-  const elims=db.matches.filter(m=>m.type==='eliminatoria');
-  const elimsDone=elims.filter(m=>m.status==='finished').length;
-  const finalMatch=db.matches.find(m=>m.type==='final'&&m.status==='finished');
-
-  // 1. Renderizar Tabla de Torneo de Quidditch
-  const stBox=$('quidditchStandingsBox');
-  if(stBox){
-    let stHtml=`<div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <div><h3 style="font-size:19px;color:var(--gold)">🏆 Tabla del Torneo (Copa de Quidditch)</h3>
-      <p class="muted" style="font-size:12px">Fase eliminatoria: ${elimsDone}/6 partidos jugados · Victoria: +3 pts · Empate: +1 pt</p></div>
-      ${finalMatch&&finalMatch.winner!=='empate'?`<span class="pill gold">👑 Campeón: ${HOUSE(finalMatch.winner).name}</span>`:elimsDone>=6?'<span class="pill good">✨ ¡Listos para la Gran Final!</span>':''}
-    </div>
-    <div class="tablewrap"><table><thead><tr><th>#</th><th>Casa</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>Tantos</th><th>Pts Torneo</th></tr></thead><tbody>
-      ${standings.map((s,i)=>`<tr>
-        <td class="mono"><b>${i+1}</b>${i<2?' 🌟':''}</td>
-        <td>${hbadge(s.id)}</td>
-        <td class="mono">${s.pj}</td><td class="mono">${s.pg}</td><td class="mono">${s.pe}</td><td class="mono">${s.pp}</td>
-        <td class="mono">${s.pf} : ${s.pc}</td>
-        <td class="mono"><b style="color:var(--gold)">${s.pts}</b></td>
-      </tr>`).join('')}
-    </tbody></table></div>`;
-    if(session.isAdmin){
-      stHtml+=`<div class="row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
-        <select id="mType" aria-label="Tipo de partido"><option value="eliminatoria">⚔️ Eliminatoria</option><option value="amistoso">🤝 Amistoso</option><option value="final">🏆 Gran Final</option></select>
-        <select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select>
-        <span class="muted">vs</span>
-        <select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select>
-        <button class="btn sm gold" data-do="newMatch" type="button">➕ Crear partido</button>
-        <button class="btn sm" data-do="genElims" type="button" ${elims.length>=6?'disabled':''}>⚔️ Generar 6 Eliminatorias</button>
-        <button class="btn sm gold" data-do="genFinal" type="button" ${elimsDone>=6?'':'disabled'}>👑 Crear Final (Top 2)</button>
-      </div>`;
-    }
-    stBox.innerHTML=stHtml;
-  }
-
-  // 2. Renderizar Partidos Activos y en Espera
-  const activeList=db.matches.filter(m=>m.status!=='finished'&&(session.isAdmin||!u||m.a===u.house||m.b===u.house));
-  let h=activeList.length?activeList.map(m=>{
+  let h='';
+  if(session.isAdmin)h+=`<div class="box" style="margin-bottom:12px"><div class="row"><select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><span class="muted">vs</span><select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select><button class="btn sm gold" data-do="newMatch" type="button">Crear partido</button></div></div>`;
+  const rel=db.matches.filter(m=>session.isAdmin||!u||m.a===u.house||m.b===u.house);
+  h+=rel.length?rel.map(m=>{
     const my=u?m.players.find(p=>p.uid===u.id):null,A=HOUSE(m.a),B=HOUSE(m.b);
-    const state=m.status==='waiting'?'Esperando jugadores':`Ronda ${m.round}/${m.max}`;
+    const state=m.status==='waiting'?'Esperando jugadores':m.status==='active'?`Ronda ${m.round}/${m.max}`:(m.winner==='empate'?'Empate':HOUSE(m.winner).name+' gana');
     const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${u&&p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
+    
     let ctl='';
     if(m.status==='active'&&my&&!my.action)ctl=`<div class="box" style="margin-top:10px"><p style="font-size:13px;margin-bottom:8px">Tu turno como ${my.pos} · <span id="timer-${m.id}" class="mono">--</span></p><div class="row">${(ACTIONS[my.pos]||[]).map(([a,l])=>`<button class="btn sm gold" data-do="act" data-m="${m.id}" data-a="${a}" type="button">${l}</button>`).join('')}</div></div>`;
     else if(my&&my.action)ctl=`<p class="pill good" style="margin-top:10px">Acción enviada. Esperando al resto.</p>`;
-    const stadium=`<div class="stadium"><div class="stadium-score">${m.sa} - ${m.sb}</div><div class="hoop left"></div><div class="hoop right"></div><div class="snitch"></div><div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.5)">Cabina de Lee Jordan</div></div>`;
-    let cheerBtns='';
-    if(m.status==='active'&&u&&!my){
-      cheerBtns=`<div class="row" style="margin-top:8px;justify-content:center"><button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.a}" type="button">📣 Animar ${A.name}</button><button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.b}" type="button">📣 Animar ${B.name}</button></div>`;
+    
+    let stadium = '';
+    if (m.status === 'active' || m.status === 'waiting') {
+        stadium = `<div class="stadium">
+            <div class="stadium-score">${m.sa} - ${m.sb}</div>
+            <div class="hoop left"></div>
+            <div class="hoop right"></div>
+            <div class="snitch"></div>
+            <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.5)">Cabina de Lee Jordan</div>
+        </div>`;
     }
+    
+    let cheerBtns = '';
+    if (m.status === 'active' && u && !my) {
+        cheerBtns = `<div class="row" style="margin-top:8px;justify-content:center">
+            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.a}" type="button">📣 Animar ${A.name}</button>
+            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.b}" type="button">📣 Animar ${B.name}</button>
+        </div>`;
+    }
+
     let btn='';
     if(m.status==='waiting'){
       if(my)btn+=`<button class="btn sm" data-do="leave" data-m="${m.id}" type="button">Salir</button>`;
       else if(u&&(u.house===m.a||u.house===m.b))btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
       btn+=` <button class="btn sm" data-do="fillNpcMatch" data-m="${m.id}" type="button">🤖 Rellenar con NPCs</button>`;
-      if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`;
-    }
-    if(session.isAdmin) btn+=` <button class="btn sm danger" data-do="delMatch" data-m="${m.id}" type="button">🗑️ Eliminar</button>`;
-    return `<div class="match">${stadium}
-      <div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="pill gold">${typeLabel[m.type||'amistoso']||'🤝 Amistoso'}</span><span class="muted" style="font-size:12px">${state}</span></div>
-      <div class="row" style="justify-content:center"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div></div>
+      if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
+    
+    return `<div class="match">
+      ${stadium}
+      <div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
       <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>
       ${cheerBtns}${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
-      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`;
-  }).join(''):`<p class="muted">No hay partidos activos o en espera. ${session.isAdmin?'Crea uno arriba en la tabla del torneo.':'Pide al profesorado que convoque un partido.'}</p>`;
+      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos activos. ${session.isAdmin?'Crea uno arriba.':'Pide al profesorado que convoque un partido.'}</p>`;
   $('matches').innerHTML=h;
-
-  // 3. Renderizar Registro de Partidos Ocurridos y Resultados
-  const histBox=$('quidditchHistory');
-  if(histBox){
-    const finished=db.matches.filter(m=>m.status==='finished').slice().reverse();
-    histBox.innerHTML=finished.length?`<div class="tablewrap"><table><thead><tr><th>Tipo</th><th>Enfrentamiento</th><th>Marcador</th><th>Ganador</th><th>Snitch</th>${session.isAdmin?'<th>Acción</th>':''}</tr></thead><tbody>
-      ${finished.map(m=>`<tr>
-        <td><span class="pill">${typeLabel[m.type||'amistoso']||'🤝 Amistoso'}</span></td>
-        <td>${hbadge(m.a)} vs ${hbadge(m.b)}</td>
-        <td class="mono"><b>${m.sa} - ${m.sb}</b></td>
-        <td>${m.winner==='empate'?'Empate':hbadge(m.winner)}</td>
-        <td>${m.caught?`🟡 ${HOUSE(m.caught).name}`:'No'}</td>
-        ${session.isAdmin?`<td><button class="btn sm danger" data-do="delMatch" data-m="${m.id}" type="button">🗑️</button></td>`:''}
-      </tr>`).join('')}
-    </tbody></table></div>`:'<p class="muted">Todavía no se ha completado ningún partido de Quidditch en este curso.</p>';
-  }
 }
 function renderChat(){
   const u=me();
@@ -2399,44 +2101,26 @@ function renderAdmin(){
   const ev=activeEvent(),active=document.activeElement&&slot.contains(document.activeElement)&&document.activeElement.id;
   const dsel=db.mockDay||curDay(),tval=db.mockTime||'09:00';
   const npcCount=db.users.filter(x=>x.is_npc).length;
-  const elims=db.matches.filter(m=>m.type==='eliminatoria');
-  const elimsDone=elims.filter(m=>m.status==='finished').length;
-  slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">🔐 Panel de administración completo</h3><div class="grid g2" style="align-items:start">
+  slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">Panel de administración</h3><div class="grid g2" style="align-items:start">
    <div class="box"><h4>Período de prefectos</h4><div class="row"><button class="btn sm ${db.period==='application'?'gold':''}" data-do="period" data-v="application" type="button">Postulación</button><button class="btn sm ${db.period==='voting'?'gold':''}" data-do="period" data-v="voting" type="button">Votación</button><button class="btn sm ${db.period==='closed'?'gold':''}" data-do="period" data-v="closed" type="button">Cerrar y elegir</button></div></div>
-   <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
-   <div class="box" style="grid-column:1/-1"><h4>🎓 Año Escolar del Castillo (Actual: ${db.schoolYear||1}.º)</h4>
-    <p class="muted" style="font-size:13px;margin-bottom:8px">Cambia el año escolar para avanzar la generación y desbloquear magia de cursos superiores.</p>
+   <div class="box" style="grid-column:1/-1"><h4>🎓 Año Escolar del Castillo (Curso de la generación de Harry y jugadores: ${db.schoolYear||1}.º)</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">En el Año 1, Harry y tú están en 1.º curso, Cedric, Fred y George en 3.º, Cho en 2.º, y Ginny y Luna aún no ingresan (entran a 1.º en el Año 2).</p>
     <div class="row">${[1,2,3,4,5,6,7].map(yr=>`<button class="btn sm ${(db.schoolYear||1)===yr?'gold':''}" data-do="setSchoolYear" data-y="${yr}" type="button">Año ${yr} (${yr}.º curso)</button>`).join('')}</div></div>
+   <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
    <div class="box" style="grid-column:1/-1"><h4>🤖 Alumnos IA / NPCs (${npcCount} activos)</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Los NPCs exploran salas, entrenan en clases, participan en Quidditch y conversan en el Gran Comedor automáticamente.</p>
     <div class="row">
       <button class="btn sm ${db.npcAi?'gold':''}" data-do="toggleNpcAi" type="button">${db.npcAi?'🤖 IA Automática: ACTIVA':'🤖 IA Automática: PAUSADA'}</button>
       <button class="btn sm" data-do="npcNow" type="button">⚡ Simular acción IA ahora</button>
-      <button class="btn sm" data-do="spawnNpc" type="button">➕ NPC Aleatorio</button>
-      <button class="btn sm gold" data-do="openCustomNpc" type="button">🎨 Crear NPC Personalizado</button>
+      <button class="btn sm" data-do="spawnNpc" type="button">➕ Añadir nuevo NPC</button>
     </div></div>
-   <div class="box" style="grid-column:1/-1"><h4>🧹 Gestión Rápida de Quidditch (${db.matches.length} partidos · Eliminatorias ${elimsDone}/6)</h4>
-    <div class="row" style="margin-bottom:8px">
-      <button class="btn sm" data-do="genElims" type="button" ${elims.length>=6?'disabled':''}>⚔️ Generar 6 Eliminatorias</button>
-      <button class="btn sm gold" data-do="genFinal" type="button" ${elimsDone>=6?'':'disabled'}>👑 Crear Final (Top 2)</button>
-      <button class="btn sm danger" data-do="resetMatches" type="button" ${db.matches.length?'':'disabled'}>🗑️ Borrar todos los partidos</button>
-    </div>
-    ${db.matches.length?`<div class="row" style="gap:6px">${db.matches.map(m=>`<span class="pill">${HOUSE(m.a).letter} vs ${HOUSE(m.b).letter} (${m.type||'amistoso'}) <button type="button" class="btn sm danger" style="padding:1px 6px;margin-left:4px" data-do="delMatch" data-m="${m.id}" title="Eliminar partido">✕</button></span>`).join('')}</div>`:'<span class="muted" style="font-size:12px">Sin partidos creados.</span>'}
-   </div>
    <div class="box" style="grid-column:1/-1"><h4>Reloj y horario</h4>
     <p style="margin-bottom:10px;font-size:14px">${DAYL[curDay()]} · <b class="mono">${curTime()}</b> · modo ${db.clockMode==='mock'?'simulado':'real'}</p>
     <div class="row" style="margin-bottom:10px"><select id="mockDay" aria-label="Día simulado">${DAYS.map(d=>`<option value="${d}" ${d===dsel?'selected':''}>${DAYL[d]}</option>`).join('')}</select><input id="mockTime" type="time" value="${tval}" style="width:auto" aria-label="Hora simulada"><button class="btn sm gold" data-do="mock" type="button">Simular</button><button class="btn sm" data-do="real" type="button">Hora real</button></div>
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
-   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:300px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>🪙</th><th>Vuelo</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}${x.quidditch_approved?' · 🧹':''}</td><td class="row" style="gap:4px">
-      <button class="btn sm" data-do="award" data-id="${x.id}" type="button" title="Sumar 10 puntos">+10</button>
-      <button class="btn sm danger" data-do="deduct" data-id="${x.id}" type="button" title="Restar 10 puntos">-10</button>
-      <button class="btn sm" data-do="awardGal" data-id="${x.id}" type="button" title="Dar 10 Galeones">+10🪙</button>
-      <button class="btn sm ${x.quidditch_approved?'gold':''}" data-do="toggleQuid" data-id="${x.id}" type="button" title="Aprobar/Quitar Quidditch">🧹</button>
-      <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar pref.':'Prefecto'}</button>
-      <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado (Solo 7.º)">${x.role==='delegado'?'Quitar del.':'Delegado'}</button>
-      <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar alumno/NPC">🗑️</button>
-    </td></tr>`).join('')}</tbody></table></div>
+   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button></td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -2673,87 +2357,9 @@ function renderAll(){
   renderStudents();
   renderCourses();
   renderClock();
-  const _uHud=me(),_navG=$('navGaleones'),_hudG=$('hudGaleones');
-  if(_navG&&_hudG){
-    if(_uHud){_navG.style.display='inline-flex';_hudG.textContent=_uHud.galeones||0;}
-    else{_navG.style.display='none';}
-  }
 }
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
-
-let shopTab='Zonko';
-function openHogsmeadeModal(tab){
-  if(tab) shopTab=tab;
-  const u=me();
-  if(!u||!u.house){toast('Inicia sesión y elige tu casa para comprar en Hogsmeade');return;}
-  const inv=u.inv||{};
-  let body='';
-  if(shopTab==='Mochila'){
-    const entries=Object.entries(inv).filter(([,q])=>q>0);
-    body=entries.length?`<div class="arcade-grid" style="width:100%;text-align:left">${entries.map(([id,q])=>{
-      const it=TIENDA_HOGSMEADE[id];if(!it)return '';
-      return `<div class="arcade-card"><h4><span>${esc(it.nombre)}</span><span class="pill gold">x${q}</span></h4><p class="muted" style="font-size:12px;flex:1">${esc(it.desc)}</p><button class="btn sm gold" type="button" data-do="useItem" data-id="${id}">✨ Usar</button></div>`;
-    }).join('')}</div>`:'<p class="muted" style="padding:16px 0">Tu mochila está vacía. ¡Juega minijuegos para ganar Galeones!</p>';
-  }else{
-    const items=Object.values(TIENDA_HOGSMEADE).filter(i=>i.tienda===shopTab);
-    body=`<div class="arcade-grid" style="width:100%;text-align:left">${items.map(it=>`
-      <div class="arcade-card">
-        <h4><span>${esc(it.nombre)}</span><span class="pill gold mono">🪙 ${it.precio}</span></h4>
-        <p class="muted" style="font-size:12px;flex:1">${esc(it.desc)}</p>
-        <button class="btn sm gold" type="button" data-do="buyItem" data-id="${it.id}" ${(u.galeones||0)<it.precio?'disabled':''}>🛒 Comprar (${it.precio} 🪙)</button>
-      </div>`).join('')}</div>`;
-  }
-  openModal(`
-    <div class="row" style="justify-content:space-between;width:100%">
-      <h3 style="font-size:21px;color:var(--gold)">🏘️ Pueblo de Hogsmeade</h3>
-      <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
-    </div>
-    <div class="chips" style="width:100%;justify-content:center">
-      <button type="button" class="chip ${shopTab==='Zonko'?'on':''}" data-do="shopTab" data-t="Zonko">🃏 Zonko</button>
-      <button type="button" class="chip ${shopTab==='Honeydukes'?'on':''}" data-do="shopTab" data-t="Honeydukes">🍬 Honeydukes</button>
-      <button type="button" class="chip ${shopTab==='Mochila'?'on':''}" data-do="shopTab" data-t="Mochila">🎒 Mi Mochila</button>
-    </div>
-    ${body}
-    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
-  `,true);
-}
-
-function openAlbumModal(){
-  const u=me();
-  if(!u){toast('Inicia sesión para ver tu álbum de cromos');return;}
-  const col=u.cromos||{};
-  const descubiertos=CROMOS_MAGOS.filter(c=>(col[c.id]||0)>0).length;
-  const hayRepetidos=Object.values(col).some(q=>q>1);
-  const gridHtml=CROMOS_MAGOS.map(c=>{
-    const qty=col[c.id]||0;
-    if(qty===0){
-      return `<div class="cromo-card bloqueado"><h4>???</h4><p class="muted" style="font-size:12px">Abre Ranas de Chocolate en Honeydukes para descubrirlo.</p></div>`;
-    }
-    const val=VALOR_CANJE_CROMO[c.rareza]||4;
-    return `<div class="cromo-card">
-      ${qty>1?`<span class="cromo-repetido">x${qty}</span>`:''}
-      <span class="cromo-rareza rareza-${c.rareza}">${c.rareza}</span>
-      <h4 style="color:var(--gold);font-size:15px">${esc(c.nombre)}</h4>
-      <p class="muted" style="font-size:12px;flex:1">${esc(c.desc)}</p>
-      ${qty>1?`<button class="btn sm gold" type="button" data-do="tradeCromo" data-id="${c.id}" style="width:100%;margin-top:4px">🪙 Canjear 1 (+${val})</button>`:''}
-    </div>`;
-  }).join('');
-
-  openModal(`
-    <div class="row" style="justify-content:space-between;width:100%">
-      <h3 style="font-size:21px;color:var(--gold)">🐸 Álbum de Ranas de Chocolate</h3>
-      <span class="pill gold mono">Descubiertos: ${descubiertos} / ${CROMOS_MAGOS.length}</span>
-    </div>
-    <div class="row" style="justify-content:space-between;width:100%;font-size:12px">
-      <span class="muted">Canje de repetidos: Común (4🪙) · Raro (8🪙) · Legendario (15🪙)</span>
-      ${hayRepetidos?`<button class="btn sm gold" type="button" data-do="tradeAllCromos">🪙 Canjear todos los repetidos</button>`:''}
-    </div>
-    <div class="arcade-grid" style="width:100%;grid-template-columns:repeat(auto-fill,minmax(175px,1fr))">${gridHtml}</div>
-    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
-  `,true);
-}
-
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
 
 function finishMinigame(k,hit,msgWin,msgLose){
@@ -2816,7 +2422,6 @@ function startTryoutMinigame(pos){
 }
 
 function practice(k){
-  const _u=me();if(_u){const _sp=getClassSpec(k,_u);if(_sp.locked){toast(`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);return;}}
   const cd=API.cooldown(k);
   if(cd>0){toast(`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);return}
   if(k==='pociones') return mgPociones();
@@ -2833,7 +2438,6 @@ function practice(k){
 
 /* 8. TRANSFORMACIONES: Transfiguración Exacta */
 function mgTransformaciones(){
-  const spec=getClassSpec('transformaciones',me());
   const STAGES=['☕','🪡','🪶','🐱','🦉'];
   let idx=0,hits=0,tries=0,iv=null;
   openModal(`<h3 style="font-size:20px">🐱 Transfiguración Exacta (Prof. McGonagall)</h3>
@@ -2847,7 +2451,7 @@ function mgTransformaciones(){
   iv=setInterval(()=>{
     idx=(idx+1)%STAGES.length;
     const el=$('mgTransIcon');if(el)el.textContent=STAGES[idx];
-  },Math.max(190, 440 - spec.diff * 45));
+  },360);
   mgClean=()=>clearInterval(iv);
   $('mgTransBtn').onclick=()=>{
     tries++;
@@ -2933,12 +2537,10 @@ function mgHistoria(){
 /* 1. POCIONES: Caldero de Memoria */
 function mgPociones(){
   const INGS=[['🕷️','Araña'],['🌿','Asfódelo'],['💎','Bezoar'],['🍄','Hongo'],['🩸','Draco'],['🌙','Lunar']];
-  const spec=getClassSpec('pociones',me());
-  const seqLen=3+Math.floor(spec.diff/2);
-  const seq=Array.from({length:seqLen},()=>Math.floor(Math.random()*INGS.length));
+  const seq=Array.from({length:4},()=>Math.floor(Math.random()*INGS.length));
   let step=0,locked=true,timers=[];
   openModal(`<h3 style="font-size:20px">🧪 Caldero de Memoria</h3>
-    <p class="muted" id="mgSub">Observa el orden de los ${seqLen} ingredientes (${spec.topic})…</p>
+    <p class="muted" id="mgSub">Observa el orden de los 4 ingredientes del caldero…</p>
     <div class="mg-stage">
       <div class="mg-cauldron" id="mgCauldron">⚗️</div>
       <div class="grid g3" id="mgIngs">${INGS.map(([ic,nm],i)=>`<button type="button" class="mg-ing" data-i="${i}" disabled><b>${ic}</b><small>${nm}</small></button>`).join('')}</div>
@@ -2956,7 +2558,7 @@ function mgPociones(){
     locked=false;
     const c=$('mgCauldron'),s=$('mgSub');
     if(c)c.textContent='❓';
-    if(s)s.textContent='¡Tu turno! Pulsa los ${seqLen} ingredientes en el mismo orden (0/${seqLen})';
+    if(s)s.textContent='¡Tu turno! Pulsa los 4 ingredientes en el mismo orden (0/4)';
     document.querySelectorAll('#mgIngs .mg-ing').forEach(b=>b.disabled=false);
   },500+seq.length*650+200));
   mgClean=()=>timers.forEach(clearTimeout);
@@ -2978,7 +2580,6 @@ function mgPociones(){
 
 /* 2. ENCANTAMIENTOS: Pulso de Varita */
 function mgEncantamientos(){
-  const spec=getClassSpec('encantamientos',me());
   let pos=50,dir=1,hits=0,tries=0,iv=null;
   openModal(`<h3 style="font-size:20px">🪄 Pulso de Varita: Wingardium Leviosa</h3>
     <p class="muted">Detén el pulso dentro de la zona dorada <strong>3 veces</strong>.</p>
@@ -2989,7 +2590,7 @@ function mgEncantamientos(){
     </div>
     <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
   iv=setInterval(()=>{
-    pos+=dir*(2.8 + spec.diff * 0.65);
+    pos+=dir*3.6;
     if(pos>=96){pos=96;dir=-1}else if(pos<=4){pos=4;dir=1}
     const el=$('mgCur');if(el)el.style.left=pos+'%';
   },24);
@@ -3007,13 +2608,11 @@ function mgEncantamientos(){
 
 /* 3. HERBOLOGÍA: Mandrágoras Rebeldes */
 function mgHerbologia(){
-  const spec=getClassSpec('herbologia',me());
-  const goal=4+spec.diff;
-  let score=0,timeLeft=10,activePot=-1,isBad=false,iv1=null,iv2=null;
+  let score=0,timeLeft=9,activePot=-1,isBad=false,iv1=null,iv2=null;
   openModal(`<h3 style="font-size:20px">🌱 Mandrágoras Rebeldes</h3>
-    <p class="muted">Atrapa <strong>${goal} Mandrágoras (🌱)</strong> antes de que se agote el tiempo. ¡Evita las Tentáculas (🥀)!</p>
+    <p class="muted">Atrapa <strong>5 Mandrágoras (🌱)</strong> antes de que se agote el tiempo. ¡Evita las Tentáculas (🥀)!</p>
     <div class="mg-stage">
-      <div class="mg-hud"><span class="pill gold" id="mgHerbScore">Mandrágoras: 0/${goal}</span><span class="mono" id="mgHerbTime">9 s</span></div>
+      <div class="mg-hud"><span class="pill gold" id="mgHerbScore">Mandrágoras: 0/5</span><span class="mono" id="mgHerbTime">9 s</span></div>
       <div class="mg-pots" id="mgPots">${Array.from({length:6},(_,i)=>`<button type="button" class="mg-pot" data-p="${i}">🪴</button>`).join('')}</div>
     </div>
     <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
@@ -3026,11 +2625,11 @@ function mgHerbologia(){
     });
   };
   spawn();
-  iv1=setInterval(spawn,Math.max(430, 820 - spec.diff * 65));
+  iv1=setInterval(spawn,700);
   iv2=setInterval(()=>{
     timeLeft--;
     if($('mgHerbTime'))$('mgHerbTime').textContent=timeLeft+' s';
-    if(timeLeft<=0)finishMinigame('herbologia',score>=goal,'¡Invernadero controlado!','Se escaparon algunas mandrágoras');
+    if(timeLeft<=0)finishMinigame('herbologia',score>=5,'¡Invernadero controlado!','Se escaparon algunas mandrágoras');
   },1000);
   mgClean=()=>{clearInterval(iv1);clearInterval(iv2)};
   $('mgPots').onclick=e=>{
@@ -3040,8 +2639,8 @@ function mgHerbologia(){
     activePot=-1;b.classList.remove('up');b.textContent='🪴';
     if(isBad){score=Math.max(0,score-1);buzzSnd()}
     else{score++;tone([587.33,783.99],'sine',.04,.16,.1)}
-    if($('mgHerbScore'))$('mgHerbScore').textContent=`Mandrágoras: ${score}/${goal}`;
-    if(score>=goal)finishMinigame('herbologia',true,'¡5 Mandrágoras trasplantadas!');
+    if($('mgHerbScore'))$('mgHerbScore').textContent=`Mandrágoras: ${score}/5`;
+    if(score>=5)finishMinigame('herbologia',true,'¡5 Mandrágoras trasplantadas!');
   };
 }
 
@@ -3053,8 +2652,7 @@ function mgDefensa(){
     {q:'🐍 ¡Un maleficio aturdidor viene de frente!',a:'Protego',ic:'🛡️'},
     {q:'🪄 ¡Tu rival alza su varita para atacar!',a:'Expelliarmus',ic:'⚡'}
   ];
-  const spec=getClassSpec('defensa',me());
-  let round=0,timeLeft=Math.max(5, 11 - spec.diff),cur=null,iv=null;
+  let round=0,timeLeft=8,cur=null,iv=null;
   openModal(`<h3 style="font-size:20px">🛡️ Duelo contra las Artes Oscuras</h3>
     <p class="muted">Elige el contrahechizo correcto en <strong>3 asaltos</strong> antes de que se agote el tiempo.</p>
     <div class="mg-stage">
@@ -3090,7 +2688,6 @@ function mgDefensa(){
 
 /* 5. VUELO: Caza de la Snitch Dorada */
 function mgVuelo(){
-  const spec=getClassSpec('vuelo',me());
   let caught=0,timeLeft=10,iv1=null,iv2=null;
   openModal(`<h3 style="font-size:20px">🟡 Caza de la Snitch Dorada</h3>
     <p class="muted">Atrapa la Snitch <strong>4 veces</strong> en 10 s para ganar puntos y <strong>+4 XP de vuelo extra</strong>. ¡No toques las Bludgers (⚫)!</p>
@@ -3110,7 +2707,7 @@ function mgVuelo(){
     if(b1){b1.style.left=rnd()+'%';b1.style.top=rnd()+'%'}
     if(b2){b2.style.left=rnd()+'%';b2.style.top=rnd()+'%'}
   };
-  iv1=setInterval(moveAll,Math.max(330, 660 - spec.diff * 58));
+  iv1=setInterval(moveAll,560);
   iv2=setInterval(()=>{
     timeLeft--;
     if($('mgSnitchTime'))$('mgSnitchTime').textContent=timeLeft+' s';
@@ -3211,26 +2808,6 @@ function mgRunas(){
       }
     }
   };
-}
-
-
-function openCustomNpcModal(){
-  must(session.isAdmin,'Solo admin');
-  const sy=Math.max(1,Math.min(7,Number(db.schoolYear)||1));
-  openModal(`<h3 style="font-size:20px;color:var(--gold)">🎨 Crear NPC Personalizado</h3>
-    <div class="grid g2" style="width:100%;text-align:left;gap:10px">
-      <div><label class="hint">Nombre</label><input id="npcName" type="text" maxlength="18" placeholder="Ej: Astoria Greengrass"></div>
-      <div><label class="hint">Casa</label><select id="npcHouse" style="width:100%">${HOUSES.map(h=>`<option value="${h.id}">${h.name}</option>`).join('')}</select></div>
-      <div><label class="hint">Curso (1.º a 7.º)</label><select id="npcYear" style="width:100%">${[1,2,3,4,5,6,7].map(y=>`<option value="${y}" ${y===sy?'selected':''}>${y}.º curso</option>`).join('')}</select></div>
-      <div><label class="hint">Personalidad</label><select id="npcPers" style="width:100%">${Object.keys(PERSONALITY_LINES).map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
-      <div style="grid-column:1/-1"><label class="hint">Rasgo / Descripción</label><input id="npcTrait" type="text" maxlength="80" placeholder="Ej: Duelista silenciosa y experta en Pociones"></div>
-      <div><label class="hint">Piel (0-4)</label><select id="npcSkin" style="width:100%">${SKIN.map((_,i)=>`<option value="${i}">Tono ${i+1}</option>`).join('')}</select></div>
-      <div><label class="hint">Pelo</label><select id="npcHair" style="width:100%">${HAIRN.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></div>
-      <div><label class="hint">Peinado</label><select id="npcStyle" style="width:100%">${STYLES.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
-      <div><label class="hint">Ojos</label><select id="npcEyes" style="width:100%">${EYEN.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></div>
-      <label style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:13px"><input id="npcQuid" type="checkbox"> Aprobado para el equipo de Quidditch</label>
-    </div>
-    <div class="row"><button class="btn gold" type="button" data-do="saveCustomNpc">✨ Crear NPC</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>`,true);
 }
 
 function newStudent(){
@@ -3603,14 +3180,9 @@ function closeMinigame() {
 function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', flightXp = 0, gameId = 'troll') {
   const user = me();
   if (!user || !user.house) { closeMinigame(); return; }
-  const yr = Math.max(1, Math.min(7, typeof userYear === 'function' ? userYear(user) : 1));
-  const diffBonus = yr === 1 ? 0 : yr === 2 ? 1 : yr <= 4 ? 2 : yr === 5 ? 3 : 4;
   const ev = activeEvent(), mult = ev ? ev.mult : 1;
-  const points = Math.round((basePoints + diffBonus) * mult) + (user.role === 'prefect' ? 2 : 0);
+  const points = Math.round(basePoints * mult) + (user.role === 'prefect' ? 2 : 0);
 
-  const galeonesGanados = Math.max(2, Math.round(basePoints + Math.ceil(diffBonus / 2))) * mult * (user.buffDobleGaleon ? 2 : 1);
-  user.buffDobleGaleon = false;
-  user.galeones = (user.galeones || 0) + galeonesGanados;
   user.points += points;
   if (flightXp) user.flight_xp = (user.flight_xp || 0) + flightXp;
   user.academic_progress += 1;
@@ -3624,7 +3196,7 @@ function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', fl
   fanfare();
   closeMinigame();
   commit(`${user.username} ganó +${points} pts en ${gameName}`);
-  toast(`¡Has ganado +${points} puntos, +🪙 ${galeonesGanados} Galeones${flightXp ? ` y +${flightXp} XP de vuelo` : ''}!`);
+  toast(`¡Has ganado +${points} puntos para ${HOUSE(user.house).name}${flightXp ? ` y +${flightXp} XP de vuelo` : ''}!`);
 }
 
 function houseHex(h) {
@@ -4317,13 +3889,6 @@ document.addEventListener('click',e=>{
   if(d.do==='modalBg'){if(e.target===b)closeModal();return}
   try{switch(d.do){
     case 'closeModal':closeModal();break;
-    case 'openHogsmeade':openHogsmeadeModal();break;
-    case 'shopTab':openHogsmeadeModal(d.t);break;
-    case 'buyItem':API.buyItem(d.id);openHogsmeadeModal();break;
-    case 'useItem':API.useItem(d.id);openHogsmeadeModal();break;
-    case 'openAlbum':openAlbumModal();break;
-    case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
-    case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
     case 'openNewChar':newStudent();break;
     case 'openLogin':openLoginModal();break;
     case 'loginAsStu':{
@@ -4387,19 +3952,9 @@ document.addEventListener('click',e=>{
     case 'adv':API.advance(parseInt(d.n));break;
     case 'free':API.setFree(!db.free);break;
     case 'award':API.award(Number(d.id),10);break;
-    case 'deduct':API.award(Number(d.id),-10);break;
-    case 'awardGal':API.awardGaleones(Number(d.id),10);break;
-    case 'toggleQuid':API.toggleQuidditch(Number(d.id));break;
-    case 'delUser':API.deleteUser(Number(d.id));break;
-    case 'resetMatches':API.resetMatches();break;
     case 'togglePref':API.togglePrefect(Number(d.id));break; case 'toggleDel':API.toggleDelegado(Number(d.id));break;
     case 'reset':if(!resetArmed){resetArmed=true;renderAdmin();setTimeout(()=>{resetArmed=false;renderAdmin()},4000)}else{resetArmed=false;API.resetPoints()}break;
-    case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value,$('mType')?.value||'amistoso');break;
-    case 'delMatch':API.deleteMatch(d.m);break;
-    case 'genElims':API.generateEliminatorias();break;
-    case 'genFinal':API.generateFinal();break;
-    case 'openCustomNpc':openCustomNpcModal();break;
-    case 'saveCustomNpc':API.createCustomNpc({name:$('npcName').value,house:$('npcHouse').value,year:$('npcYear').value,pers:$('npcPers').value,trait:$('npcTrait').value,skin:$('npcSkin').value,hair:$('npcHair').value,style:$('npcStyle').value,eyes:$('npcEyes').value,quidditch:$('npcQuid').checked});closeModal();break;
+    case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value);break;
     case 'join':API.join(d.m);break;
     case 'leave':API.leave(d.m);break;
     case 'start':API.start(d.m);break;
