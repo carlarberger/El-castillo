@@ -1347,7 +1347,9 @@ const API={
     }
     commit();
   },
-  sneak(){
+    sneak(){
+    const u=me();must(u&&u.house,'Inicia sesión primero');
+    must(isCurfew()&&!db.free,'Solo puedes escabullirte en el toque de queda');
     const immune = (u.inmunidadFilchHasta || 0) > Date.now();
     let petProtected = false;
     if (petFilchImmune(u) && !immune) {
@@ -1368,7 +1370,6 @@ const API={
       db.houses.find(h=>h.id===u.house).points += 8;
       u.loc = 'biblioteca';
       toast(`${msg} +8 pts, +5 Felicidad.`);
-    }
     }
     commit('Escabullirse de noche');
   },
@@ -3256,7 +3257,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length),pet:null};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -3286,7 +3287,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length),pet:null};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -3556,7 +3557,7 @@ const ARCADE_GAMES = [
   { id: 'snitch', name: '3. Caza de la Snitch Dorada', mech: 'Puntería / Precisión', ptsLabel: '2-5 pts · +3 XP', basePts: 5, xp: 3, desc: 'La Snitch vuela a toda velocidad por el estadio; haz clic o tócala varias veces antes de que escape.' },
   { id: 'defensa_copa', name: '4. Defensa de la Copa', mech: 'Tower Defense / Estrategia', ptsLabel: '5 pts', basePts: 5, xp: 0, desc: 'Coloca escudos Protego y torretas mágicas en los carriles para evitar que las criaturas lleguen a la Copa.' },
   { id: 'pocion_exp', name: '5. Poción Explosiva', mech: 'Lógica / Memoria', ptsLabel: '4 pts', basePts: 4, xp: 0, desc: 'Memoriza la receta del pergamino y selecciona los ingredientes en el orden exacto de la mesa desordenada.' },
-  { id: 'escobas', name: '6. Carrera de Escobas', mech: 'Reflejos / Esquivar', ptsLabel: '3-5 pts · +4 XP', basePts: 5, xp: 4, desc: 'Carrera contrarreloj a 60 FPS esquivando bludgers y rivales mientras atraviesas aros dorados.' }
+  { id: 'escobas', name: '6. Carrera de Escobas', mech: 'Reflejos / Esquivar', ptsLabel: '3-5 pts · +4 XP', basePts: 5, xp: 4, desc: 'Carrera contrarreloj a 60 FPS esquivando bludgers y rivales mientras atraviesas aros dorados.' },
   { id: 'ajedrez', name: '7. Ajedrez Mágico de Ron', mech: 'Puzzle / Táctica', ptsLabel: '4 pts · +1 XP', basePts: 4, xp: 1, desc: 'Captura al rey oscuro en pocos movimientos. Las piezas mágicas se quejan si sacrificas tropas.' }
 ];
 
