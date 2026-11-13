@@ -639,7 +639,25 @@ function ensureDbIntegrity(){
     if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length];
   });
   if(typeof db.npcAi==='undefined') db.npcAi=true;
+  syncHouseTotals();
   return changed;
+}
+
+// Recalcula y sincroniza siempre los puntos de cada casa sumando los puntos reales de TODOS sus miembros (jugadores + NPCs) + bonus de partidos ganados
+function syncHouseTotals(){
+  if(!db||!Array.isArray(db.houses)||!Array.isArray(db.users))return;
+  const matchWins={gryffindor:0,ravenclaw:0,slytherin:0,hufflepuff:0};
+  if(Array.isArray(db.matches)){
+    db.matches.forEach(m=>{
+      if(m.status==='finished'&&m.winner&&matchWins[m.winner]!==undefined) matchWins[m.winner]+=50;
+    });
+  }
+  db.houses.forEach(h=>{
+    const memberSum=db.users
+      .filter(u=>u.house===h.id)
+      .reduce((acc,u)=>acc+(Number(u.points)||0),0);
+    h.points=memberSum+(matchWins[h.id]||0);
+  });
 }
 
 function validateLocalSession(){
@@ -676,6 +694,7 @@ socket.on('sync_db', (data) => {
 
 function commit(reason){
   ensureDbIntegrity();
+  syncHouseTotals();
   socket.emit('sync_db', { db: db, reason: reason });
   renderAll();
 }
@@ -2718,12 +2737,12 @@ let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
   if(s!==sig){sig=s;renderPlay();renderArcade();renderNpcTrials();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
-// Ciclo autónomo de NPCs: cada 28 segundos un NPC se mueve de sala, entrena o conversa
+// Ciclo autónomo de NPCs: cada 18 segundos un bot entrena, suma puntos a su casa y explora el castillo
 setInterval(()=>{
-  if(db.npcAi && Math.random()<0.45){
+  if(db.npcAi && Math.random()<0.75){
     try{API.npcStep(true);}catch(e){}
   }
-},28000);
+},18000);
 
 /* ===== LOGIN SECRETO DE ADMIN ===== */
 document.getElementById('adminLoginBtn').addEventListener('click', () => {
