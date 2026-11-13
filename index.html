@@ -99,6 +99,13 @@ section.block{padding:44px 0}
 .pill.off{color:var(--muted)}
 .event{border:1px solid var(--gold);border-radius:14px;padding:12px 18px;margin-bottom:18px;text-align:center;background:linear-gradient(90deg,var(--glow),transparent,var(--glow))}
 
+/* stats bars */
+.stat-row{display:flex;gap:10px;font-size:12px;flex-wrap:wrap;margin-top:6px}
+.stat-item{display:flex;align-items:center;gap:4px;background:var(--surface-2);padding:2px 8px;border-radius:6px;border:1px solid var(--line)}
+.stat-item span{color:var(--muted)}
+.stat-bar{width:50px;height:6px;background:var(--bg);border-radius:99px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:4px}
+.stat-bar i{display:block;height:100%}
+
 /* house colours */
 .h-gryffindor{--hc:var(--gry);--hi:#fff}.h-slytherin{--hc:var(--sly);--hi:#fff}
 .h-ravenclaw{--hc:var(--rav);--hi:#fff}.h-hufflepuff{--hc:var(--huf);--hi:var(--huf-ink)}
@@ -397,8 +404,28 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       <div class="arcade-grid" id="arcadeGrid"></div>
     </div>
 
-    <div class="panel hl" style="margin-bottom:16px;border-color:var(--bad)" id="darkEventPanel">
-      <div id="darkEventBox"></div>
+    <!-- SISTEMA DE EVENTOS FASE 1: RITUAL ANIMAGO -->
+    <div class="panel hl" style="margin-bottom:16px;border-color:var(--rav)" id="animagusPanel">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div>
+          <h3 style="font-size:20px;color:var(--rav)">🦅 El Ritual Animago (Fases)</h3>
+          <p class="muted" style="font-size:13px">El proceso de convertirse en Animago requiere tiempo, estudio y condiciones específicas.</p>
+        </div>
+        <span class="pill" style="background:var(--rav);color:#fff;border:none" id="animagusStatusBadge">No iniciado</span>
+      </div>
+      <div id="animagusBox"></div>
+    </div>
+
+    <!-- SISTEMA DE EVENTOS FASE 2: MORTÍFAGOS -->
+    <div class="panel hl" style="margin-bottom:16px;border-color:var(--bad)" id="mortifagosPanel">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <div>
+          <h3 style="font-size:20px;color:var(--bad)">💀 La Amenaza Mortífaga (Fases)</h3>
+          <p class="muted" style="font-size:13px">La oscuridad acecha. Dependiendo de tu orgullo y del año escolar, podrás resistir o unirte a las fuerzas oscuras.</p>
+        </div>
+        <span class="pill" style="background:var(--bad);color:#fff;border:none" id="mortifagosStatusBadge">Acechando</span>
+      </div>
+      <div id="mortifagosBox"></div>
     </div>
 
     <div class="panel" style="margin-bottom:16px" id="npcTrialsPanel">
@@ -639,6 +666,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   is_npc:!!is_npc,is_canon:!!is_canon,pass:pass||'',loc:loc||'comedor',locSlot:'',
   npc_trait:npc_trait||'Alumno del castillo',npc_path:null,npc_quidditch:false,npc_decided:false,npc_trials:0,animagus:null,
   quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
+  happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
@@ -764,6 +792,11 @@ function ensureDbIntegrity(){
     if(typeof u.quidditch_approved === 'undefined') {
         u.quidditch_approved = u.is_npc && u.npc_quidditch ? true : false;
     }
+    if (typeof u.happiness === 'undefined') { u.happiness = 50; changed = true; }
+    if (typeof u.pride === 'undefined') { u.pride = 50; changed = true; }
+    if (typeof u.academic_progress === 'undefined') { u.academic_progress = 0; changed = true; }
+    if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
+
     if(u.is_npc && !u.npc_decided){
       if(u.flight_xp!==0 || u.npc_quidditch || u.role==='prefect'){
         u.flight_xp=0;u.npc_quidditch=false;u.role='student';u.npc_path=null;changed=true;
@@ -1037,14 +1070,16 @@ const API={
     const caught = Math.random() < 0.45;
     if(caught){
       u.points = Math.max(0, u.points - 10);
+      u.happiness = Math.max(0, u.happiness - 10);
       db.houses.find(h=>h.id===u.house).points -= 10;
       u.loc = u.house;
-      toast('¡Filch y la Sra. Norris te atraparon! -10 pts y de vuelta a tu Sala Común.');
+      toast('¡Filch y la Sra. Norris te atraparon! -10 pts, -10 Felicidad y de vuelta a tu Sala Común.');
     }else{
       u.points += 8;
+      u.happiness = Math.min(100, u.happiness + 5);
       db.houses.find(h=>h.id===u.house).points += 8;
       u.loc = 'biblioteca';
-      toast('¡Esquivaste a Filch y encontraste un secreto! +8 pts.');
+      toast('¡Esquivaste a Filch y encontraste un secreto! +8 pts, +5 Felicidad.');
     }
     commit('Escabullirse de noche');
   },
@@ -1058,6 +1093,8 @@ const API={
     const ev=activeEvent(),mult=ev?ev.mult:1;
     const pts=Math.round(fa.pts*mult)+(u.role==='prefect'?2:0),fx=fa.xp||0;
     u.points+=pts;if(fx)u.flight_xp+=fx;
+    u.happiness=Math.min(100, u.happiness + 3);
+    if(loc==='biblioteca') u.academic_progress += 2;
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
     db.log.unshift({u:u.username,h:u.house,a:fa.name,p:pts,x:fx});
@@ -1078,6 +1115,9 @@ const API={
     
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
+    u.academic_progress += 1;
+    u.happiness = Math.min(100, u.happiness + 2);
+    
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
     
     db.missions = db.missions || {};
@@ -1110,6 +1150,7 @@ const API={
     const base=hit?5:2;
     const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
     u.points+=pts;if(fx)u.flight_xp+=fx;
+    u.academic_progress += hit?1:0;
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
     db.log.unshift({u:u.username,h:u.house,a:`${cfg.mg} (${cfg.name})`,p:pts,x:fx});
@@ -1124,12 +1165,14 @@ const API={
       u.quidditch_approved = true;
       u.flight_xp += 15;
       u.points += 12;
+      u.pride = Math.min(100, u.pride + 10);
       db.log.unshift({u:u.username,h:u.house,a:`Aprobó prueba de Quidditch (${pos})`,p:12,x:15});
-      toast(`¡Aprobaste la prueba como ${pos}! +15 XP, +12 pts`);
+      toast(`¡Aprobaste la prueba como ${pos}! +15 XP, +12 pts, +10 Orgullo`);
     }else{
       u.flight_xp += 5;
+      u.pride = Math.max(0, u.pride - 5);
       db.log.unshift({u:u.username,h:u.house,a:`Prueba de Quidditch fallida`,p:0,x:5});
-      toast('No superaste la prueba. +5 XP de consolación.');
+      toast('No superaste la prueba. +5 XP de consolación, -5 Orgullo.');
     }
     closeModal();
     commit('Prueba de Quidditch');
@@ -1161,28 +1204,9 @@ const API={
     const u=me(); must(u && (u.role==='prefect' || session.isAdmin), 'Solo Prefectos o Profesorado pueden castigar');
     const t=db.users.find(x=>x.id===id); must(t,'Alumno no encontrado');
     t.points=Math.max(0, t.points-5);
+    t.happiness=Math.max(0, t.happiness-10);
     db.log.unshift({u:u.username,h:u.house,a:`Castigó a ${t.username}`,p:-5,x:0});
     commit(`${u.username} castigó a ${t.username}`);
-  },
-  appointDelegado(id){
-    must(session.isAdmin,'Solo admin');
-    const t=db.users.find(u=>u.id===id);
-    must(t,'Alumno no encontrado');
-    must(userYear(t)===7,'Solo 7mo año');
-    const yrDels = db.users.filter(u=>userYear(u)===7 && u.role==='delegado');
-    if(yrDels.length >= 2) throw new Error('Ya hay 2 Delegados en este año');
-    if(yrDels.some(d=>d.gender===t.gender)) throw new Error('Ya hay un Delegado de este género');
-    t.role='delegado';
-    commit(`${t.username} es ahora Delegado`);
-  },
-  cheer(id, house){
-    const u=me();must(u,'Inicia sesión');
-    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
-    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
-    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
-    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
-    else m.cheerB=(m.cheerB||0)+1;
-    commit(`Animos para ${house}`);
   },
   npcStep(silent=false){
     if(!db.npcAi && !silent) throw new Error('La IA de NPCs está pausada');
@@ -1295,6 +1319,7 @@ const API={
 
     if(db.chat.length>60)db.chat.shift();
     u.points+=myBonus;
+    u.pride = Math.min(100, u.pride + 5);
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
     db.log.unshift({u:`${u.username} & 🤖 ${npc.username}`,h:u.house,a:'Prueba de Destino',p:myBonus,x:0});
     db.log.length=Math.min(db.log.length,15);
@@ -1441,6 +1466,57 @@ const API={
         m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
         m.log.push(`${HOUSE(m.winner).name} gana: +50 pts`);fanfare()}else m.log.push('Empate')}
     commit('Ronda '+(m.round-1)+' resuelta');
+  },
+  cheer(id, house){
+    const u=me();must(u,'Inicia sesión');
+    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
+    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
+    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
+    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
+    else m.cheerB=(m.cheerB||0)+1;
+    commit(`Animos para ${house}`);
+  },
+  animagusAdvance(){
+    const u=me();must(u&&u.house,'Inicia sesión');
+    const st = u.animagus_stage || 0;
+    if (st === 0) {
+        must(u.academic_progress >= 50, 'Requiere 50 de Avance Académico para iniciar la poción.');
+        u.animagus_stage = 1;
+        u.academic_progress -= 50;
+        toast('Has iniciado la poción. Ahora debes sostener la hoja de mandrágora un mes (3 días en el juego).');
+    } else if (st === 1) {
+        u.animagus_stage = 2;
+        toast('Has terminado el mes con la hoja en la boca. Ahora espera la tormenta eléctrica.');
+    } else if (st === 2) {
+        must(curDay() === 'jueves' || curDay() === 'viernes', 'Solo hay tormentas mágicas los jueves y viernes.');
+        u.animagus_stage = 3;
+        toast('¡La tormenta ha llegado! La poción está lista para ser tomada.');
+    } else if (st === 3) {
+        must(u.happiness >= 60, 'Requiere 60 de Felicidad para sobrevivir a la transformación.');
+        u.animagus_stage = 4;
+        toast('¡Te has transformado en Animago con éxito!');
+    }
+    commit('Avance en el Ritual Animago');
+  },
+  darkMarkAction(action){
+    const u=me();must(u&&u.house,'Inicia sesión');
+    if (action === 'join') {
+        must(u.pride >= 80 || u.happiness <= 20, 'Necesitas 80 de Orgullo o 20 de Felicidad para unirte a los Mortífagos.');
+        u.points += 50;
+        u.happiness = Math.max(0, u.happiness - 30);
+        u.pride = Math.min(100, u.pride + 10);
+        db.log.unshift({u:u.username,h:u.house,a:'Se unió a los Mortífagos',p:50,x:0});
+        toast('Te has unido a las fuerzas oscuras. +50 pts, -30 Felicidad.');
+    } else if (action === 'fight') {
+        must(u.pride >= 50, 'Necesitas 50 de Orgullo para luchar contra los Mortífagos.');
+        const pts = 20 + Math.floor(u.pride / 10);
+        u.points += pts;
+        u.pride = Math.min(100, u.pride + 5);
+        u.happiness = Math.min(100, u.happiness + 10);
+        db.log.unshift({u:u.username,h:u.house,a:'Luchó contra Mortífagos',p:pts,x:0});
+        toast(`¡Has luchado valientemente! +${pts} pts, +5 Orgullo, +10 Felicidad.`);
+    }
+    commit('Acción Mortífaga');
   }
 };
 
@@ -1683,7 +1759,13 @@ function renderPlay(){
   let extraBadge = '';
   if (u.role === 'delegado') extraBadge = '<span class="pill gold" style="box-shadow:0 0 10px var(--gold)">🌟 Delegado</span>';
   
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
+  const hbar = `<div class="stat-row">
+    <div class="stat-item">😊 Felicidad <span class="stat-bar"><i style="width:${u.happiness}%; background:var(--warn)"></i></span></div>
+    <div class="stat-item">🦁 Orgullo <span class="stat-bar"><i style="width:${u.pride}%; background:var(--bad)"></i></span></div>
+    <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
+  </div>`;
+
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
   
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
@@ -1835,7 +1917,127 @@ function renderClock(){
   $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
   const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
 }
-function renderAll(){ensureDbIntegrity();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderProfessors();renderCasas();renderPrefects();renderPlay();renderArcade();renderDarkEvent();renderNpcTrials();renderRelations();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderCourses();renderClock()}
+
+/* ===== SISTEMA DE EVENTOS: ANIMAGO Y MORTÍFAGOS ===== */
+function renderAnimagusEvent(){
+  const box = $('animagusBox'), badge = $('animagusStatusBadge');
+  const u = me();
+  if (!u) { box.innerHTML = '<p class="muted">Inicia sesión para acceder al ritual.</p>'; return; }
+  
+  const st = u.animagus_stage || 0;
+  const hasForm = !!u.animagus;
+  const form = hasForm ? ANIMAGUS_FORMS.find(a=>a.id===u.animagus) : null;
+  
+  badge.textContent = hasForm ? 'Completado' : st > 0 ? `Fase ${st+1}/4` : 'No iniciado';
+  badge.className = `pill ${hasForm ? 'gold' : 'off'}`;
+
+  if (hasForm) {
+    box.innerHTML = `<div class="row"><span class="pill gold">${form.icon} ${form.name}</span><span class="muted">Has completado el ritual. Tu forma es ${form.name}.</span></div>`;
+    return;
+  }
+
+  let h = `<div class="grid g2" style="align-items:start">`;
+  
+  // Fase 0
+  h += `<div class="box" style="opacity:${st>=0?1:0.5}; border-color:${st===0?'var(--gold)':'var(--line)'}">
+    <h4 style="color:var(--gold)">1. Preparación de la Poción</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Requiere <b>50 de Avance Académico</b> (actual: ${u.academic_progress}).</p>
+    <button class="btn sm ${st===0?'gold':''}" data-do="animagusNext" ${st!==0?'disabled':''}>Iniciar Poción</button>
+  </div>`;
+
+  // Fase 1
+  h += `<div class="box" style="opacity:${st>=1?1:0.5}; border-color:${st===1?'var(--gold)':'var(--line)'}">
+    <h4 style="color:var(--gold)">2. La Hoja de Mandrágora</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Debes mantener la hoja en la boca durante un mes. Haz clic para simular el paso del tiempo.</p>
+    <button class="btn sm ${st===1?'gold':''}" data-do="animagusNext" ${st!==1?'disabled':''}>Esperar un Mes</button>
+  </div>`;
+
+  // Fase 2
+  h += `<div class="box" style="opacity:${st>=2?1:0.5}; border-color:${st===2?'var(--gold)':'var(--line)'}">
+    <h4 style="color:var(--gold)">3. La Tormenta</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Solo puedes avanzar si es Jueves o Viernes (día de tormentas mágicas). Hoy es ${DAYL[curDay()]}.</p>
+    <button class="btn sm ${st===2?'gold':''}" data-do="animagusNext" ${st!==2?'disabled':''}>Invocar Tormenta</button>
+  </div>`;
+
+  // Fase 3
+  h += `<div class="box" style="opacity:${st>=3?1:0.5}; border-color:${st===3?'var(--gold)':'var(--line)'}">
+    <h4 style="color:var(--gold)">4. La Transformación</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Requiere <b>60 de Felicidad</b> (actual: ${u.happiness}) para sobrevivir al cambio.</p>
+    <button class="btn sm ${st===3?'gold':''}" data-do="animagusNext" ${st!==3?'disabled':''}>Beber Poción</button>
+  </div>`;
+
+  h += `</div>`;
+  box.innerHTML = h;
+}
+
+function renderMortifagosEvent(){
+  const box = $('mortifagosBox'), badge = $('mortifagosStatusBadge');
+  const u = me();
+  const year = Number(db.schoolYear) || 1;
+  
+  if (!u) { box.innerHTML = '<p class="muted">Inicia sesión para ver tu camino.</p>'; return; }
+
+  badge.textContent = year >= 5 ? 'Guerra Abierta' : 'Fase 1: Tentación';
+  badge.className = `pill ${year >= 5 ? 'bad' : 'warn'}`;
+
+  let h = `<div class="grid g2" style="align-items:start">`;
+  
+  if (year < 5) {
+    h += `<div class="box" style="border-color:var(--warn)">
+      <h4 style="color:var(--warn)">La Tentación Oscura</h4>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">El mal acecha en las sombras. Necesitas un Orgullo muy alto (80+) o estar desesperado (Felicidad 20-) para aceptar la Marca Tenebrosa.</p>
+      <div class="row">
+        <button class="btn sm" data-do="darkMark" data-a="join" ${(u.pride>=80||u.happiness<=20)?'':'disabled'}>Unirse a los Mortífagos</button>
+        <button class="btn sm gold" data-do="darkMark" data-a="fight" ${u.pride>=50?'':'disabled'}>Resistirse y Luchar</button>
+      </div>
+      <p class="hint mt-2">Tu Orgullo: ${u.pride} | Tu Felicidad: ${u.happiness}</p>
+    </div>`;
+  } else {
+    h += `<div class="box" style="border-color:var(--bad)">
+      <h4 style="color:var(--bad)">La Guerra Abierta</h4>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">La guerra ha estallado. El Castillo necesita defensores. Demuestra tu Orgullo (50+) para luchar valientemente, o muestra tu verdadera lealtad oscura.</p>
+      <div class="row">
+        <button class="btn sm" data-do="darkMark" data-a="join">Unirse a las Fuerzas Oscuras</button>
+        <button class="btn sm gold" data-do="darkMark" data-a="fight" ${u.pride>=50?'':'disabled'}>Luchar contra los Mortífagos</button>
+      </div>
+      <p class="hint mt-2">Tu Orgullo: ${u.pride} | Tu Felicidad: ${u.happiness}</p>
+    </div>`;
+  }
+
+  h += `<div class="box">
+    <h4>Estado del Castillo</h4>
+    <p class="muted" style="font-size:13px">Año Escolar Actual: <b>${year}</b>. ${year>=5?'La guerra está en su punto álgido.':'La paz aún reina, pero la oscuridad crece.'}</p>
+    <p style="font-size:12px;margin-top:8px;color:var(--muted)">El Año Escolar determina la fase de la amenaza. En el Año 5 en adelante, la guerra es abierta.</p>
+  </div>`;
+
+  h += `</div>`;
+  box.innerHTML = h;
+}
+
+function renderAll(){
+  ensureDbIntegrity();
+  renderHero();
+  renderGlasses();
+  renderMap();
+  renderYou();
+  renderSchedule();
+  renderProfessors();
+  renderCasas();
+  renderPrefects();
+  renderPlay();
+  renderArcade();
+  renderAnimagusEvent(); // Nuevo
+  renderMortifagosEvent(); // Nuevo
+  renderNpcTrials();
+  renderRelations();
+  renderTeams();
+  renderMatches();
+  renderChat();
+  renderAdmin();
+  renderStudents();
+  renderCourses();
+  renderClock();
+}
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
@@ -2484,6 +2686,7 @@ function answerProfTask(profId,optIdx){
   const hit=Number(optIdx)===p.ans;
   const pts=hit?6:2;
   u.points+=pts;
+  u.academic_progress += hit ? 3 : 1;
   db.profAffinity=db.profAffinity||{};
   db.profAffinity[u.id]=db.profAffinity[u.id]||{};
   db.profAffinity[u.id][p.id]=(db.profAffinity[u.id][p.id]||0)+(hit?10:3);
@@ -2494,86 +2697,6 @@ function answerProfTask(profId,optIdx){
   closeModal();
   commit(`${u.username} ganó +${pts} pts con ${p.name}`);
   toast(hit?`¡Excelente! ${p.name} otorgó +${pts} puntos a ${HOUSE(u.house).name}.`:`Respuesta incompleta, pero ganaste +${pts} pts por intentarlo.`);
-}
-
-/* ===== EVENTO Y SISTEMA: MORTÍFAGOS VS. ANIMAGOS ===== */
-function renderDarkEvent(){
-  const box=$('darkEventBox');if(!box)return;
-  const u=me(), anim=u?.animagus?ANIMAGUS_FORMS.find(a=>a.id===u.animagus):null;
-  const raidCD=u?Math.max(0,15000-(Date.now()-((db.cooldowns[u.id]||{})['dark_raid']||0))):0;
-  box.innerHTML=`<div class="row" style="justify-content:space-between;gap:12px">
-    <div style="flex:1;min-width:240px">
-      <div class="row" style="margin-bottom:4px">
-        <span class="pill warn">💀 Evento Mortífagos vs. Animagos</span>
-        <span class="pill ${anim?'gold':'off'}">${anim?`${anim.icon} Animago: ${anim.name}`:'🐾 Sin forma Animaga'}</span>
-      </div>
-      <h3 style="font-size:19px;color:var(--gold)">Guardia de Animagos e Incursión de Mortífagos</h3>
-      <p class="muted" style="font-size:13px">Desbloquea tu transformación Animaga mediante el ritual de la Hoja de Mandrágora y defiende el Castillo cuando los Mortífagos ataquen los terrenos (+15 a +25 pts).</p>
-    </div>
-    <div class="row">
-      <button class="btn sm" type="button" data-do="openAnimagus" ${(!u||!u.house)?'disabled':''}>🦅 ${anim?'Cambiar Forma Animaga':'Desbloquear Animago'}</button>
-      <button class="btn sm gold" type="button" data-do="openRaid" ${(!u||!u.house||raidCD>0)?'disabled':''}>${raidCD>0?`Espera ${Math.ceil(raidCD/1000)} s`:'⚔️ Defender de Mortífagos'}</button>
-      ${session.isAdmin?`<button class="btn sm danger" type="button" data-do="launchDarkEvent">💀 Activar Incursión x2.5</button>`:''}
-    </div>
-  </div>`;
-}
-
-function openAnimagusModal(){
-  const u=me();must(u&&u.house,'Inicia sesión primero');
-  openModal(`<h3 style="font-size:21px;color:var(--gold)">🦅 Ritual de Transformación Animaga</h3>
-    <p class="muted" style="font-size:13px">Elige tu forma animal interior. Los Animagos registrados obtienen ventaja al patrullar de noche y +5 puntos extra al repeler Mortífagos:</p>
-    <div class="grid g2" style="width:100%;text-align:left">
-      ${ANIMAGUS_FORMS.map(a=>`<button type="button" class="box" data-do="pickAnimagus" data-id="${a.id}" style="cursor:pointer;text-align:left;border-color:${u.animagus===a.id?'var(--gold)':'var(--line)'}">
-        <div style="font-size:22px">${a.icon} <strong style="font-size:15px;color:var(--gold)">${esc(a.name)}</strong></div>
-        <p class="muted" style="font-size:12px;margin-top:4px">${esc(a.desc)}</p>
-      </button>`).join('')}
-    </div>
-    <button class="btn sm" data-do="closeModal" type="button">Cerrar</button>`,true);
-}
-
-function openRaidModal(){
-  const u=me();must(u&&u.house,'Inicia sesión primero');
-  const de=DEATH_EATERS[Math.floor(Math.random()*DEATH_EATERS.length)];
-  const anim=u.animagus?ANIMAGUS_FORMS.find(a=>a.id===u.animagus):null;
-  openModal(`<div style="font-size:46px">${de.icon}</div>
-    <span class="pill warn">¡Marca Tenebrosa avistada!</span>
-    <h3 style="font-size:22px;color:var(--bad)">¡${esc(de.name)} ataca los terrenos!</h3>
-    <p class="muted" style="font-size:13px">${esc(de.title)} utiliza <strong>${esc(de.power)}</strong>. ¿Cómo defiendes el castillo?</p>
-    <div class="grid" style="width:100%;gap:8px;text-align:left">
-      <button class="btn gold" type="button" data-do="resolveRaid" data-de="${de.id}" data-m="animagus" style="justify-content:flex-start">
-        ${anim?anim.icon:'🦅'} <div><strong>Emboscar en Forma Animaga (${anim?anim.name:'Instinto salvaje'})</strong><div style="font-size:12px;opacity:.85">${anim?'¡Tienes Forma Animaga activa! Bono +5 pts garantizado.':'Usa agilidad mágica para esquivar la maldición.'}</div></div>
-      </button>
-      <button class="btn" type="button" data-do="resolveRaid" data-de="${de.id}" data-m="patronus" style="justify-content:flex-start">
-        🦌 <div><strong>Conjurar Expecto Patronum y Protego Maxima</strong><div style="font-size:12px;color:var(--muted)">Escudo luminoso directo para proteger las torres de tu casa.</div></div>
-      </button>
-      <button class="btn" type="button" data-do="resolveRaid" data-de="${de.id}" data-m="duel" style="justify-content:flex-start">
-        ⚡ <div><strong>Contraataque rápido con Expelliarmus y Stupefy</strong><div style="font-size:12px;color:var(--muted)">Desarma al Mortífago en duelo directo.</div></div>
-      </button>
-    </div>
-    <button class="btn sm" data-do="closeModal" type="button">Retirarse</button>`,true);
-}
-
-function resolveRaidAction(deId,mode){
-  const u=me();must(u&&u.house,'Inicia sesión primero');
-  const _lastRaid=(db.cooldowns[u.id]||{})['dark_raid']||0;
-  const _remRaid=Math.max(0,15000-(Date.now()-_lastRaid));
-  must(_remRaid<=0,`Espera ${Math.ceil(_remRaid/1000)} s para otra incursión`);
-  
-  const de=DEATH_EATERS.find(x=>x.id===deId)||DEATH_EATERS[0];
-  const hasAnim=!!u.animagus;
-  const ev=activeEvent(),mult=ev?ev.mult:1;
-  const base=(mode==='animagus'&&hasAnim)?de.pts:(de.pts-5);
-  const pts=Math.round(base*mult);
-  u.points+=pts;
-  (db.cooldowns[u.id]=db.cooldowns[u.id]||{})['dark_raid']=Date.now();
-  db.log.unshift({u:u.username,h:u.house,a:`Repelió a ${de.name}`,p:pts,x:2});
-  u.flight_xp=(u.flight_xp||0)+2;
-  db.chat.push({id:Date.now(),u:u.username,h:u.house,role:u.role,ch:'global',text:`¡Hice retroceder a ${de.name} defendiendo el castillo${hasAnim?' en mi forma Animaga':''}! (+${pts} pts)`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
-  if(db.chat.length>60)db.chat.shift();
-  fanfare();
-  closeModal();
-  commit(`${u.username} repelió a ${de.name} (+${pts} pts)`);
-  toast(`¡Victoria contra ${de.name}! +${pts} pts para ${HOUSE(u.house).name}`);
 }
 
 /* ===== SISTEMA DE AMISTADES, RELACIONES Y RIVALIDADES ===== */
@@ -2625,6 +2748,7 @@ function interactRelation(targetId,type){
     cur.score=Math.min(100,cur.score+15);
     pts=8+fBonus;
     u.points+=pts;t.points+=4;
+    u.pride = Math.min(100, u.pride + 5);
     msg=`⚔️ ¡Retaste a ${t.username} a un duelo de rivalidad! Ganaste +${pts} pts para tu casa.`;
   }else{
     cur.rival=false;
@@ -2632,6 +2756,7 @@ function interactRelation(targetId,type){
     cur.score=Math.min(100,cur.score+gain);
     pts=(type==='gift'?6:5)+fBonus;
     u.points+=pts;t.points+=4;
+    u.happiness = Math.min(100, u.happiness + 5);
     const tier=relTier(cur);
     msg=`🤝 Pasaste tiempo con ${t.username} (${tier.label} · ${cur.score}/100) y sumaste +${pts} pts.`;
   }
@@ -2725,6 +2850,7 @@ function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', fl
 
   user.points += points;
   if (flightXp) user.flight_xp = (user.flight_xp || 0) + flightXp;
+  user.academic_progress += 1;
   const house = db.houses.find(h => h.id === user.house);
   if (house) house.points += points;
 
@@ -3462,16 +3588,13 @@ document.addEventListener('click',e=>{
     case 'playArcade':playArcade(d.g);break;
     case 'openTryout':openQuidditchTryoutModal();break;
     case 'startTryout':startTryoutMinigame(d.p);break;
+    case 'animagusNext':API.animagusAdvance();renderAnimagusEvent();break;
+    case 'darkMark':API.darkMarkAction(d.a);renderMortifagosEvent();break;
     case 'npcFilter':npcFilterMode=d.f;renderNpcTrials();break;
     case 'openNpcTrial':openNpcTrialModal(Number(d.id));break;
     case 'npcChoice':{const res=API.resolveNpcTrial(Number(d.id),d.c);closeModal();toast(res.summary);break;}
     case 'openProf':openProfModal(d.id);break;
     case 'ansProf':answerProfTask(d.id,d.i);break;
-    case 'openAnimagus':openAnimagusModal();break;
-    case 'pickAnimagus':{const u=me();if(u){u.animagus=d.id;closeModal();commit(`${u.username} se transformó en Animago (${d.id})`);toast('¡Forma Animaga desbloqueada!');}break;}
-    case 'openRaid':openRaidModal();break;
-    case 'resolveRaid':resolveRaidAction(d.de,d.m);break;
-    case 'launchDarkEvent':API.launch('Incursión de Mortífagos vs. Animagos','¡Defiende el Castillo! Todas las clases y duelos otorgan x2.5 puntos.',2.5);break;
     case 'relAct':interactRelation(d.id,d.t);break;
     case 'setSchoolYear':API.setSchoolYear(d.y);renderCourses();break;
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
@@ -3555,7 +3678,7 @@ setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)
   if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
 let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
-  if(s!==sig){sig=s;renderPlay();renderArcade();renderDarkEvent();renderNpcTrials();renderRelations();renderProfessors();renderMap();renderYou();renderSchedule();renderClock()}},2000);
+  if(s!==sig){sig=s;renderPlay();renderArcade();renderAnimagusEvent();renderMortifagosEvent();renderNpcTrials();renderRelations();renderProfessors();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
 // Ciclo autónomo de NPCs: cada 18 segundos un bot entrena, suma puntos a su casa y explora el castillo
 setInterval(()=>{
