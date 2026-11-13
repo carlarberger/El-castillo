@@ -53,6 +53,24 @@ const BASE_NPCS = [
   U(112, 'Martín O.', 'hufflepuff', 30, 0, 'student', false, { skin: 3, hair: 0, style: 'corto', eyes: 0 }, true, '', 'comedor', 'Constante y tenaz en cada prueba')
 ];
 
+const SERVER_ACTS = [
+  { key: 'pociones', name: 'Pociones', points: 5, room: 'mazmorras' },
+  { key: 'encantamientos', name: 'Encantamientos', points: 5, room: 'encantamientos' },
+  { key: 'herbologia', name: 'Herbología', points: 5, room: 'invernaderos' },
+  { key: 'defensa', name: 'Defensa contra las Artes Oscuras', points: 5, room: 'defensa' },
+  { key: 'astronomia', name: 'Astronomía', points: 4, room: 'astronomia' },
+  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'historia' }
+];
+
+const SERVER_NPC_LINES = [
+  '¡Vamos con todo por la Copa de las Casas este mes!',
+  '¿Alguien viene a practicar encantamientos antes de la cena?',
+  'Acabo de ver al Troll en las mazmorras, ¡tengan cuidado!',
+  '¡Recuerden completar sus 3 clases para el bono de la Misión Diaria!',
+  'Estudiando runas antiguas en la biblioteca, qué glifos tan complejos.',
+  '¡Qué buena música hay hoy en el Gran Comedor!'
+];
+
 const defaultDb = {
   users: BASE_NPCS,
   houses: [
@@ -86,6 +104,25 @@ const defaultDb = {
   missions: {}
 };
 
+// Recalcula siempre los puntos de cada casa como la suma real de todos sus miembros (jugadores + bots NPC) + victorias de Quidditch
+function reconcileHousePoints(state) {
+  if (!state || !Array.isArray(state.houses) || !Array.isArray(state.users)) return;
+  const matchWins = { gryffindor: 0, ravenclaw: 0, slytherin: 0, hufflepuff: 0 };
+  if (Array.isArray(state.matches)) {
+    state.matches.forEach(m => {
+      if (m.status === 'finished' && m.winner && matchWins[m.winner] !== undefined) {
+        matchWins[m.winner] += 50;
+      }
+    });
+  }
+  state.houses.forEach(h => {
+    const sum = state.users
+      .filter(u => u.house === h.id)
+      .reduce((acc, u) => acc + (Number(u.points) || 0), 0);
+    h.points = sum + (matchWins[h.id] || 0);
+  });
+}
+
 function sanitizeState(state) {
   if (!state || !Array.isArray(state.users)) return { ...defaultDb };
   const legacyNames = ['carla r.', 'vicente d.', 'matilde s.', 'joaquín p.', 'antonia v.', 'benjamín l.'];
@@ -118,6 +155,7 @@ function sanitizeState(state) {
     });
   }
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
+  reconcileHousePoints(state);
   return state;
 }
 
@@ -141,11 +179,13 @@ async function loadState() {
   }
   const { _id, ...cleanState } = state;
   const fixedState = sanitizeState(cleanState);
+  memoryState = fixedState;
   return fixedState;
 }
 
 async function saveState(newState) {
   const { _id, ...stateToSave } = newState;
+  reconcileHousePoints(stateToSave);
   memoryState = stateToSave;
   if (!db) {
     fs.writeFileSync(DB_FILE, JSON.stringify(stateToSave, null, 2));
@@ -170,7 +210,7 @@ io.on('connection', async (socket) => {
         await saveState(data.db);
 
         socket.broadcast.emit('sync_db', {
-          db: data.db,
+          db: memoryState,
           reason: data.reason || null
         });
       }
@@ -179,6 +219,51 @@ io.on('connection', async (socket) => {
     console.error('Error en la conexión:', err);
   }
 });
+
+// Motor autónomo en el servidor: cada 25 segundos un bot NPC entrena, suma puntos a sí mismo y a su casa, y se guarda en MongoDB/db.json
+setInterval(async () => {
+  try {
+    const state = await loadState();
+    if (!state.npcAi) return;
+    const npcs = state.users.filter(u => u.is_npc && u.house);
+    if (!npcs.length) return;
+
+    const npc = npcs[Math.floor(Math.random() * npcs.length)];
+    const act = SERVER_ACTS[Math.floor(Math.random() * SERVER_ACTS.length)];
+    const pts = act.points;
+
+    npc.points = (Number(npc.points) || 0) + pts;
+    npc.loc = act.room;
+
+    if (npc.npc_quidditch && Math.random() < 0.35) {
+      npc.flight_xp = (Number(npc.flight_xp) || 0) + 2;
+    }
+
+    state.log = state.log || [];
+    state.log.unshift({ u: '🤖 ' + npc.username, h: npc.house, a: act.name, p: pts, x: 0 });
+    state.log.length = Math.min(state.log.length, 15);
+
+    if (Math.random() < 0.3) {
+      const line = SERVER_NPC_LINES[Math.floor(Math.random() * SERVER_NPC_LINES.length)];
+      state.chat = state.chat || [];
+      state.chat.push({
+        id: Date.now(),
+        u: '🤖 ' + npc.username,
+        h: npc.house,
+        role: npc.role || 'student',
+        ch: 'global',
+        text: line,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      if (state.chat.length > 60) state.chat.shift();
+    }
+
+    await saveState(state);
+    io.emit('sync_db', { db: memoryState, reason: null });
+  } catch (err) {
+    console.error('Error en turno autónomo de bot:', err.message);
+  }
+}, 25000);
 
 async function startServer() {
   if (uri) {
