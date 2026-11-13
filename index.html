@@ -164,7 +164,7 @@ select{width:auto}
 .mini.now{background:var(--gold);color:var(--gold-ink)}
 
 /* classes */
-.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .act{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
 .act h4{font-size:15px;color:var(--gold)}
 .act .row{display:flex;gap:8px;margin-top:auto;padding-top:8px}
@@ -548,17 +548,98 @@ const HOUSES=[
  {id:'hufflepuff',name:'Hufflepuff',motto:'Lealtad y dedicación',letter:'H'}];
 const HOUSE=id=>HOUSES.find(h=>h.id===id);
 
-const ACTS={
- pociones:{name:'Pociones',mg:'🧪 Caldero de Memoria',points:10,desc:'Memoriza la secuencia de ingredientes del caldero con Severus Snape.',room:'mazmorras',loc:'Mazmorras',prof:'Severus Snape'},
- transformaciones:{name:'Transformaciones',mg:'🐱 Transfiguración Exacta',points:10,desc:'Transforma objetos en criaturas con precisión junto a Minerva McGonagall.',room:'transformaciones',loc:'Aula de Transformaciones',prof:'Minerva McGonagall'},
- encantamientos:{name:'Encantamientos',mg:'🪄 Pulso de Varita',points:10,desc:'Sincroniza el movimiento de tu varita en la zona áurea con Filius Flitwick.',room:'encantamientos',loc:'Aula 2B',prof:'Filius Flitwick'},
- criaturas:{name:'Cuidado de Criaturas Mágicas',mg:'🦅 Reverencia al Hipogrifo',points:10,desc:'Gánate la confianza de Buckbeak y las criaturas mágicas con Rubeus Hagrid.',room:'cabana',loc:'Cabaña de Hagrid',prof:'Rubeus Hagrid'},
- defensa:{name:'Defensa contra las Artes Oscuras',mg:'🛡️ Duelo de Reflejos',points:10,desc:'Reacciona con el contrahechizo exacto ante cada amenaza con Remus Lupin.',room:'defensa',loc:'Aula de Duelos',prof:'Remus Lupin'},
- herbologia:{name:'Herbología',mg:'🌱 Mandrágoras Rebeldes',points:10,desc:'Atrapa las mandrágoras antes de que se escondan con Pomona Sprout.',room:'invernaderos',loc:'Invernaderos',prof:'Pomona Sprout'},
- historia:{name:'Historia de la Magia',mg:'👻 Crónicas de Binns',points:8,desc:'Domina los hitos históricos del mundo mágico sin dormirte con el Prof. Binns.',room:'historia',loc:'Aula 4F',prof:'Cuthbert Binns'},
- vuelo:{name:'Clase de Vuelo',mg:'🟡 Caza de la Snitch',points:10,flightXp:5,desc:'Atrapa la Snitch Dorada esquivando las Bludgers con Rolanda Hooch.',room:'quidditch',loc:'Campo de Quidditch',prof:'Rolanda Hooch'},
- astronomia:{name:'Astronomía',mg:'✨ Mapa Celeste',points:8,desc:'Conecta las estrellas de la constelación en orden con Aurora Sinistra.',room:'astronomia',loc:'Torre de Astronomía',prof:'Aurora Sinistra'},
- runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,desc:'Encuentra las parejas de glifos antiguos ocultos en los pergaminos.',room:'biblioteca',loc:'Torre de Runas',prof:'Bathsheda Babbling'}};
+const CURRICULUM = {
+  pociones: {
+    1: { name: 'Poción para curar forúnculos', desc: 'Elimina erupciones cutáneas y ampollas.', diff: 1 },
+    2: { name: 'Solución para encoger', desc: 'Reduce a un ser vivo a una etapa más joven.', diff: 2 },
+    3: { name: 'Antídoto contra venenos comunes', desc: 'Neutraliza toxinas y mordeduras estándar.', diff: 3 },
+    4: { name: 'Poción Crecehuesos (Skele-Gro)', desc: 'Regenera huesos desaparecidos en una noche.', diff: 3 },
+    5: { name: 'Filtro de la Paz', desc: 'Calma la ansiedad extrema (un error induce sueño irreversible).', diff: 3 },
+    6: { name: 'Amortentia', desc: 'El filtro de amor más poderoso; genera obsesión.', diff: 4 },
+    7: { name: 'Felix Felicis (Suerte Líquida)', desc: 'Garantiza el éxito en todo lo que se emprende.', diff: 5 }
+  },
+  transformaciones: {
+    1: { name: 'Cerilla en aguja', desc: 'Convierte una cerilla de madera en una aguja metálica.', diff: 1 },
+    2: { name: 'Escarabajos en botones', desc: 'Convierte escarabajos vivos en botones funcionales.', diff: 2 },
+    3: { name: 'Tetera en tortuga', desc: 'Transforma una tetera de cerámica en una tortuga viva.', diff: 3 },
+    4: { name: 'Erizo en alfiletero', desc: 'Transforma un erizo vivo en un alfiletero.', diff: 3 },
+    5: { name: 'Desvanecimiento de mamíferos', desc: 'Desvanece ratones y gatitos.', diff: 4 },
+    6: { name: 'Transformación No Verbal', desc: 'Ejecutar cambios de forma sin pronunciar el conjuro.', diff: 4 },
+    7: { name: 'Transformación Humana Completa', desc: 'Convierte por completo a una persona en un animal o mueble.', diff: 5 }
+  },
+  encantamientos: {
+    1: { name: 'Lumos / Wingardium Leviosa', desc: 'Enciende la varita y hace levitar objetos.', diff: 1 },
+    2: { name: 'Expelliarmus', desc: 'Desarma al oponente lanzando su varita por los aires.', diff: 2 },
+    3: { name: 'Riddikulus', desc: 'Transforma un Boggart en algo cómico.', diff: 2 },
+    4: { name: 'Accio', desc: 'Encantamiento convocador que atrae objetos a distancia.', diff: 3 },
+    5: { name: 'Protego', desc: 'Crea un escudo invisible que desvía maldiciones.', diff: 3 },
+    6: { name: 'Aguamenti', desc: 'Conjura un chorro continuo de agua potable.', diff: 3 },
+    7: { name: 'Expecto Patronum', desc: 'Invoca un guardián de energía positiva contra Dementores.', diff: 5 }
+  },
+  criaturas: {
+    1: { name: 'Familiares reglamentarios', desc: 'Lechuzas, gatos, sapos. Alimentación e higiene.', diff: 1 },
+    2: { name: 'Mooncalf', desc: 'Recolectar su estiércol plateado antes del amanecer.', diff: 2 },
+    3: { name: 'Hipogrifo', desc: 'Mantener contacto visual, hacer una reverencia y esperar.', diff: 3 },
+    4: { name: 'Escarbato (Niffler)', desc: 'Criatura excavadora atraída por objetos brillantes.', diff: 2 },
+    5: { name: 'Thestral', desc: 'Caballo alado esquelético visible solo para quienes han visto la muerte.', diff: 3 },
+    6: { name: 'Occamy', desc: 'Serpiente emplumada que crece o se encoge para llenar espacios.', diff: 4 },
+    7: { name: 'Fénix', desc: 'Ave inmortal que renace de sus cenizas y posee lágrimas curativas.', diff: 4 }
+  },
+  defensa: {
+    1: { name: 'Flipendo', desc: 'Empuja hacia atrás al objetivo o derriba objetos pequeños.', diff: 1 },
+    2: { name: 'Control de Duendecillos', desc: 'Inmovilización y captura de plagas agresivas.', diff: 2 },
+    3: { name: 'Riddikulus / Defensa contra Boggarts', desc: 'Obliga a un Boggart a adoptar una forma ridícula.', diff: 2 },
+    4: { name: 'Identificación de Maldiciones Imperdonables', desc: 'Reconocimiento y resistencia mental básica al Imperio.', diff: 4 },
+    5: { name: 'Protego / Stupefy', desc: 'Escudo invisible y aturdimiento.', diff: 3 },
+    6: { name: 'Defensa No Verbal', desc: 'Ejecutar escudos y ataques sin pronunciar el conjuro.', diff: 4 },
+    7: { name: 'Contrahechizos oscuros complejos', desc: 'Neutralización de maldiciones avanzadas.', diff: 4 }
+  },
+  herbologia: {
+    1: { name: 'Díctamo (Dittany)', desc: 'Planta curativa que cierra heridas superficiales.', diff: 1 },
+    2: { name: 'Trasplante de Mandrágoras jóvenes', desc: 'Exige orejeras bien ajustadas por el grito.', diff: 2 },
+    3: { name: 'Bulbo Botador', desc: 'Planta esférica que salta violentamente para golpear.', diff: 3 },
+    4: { name: 'Bubotubérculos', desc: 'Hay que exprimir su pus amarillento con guantes gruesos.', diff: 3 },
+    5: { name: 'Geranio Colmilludo', desc: 'Flor equipada con colmillos retráctiles que muerden.', diff: 3 },
+    6: { name: 'Tentácula Venenosa', desc: 'Planta carnívora que escupe veneno letal.', diff: 4 },
+    7: { name: 'Cosecha de Mandrágoras adultas', desc: 'El llanto es mortal; exige sellado hermético.', diff: 4 }
+  },
+  historia: {
+    1: { name: 'Fundación de Hogwarts', desc: 'Estudio de los cuatro fundadores.', diff: 1 },
+    2: { name: 'La Convención de 1289', desc: 'Repaso de las rebeliones de los duendes.', diff: 2 },
+    3: { name: 'Los juicios de brujas', desc: 'Historia de la persecución muggle.', diff: 3 },
+    4: { name: 'Torneo de los Tres Magos', desc: 'Historia del torneo y sus pruebas.', diff: 3 },
+    5: { name: 'Las Guerras de los Duendes', desc: 'Conflictos históricos del mundo mágico.', diff: 3 },
+    6: { name: 'La Orden del Fénix', desc: 'Historia de la resistencia contra las Artes Oscuras.', diff: 4 },
+    7: { name: 'La Segunda Guerra Mágica', desc: 'Análisis de la caída de Voldemort.', diff: 4 }
+  },
+  vuelo: {
+    1: { name: 'Manejo básico de escoba', desc: 'Despegar, aterrizar y mantener el equilibrio.', diff: 1 },
+    2: { name: 'Cambios de dirección', desc: 'Giros cerrados y esquivas básicas.', diff: 2 },
+    3: { name: 'Caza de la Snitch', desc: 'Persecución de la bola dorada.', diff: 3 },
+    4: { name: 'Evasión de Bludgers', desc: 'Esquivar las bolas de hierro.', diff: 3 },
+    5: { name: 'Tácticas de Buscador', desc: 'Movimientos avanzados de búsqueda.', diff: 4 },
+    6: { name: 'Vuelo en condiciones adversas', desc: 'Tormentas y vientos fuertes.', diff: 4 },
+    7: { name: 'Maestría en el aire', desc: 'Acrobacias y control absoluto.', diff: 5 }
+  },
+  astronomia: {
+    1: { name: 'Manejo del telescopio', desc: 'Calibración de lentes y mapas estelares.', diff: 1 },
+    2: { name: 'Lunas de Júpiter', desc: 'Diferenciación y trazado orbital.', diff: 2 },
+    3: { name: 'Influencia lunar en criaturas', desc: 'Correlación con hombres lobo.', diff: 3 },
+    4: { name: 'Sincronización lunar para Pociones', desc: 'Determinación exacta de luna llena.', diff: 3 },
+    5: { name: 'Trazado de carta estelar en vivo', desc: 'Registro de posiciones reales.', diff: 3 },
+    6: { name: 'Astrofísica mágica', desc: 'Radiación estelar y minerales.', diff: 4 },
+    7: { name: 'Ventanas cósmicas en Alquimia', desc: 'Determinación de alineaciones críticas.', diff: 4 }
+  },
+  runas: {
+    1: { name: 'Alfabeto rúnico básico', desc: 'Traducción de textos simples.', diff: 1 },
+    2: { name: 'Runas de protección', desc: 'Inscripción de escudos básicos.', diff: 2 },
+    3: { name: 'Runas de fuego', desc: 'Símbolos de calor y combustión.', diff: 3 },
+    4: { name: 'Runas de hielo', desc: 'Símbolos de frío y congelación.', diff: 3 },
+    5: { name: 'Runas de luz', desc: 'Símbolos de iluminación y verdad.', diff: 3 },
+    6: { name: 'Runas de oscuridad', desc: 'Símbolos de sombra y miedo.', diff: 4 },
+    7: { name: 'Runas de alma', desc: 'Símbolos de protección vital.', diff: 4 }
+  }
+};
 
 const PROFESSORS=[
  {id:'dumbledore',name:'Albus Dumbledore',title:'Director de Hogwarts',subject:'Dirección y Magia Antigua',room:'comedor',house:'gryffindor',look:{skin:0,hair:3,style:'largo',eyes:1},quote:'«Son nuestras elecciones, mucho más que nuestras habilidades, las que muestran lo que verdaderamente somos.»',taskQ:'¿Qué criatura mágica acompaña a Albus Dumbledore y renace de sus cenizas?',opts:['El fénix Fawkes','Un hipogrifo','Un dragón galés'],ans:0},
@@ -709,68 +790,19 @@ const NPC_CHAT_LINES=[
 ];
 
 const PERSONALITY_LINES = {
-  valentia: [
-    '¡Vamos con todo por la Copa de las Casas este mes!',
-    '¿Alguien se apunta a una ronda de duelos? ¡Necesitamos práctica!',
-    '¡No dejemos que el miedo nos detenga!'
-  ],
-  lealtad: [
-    'Siempre estaré aquí para apoyar a mi casa y a mis amigos.',
-    '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?',
-    'Los lazos que forjamos en Hogwarts duran para siempre.'
-  ],
-  sabiduria: [
-    'He estado leyendo un libro fascinante sobre Runas Antiguas.',
-    'El conocimiento es nuestro mayor poder contra las artes oscuras.',
-    '¿Alguien ha entendido la última clase de Transformaciones?'
-  ],
-  astucia: [
-    'Hay que ser inteligente para salir adelante en este castillo.',
-    'No todo es lo que parece, hay que saber mirar más allá.',
-    'La ambición no es mala, si se usa con cabeza.'
-  ],
-  justicia: [
-    'Todos merecen un trato justo, sin importar su casa.',
-    'Las reglas están para cumplirse, pero también para buscar la equidad.',
-    'No permitiré que se cometa una injusticia en mi presencia.'
-  ],
-  empatia: [
-    '¿Estás bien? Si necesitas algo, aquí estoy.',
-    'Siempre es bueno escuchar a los demás antes de juzgar.',
-    'Un poco de amabilidad puede cambiar el día de alguien.'
-  ],
-  intelecto: [
-    'He descubierto un nuevo hechizo en la biblioteca.',
-    'La lógica es la mejor herramienta para resolver problemas.',
-    '¿Estudiaron el capítulo de Transformaciones? Es fascinante.'
-  ],
-  ambicion: [
-    'Quiero llegar a ser alguien importante en el mundo mágico.',
-    'El poder y el reconocimiento son metas nobles si se persiguen con honor.',
-    'No me conformaré con menos de la excelencia.'
-  ],
-  bromista: [
-    '¡Oye, mira lo que he encontrado en Zonko!',
-    'La risa es la mejor medicina, incluso en los pasillos.',
-    '¿Quién quiere probar una de mis bromas nuevas?'
-  ],
-  responsabilidad: [
-    'Debemos seguir las normas para mantener el orden en el castillo.',
-    'Un buen líder predica con el ejemplo.',
-    'El deber y el honor van de la mano.'
-  ]
+  valentia: ['¡Vamos con todo por la Copa de las Casas este mes!','¿Alguien se apunta a una ronda de duelos? ¡Necesitamos práctica!','¡No dejemos que el miedo nos detenga!'],
+  lealtad: ['Siempre estaré aquí para apoyar a mi casa y a mis amigos.','¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?','Los lazos que forjamos en Hogwarts duran para siempre.'],
+  sabiduria: ['He estado leyendo un libro fascinante sobre Runas Antiguas.','El conocimiento es nuestro mayor poder contra las artes oscuras.','¿Alguien ha entendido la última clase de Transformaciones?'],
+  astucia: ['Hay que ser inteligente para salir adelante en este castillo.','No todo es lo que parece, hay que saber mirar más allá.','La ambición no es mala, si se usa con cabeza.'],
+  justicia: ['Todos merecen un trato justo, sin importar su casa.','Las reglas están para cumplirse, pero también para buscar la equidad.','No permitiré que se cometa una injusticia en mi presencia.'],
+  empatia: ['¿Estás bien? Si necesitas algo, aquí estoy.','Siempre es bueno escuchar a los demás antes de juzgar.','Un poco de amabilidad puede cambiar el día de alguien.'],
+  intelecto: ['He descubierto un nuevo hechizo en la biblioteca.','La lógica es la mejor herramienta para resolver problemas.','¿Estudiaron el capítulo de Transformaciones? Es fascinante.'],
+  ambicion: ['Quiero llegar a ser alguien importante en el mundo mágico.','El poder y el reconocimiento son metas nobles si se persiguen con honor.','No me conformaré con menos de la excelencia.'],
+  bromista: ['¡Oye, mira lo que he encontrado en Zonko!','La risa es la mejor medicina, incluso en los pasillos.','¿Quién quiere probar una de mis bromas nuevas?'],
+  responsabilidad: ['Debemos seguir las normas para mantener el orden en el castillo.','Un buen líder predica con el ejemplo.','El deber y el honor van de la mano.']
 };
 
-const TRAIT_MAP = {
-  'Valentía': 'valentia',
-  'Lealtad': 'lealtad',
-  'Astucia': 'astucia',
-  'Sabiduría': 'sabiduria',
-  'Justicia': 'justicia',
-  'Empatía': 'empatia',
-  'Liderazgo': 'liderazgo',
-  'Responsabilidad': 'responsabilidad'
-};
+const TRAIT_MAP = {'Valentía': 'valentia','Lealtad': 'lealtad','Astucia': 'astucia','Sabiduría': 'sabiduria','Justicia': 'justicia','Empatía': 'empatia','Liderazgo': 'liderazgo','Responsabilidad': 'responsabilidad'};
 
 const socket = io();
 let db = {
@@ -1190,12 +1222,16 @@ const API={
       must(s.st==='open',s.slot&&s.day?`Próxima: ${DAYL[s.day]} a las ${s.slot.from}`:'Esta clase no está disponible');}
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir esta clase`);
     
+    const yr = Math.min(7, userYear(u));
+    const subjectData = CURRICULUM[key] && CURRICULUM[key][yr] ? CURRICULUM[key][yr] : {diff:1};
+    const basePoints = 5 + (subjectData.diff * 3); // Escala según dificultad (1=8pts, 5=20pts)
+    
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round((cfg.points+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
+    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
     
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
-    u.academic_progress += 1;
+    u.academic_progress += 1 + subjectData.diff;
     u.happiness = Math.min(100, u.happiness + 2);
     
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
@@ -1212,11 +1248,11 @@ const API={
         toast('¡Misión Diaria completada! +20 pts extra');
     }
 
-    db.log.unshift({u:u.username,h:u.house,a:cfg.name,p:pts,x:fx});
+    db.log.unshift({u:u.username,h:u.house,a:`${cfg.name} (${subjectData.name})`,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
     
     chime();
-    commit(`${u.username} +${pts} pts (${cfg.name})`);
+    commit(`${u.username} +${pts} pts (${subjectData.name})`);
     return{pts,fx};
   },
   trainMinigame(key,hit){
@@ -1226,17 +1262,21 @@ const API={
       return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0);
     }
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);
+    
+    const yr = Math.min(7, userYear(u));
+    const subjectData = CURRICULUM[key] && CURRICULUM[key][yr] ? CURRICULUM[key][yr] : {diff:1};
+    const basePoints = hit ? (3 + (subjectData.diff * 2)) : 1; // Práctica libre da menos puntos
+    
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const base=hit?5:2;
-    const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
+    const pts=Math.round(basePoints*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
     u.points+=pts;if(fx)u.flight_xp+=fx;
     u.academic_progress += hit?1:0;
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
-    db.log.unshift({u:u.username,h:u.house,a:`${cfg.mg} (${cfg.name})`,p:pts,x:fx});
+    db.log.unshift({u:u.username,h:u.house,a:`Práctica: ${subjectData.name}`,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
     chime();
-    commit(`${u.username} +${pts} pts en ${cfg.mg}`);
+    commit(`${u.username} +${pts} pts en ${subjectData.name}`);
     return{pts,fx,trained:true};
   },
   completeQuidditchTryout(pos, success) {
@@ -1287,26 +1327,6 @@ const API={
     t.happiness=Math.max(0, t.happiness-10);
     db.log.unshift({u:u.username,h:u.house,a:`Castigó a ${t.username}`,p:-5,x:0});
     commit(`${u.username} castigó a ${t.username}`);
-  },
-  appointDelegado(id){
-    must(session.isAdmin,'Solo admin');
-    const t=db.users.find(u=>u.id===id);
-    must(t,'Alumno no encontrado');
-    must(userYear(t)===7,'Solo 7mo año');
-    const yrDels = db.users.filter(u=>userYear(u)===7 && u.role==='delegado');
-    if(yrDels.length >= 2) throw new Error('Ya hay 2 Delegados en este año');
-    if(yrDels.some(d=>d.gender===t.gender)) throw new Error('Ya hay un Delegado de este género');
-    t.role='delegado';
-    commit(`${t.username} es ahora Delegado`);
-  },
-  cheer(id, house){
-    const u=me();must(u,'Inicia sesión');
-    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
-    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
-    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
-    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
-    else m.cheerB=(m.cheerB||0)+1;
-    commit(`Animos para ${house}`);
   },
   npcStep(silent=false){
     if(!db.npcAi && !silent) throw new Error('La IA de NPCs está pausada');
@@ -1859,18 +1879,29 @@ function renderPlay(){
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
   
   const ev=activeEvent(),mult=ev?ev.mult:1,pref=u.role==='prefect'?2:0;
+  const yr = Math.min(7, userYear(u));
+  
   area.innerHTML=`<div class="acts">${Object.entries(ACTS).map(([k,a])=>{
-    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round(a.points*mult)+pref;
+    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k);
+    const subjData = CURRICULUM[k] && CURRICULUM[k][yr] ? CURRICULUM[k][yr] : {name: a.name, desc: 'Conocimiento avanzado', diff:1};
+    const basePts = 5 + (subjData.diff * 3);
+    const pts=Math.round(basePts*mult)+pref;
+    
     let badge,info;
     if(db.free){badge='<span class="pill good">Libre</span>';info=s.slot&&s.st!=='closed'?`Hoy ${s.slot.from}–${fmt(s.slot.to)}`:'Sin restricción'}
     else if(s.st==='open'){badge='<span class="pill good">Abierta</span>';info=`Cierra en ${dur(s.rem)}`}
     else if(s.st==='soon'){badge='<span class="pill warn">Próxima</span>';info=`Hoy a las ${s.slot.from} · en ${dur(s.rem)}`}
     else if(s.st==='closed'){badge='<span class="pill off">Cerrada</span>';info=`Abre el ${DAYL[s.day].toLowerCase()} a las ${s.slot.from}`}
     else{badge='<span class="pill off">Sin clase</span>';info='No hay clase esta semana'}
+    
     return `<div class="act"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
-      <p class="muted" style="font-size:12px"><strong>${a.mg}</strong> — ${a.desc}</p>
+      <div class="box" style="padding:8px; margin:4px 0; border-left:3px solid var(--gold)">
+        <p style="font-size:13px;font-weight:700;color:var(--gold)">${esc(subjData.name)}</p>
+        <p class="muted" style="font-size:12px">${esc(subjData.desc)}</p>
+        <p style="font-size:11px;margin-top:4px">Dificultad: <b>${subjData.diff}/5</b></p>
+      </div>
       <p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
-      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts`:`Práctica: +${Math.round(5*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
+      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts`:`Práctica: +${Math.round(basePts*0.7*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
       <div class="row">${!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
       <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${cd>0?'disabled':''} title="${a.mg}">${cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
     <div class="log">${db.log.slice(0,8).map(l=>`<span><strong>${esc(l.u)}</strong> · ${esc(l.a)} <b style="color:var(--good)">+${l.p}</b>${l.x?` <b style="color:var(--rav)">+${l.x} XP</b>`:''}</span>`).join('')}</div>`;
