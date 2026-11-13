@@ -411,7 +411,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
           <h3 style="font-size:20px;color:var(--gold)">🕹️ Sala de Minijuegos del Castillo (Canvas 2D)</h3>
           <p class="muted" style="font-size:13px">Juega en tiempo real con teclado, ratón o controles táctiles. Los puntos ganados se sincronizan al instante en la Copa de las Casas.</p>
         </div>
-        <span class="pill gold">6 Minijuegos</span>
+        <span class="pill gold">7 Minijuegos</span>
       </div>
       <div class="arcade-grid" id="arcadeGrid"></div>
     </div>
@@ -694,6 +694,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   personality: personality,
+  pet: null, petLastUse: null, petLastPlay: null,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
@@ -892,6 +893,9 @@ function ensureDbIntegrity(){
     if (!u.cromos || typeof u.cromos !== 'object') { u.cromos = {}; changed = true; }
     if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
     if (typeof u.buffDobleGaleon !== 'boolean') { u.buffDobleGaleon = false; changed = true; }
+    if (typeof u.pet === 'undefined') { u.pet = null; changed = true; }
+    if (typeof u.petLastUse === 'undefined') { u.petLastUse = null; changed = true; }
+    if (typeof u.petLastPlay === 'undefined') { u.petLastPlay = null; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1210,6 +1214,28 @@ const CROMOS_MAGOS = [
 
 const VALOR_CANJE_CROMO = { 'Común': 4, 'Raro': 8, 'Legendario': 15 };
 
+/* ===== SISTEMA DE MASCOTAS ===== */
+const PETS = [
+  { id: 'lechuza', name: 'Lechuza', icon: '🦉', desc: '+3 XP de vuelo extra al ganar en clases o minijuegos.' },
+  { id: 'gato',    name: 'Gato',    icon: '🐱', desc: 'Inmunidad a Filch una vez al día en el toque de queda.' },
+  { id: 'sapo',    name: 'Sapo',    icon: '🐸', desc: '+2 puntos extra en acciones de tiempo libre.' },
+  { id: 'rata',    name: 'Rata',    icon: '🐀', desc: '+10% de probabilidad de hallazgos mágicos al moverte.' }
+];
+function petOf(u){ if(!u||!u.pet) return null; return PETS.find(p=>p.id===u.pet)||null; }
+function petFlightBonus(u){ const p=petOf(u); return p&&p.id==='lechuza'?3:0; }
+function petFreeActBonus(u){ const p=petOf(u); return p&&p.id==='sapo'?2:0; }
+function petFindBonus(u){ const p=petOf(u); return p&&p.id==='rata'?0.10:0; }
+function petPlayCooldown(u){
+  if(!u||!u.petLastPlay) return 0;
+  const CD=30*60*1000;
+  return Math.max(0, CD-(Date.now()-u.petLastPlay));
+}
+function petFilchImmune(u){
+  const p=petOf(u);
+  if(!p||p.id!=='gato') return false;
+  return u.petLastUse !== new Date().toDateString();
+}
+
 function sortearCromoRana() {
   const t = Math.random();
   let pool = CROMOS_MAGOS.filter(c => c.rareza === 'Común');
@@ -1248,6 +1274,7 @@ const API={
     const chosenHouse=house&&HOUSE(house)?house:null;
     const newId=Math.max(10,...db.users.map(x=>x.id))+1;
     const u=U(newId,name,chosenHouse,0,0,'student',false,look?lookOf(look):null,false,pHash,chosenHouse||'comedor');
+    if (look && look.pet) u.pet = look.pet;
     db.users.push(u);
     session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
@@ -1311,7 +1338,7 @@ const API={
     must(ROOMS.some(r=>r[0]===roomId),'Sala desconocida');
     u.loc=roomId;u.locSlot=slotKey();
     
-    if(Math.random() < 0.48) {
+    if(Math.random() < 0.48 + petFindBonus(u)) {
       const f = RANDOM_FINDS[Math.floor(Math.random()*RANDOM_FINDS.length)];
       u.points += f.pts;
       if(f.xp) u.flight_xp += f.xp;
@@ -1321,10 +1348,13 @@ const API={
     commit();
   },
   sneak(){
-    const u=me();must(u&&u.house,'Inicia sesión primero');
-    must(isCurfew()&&!db.free,'Solo puedes escabullirte en el toque de queda');
     const immune = (u.inmunidadFilchHasta || 0) > Date.now();
-    const caught = !immune && (Math.random() < 0.45);
+    let petProtected = false;
+    if (petFilchImmune(u) && !immune) {
+      u.petLastUse = new Date().toDateString();
+      petProtected = true;
+    }
+    const caught = !immune && !petProtected && (Math.random() < 0.45);
     if(caught){
       u.points = Math.max(0, u.points - 10);
       u.happiness = Math.max(0, u.happiness - 10);
@@ -1332,11 +1362,13 @@ const API={
       u.loc = u.house;
       toast('¡Filch y la Sra. Norris te atraparon! -10 pts, -10 Felicidad y de vuelta a tu Sala Común.');
     }else{
+      const msg = petProtected ? '🐱 ¡Tu gato distrajo a la Sra. Norris!' : '¡Esquivaste a Filch y encontraste un secreto!';
       u.points += 8;
       u.happiness = Math.min(100, u.happiness + 5);
       db.houses.find(h=>h.id===u.house).points += 8;
       u.loc = 'biblioteca';
-      toast('¡Esquivaste a Filch y encontraste un secreto! +8 pts, +5 Felicidad.');
+      toast(`${msg} +8 pts, +5 Felicidad.`);
+    }
     }
     commit('Escabullirse de noche');
   },
@@ -1348,7 +1380,7 @@ const API={
     const cdKey='free_'+loc,cd=this.cooldown(cdKey);
     must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir`);
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round(fa.pts*mult)+(u.role==='prefect'?2:0),fx=fa.xp||0;
+    const pts=Math.round(fa.pts*mult)+(u.role==='prefect'?2:0)+petFreeActBonus(u),fx=fa.xp||0;
     u.points+=pts;if(fx)u.flight_xp+=fx;
     u.happiness=Math.min(100, u.happiness + 3);
     if(loc==='biblioteca') u.academic_progress += 2;
@@ -1372,7 +1404,7 @@ const API={
     
     const basePoints = 5 + (spec.bonusPts || 0);
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(ACTS[key].flightXp||0)+extraFlight;
+    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id)+petFreeActBonus(u),fx=(ACTS[key].flightXp||0)+extraFlight+petFlightBonus(u);
     
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
@@ -1416,7 +1448,8 @@ const API={
     
     const basePoints = hit ? (3 + (spec.bonusPts || 0)) : 1;
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round(basePoints*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
+    const pts=Math.round(basePoints*mult)+(u.role==='prefect'?2:0);
+    const fx=(key==='vuelo'?(hit?4:1):0)+petFlightBonus(u);
     
     u.points+=pts;if(fx)u.flight_xp+=fx;
     let galGain = hit ? (spec.bonusGal || 1) : 1;
@@ -1796,6 +1829,15 @@ const API={
         m.log.push(`${HOUSE(m.winner).name} gana: +50 pts`);fanfare()}else m.log.push('Empate')}
     commit('Ronda '+(m.round-1)+' resuelta');
   },
+  adoptPet(petId){
+    const u = me(); must(u, 'Inicia sesión primero');
+    must(!u.pet, '¡Las mascotas son para siempre! Ya tienes una.');
+    const p = PETS.find(x=>x.id===petId); must(p, 'Mascota desconocida');
+    u.pet = petId;
+    chime();
+    commit(`${u.username} adoptó un ${p.name}`);
+    toast(`${p.icon} ¡Has adoptado un ${p.name}!`);
+  },
   buyItem(itemId){
     const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
     const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
@@ -1939,7 +1981,7 @@ const av=(u,w)=>avatar(u&&u.look,u&&u.house,w);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0,pet:null};
 
 function creatorHTML(){
   const d=draft;
@@ -1951,6 +1993,11 @@ function creatorHTML(){
     ${(draftNew||!me()?.house)?`<div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="draftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>`:''}
     ${sw('Piel',SKIN,'skin')}${sw('Pelo',HAIR,'hair',HAIRN)}${sw('Ojos',EYES,'eyes',EYEN)}
     <div class="swrow"><span>Peinado</span>${STYLES.map(([k,n])=>`<button type="button" class="chip ${d.style===k?'on':''}" data-do="draftStyle" data-v="${k}">${n}</button>`).join('')}</div>
+    ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
+  <div class="chips" style="margin-top:6px">
+    <button type="button" class="chip ${!d.pet?'on':''}" data-do="draftPet" data-id="">Sin mascota</button>
+    ${PETS.map(p=>`<button type="button" class="chip ${d.pet===p.id?'on':''}" data-do="draftPet" data-id="${p.id}" title="${p.desc}">${p.icon} ${p.name}</button>`).join('')}
+  </div></div>`:''}
     <div class="row"><button class="btn gold" type="button" data-do="saveChar">${draftNew?'✨ Crear y entrar':'Guardar cambios'}</button>${draftNew?`<button class="btn" type="button" data-do="openLogin">🔑 Ya tengo cuenta</button>`:''}<button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
    </div></div>`;
 }
@@ -2147,8 +2194,10 @@ function renderPlay(){
     <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
   </div>`;
 
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
-  
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
+  <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
+      ${!petOf(u)?`<button class="btn sm" style="margin-top:8px" data-do="adoptPet" type="button">🐾 Adoptar mascota</button>`:`<button class="btn sm gold" style="margin-top:8px" data-do="playWithPet" type="button" ${petPlayCooldown(u)>0?'disabled':''}>${petOf(u).icon} ${petPlayCooldown(u)>0?`Jugar en ${Math.ceil(petPlayCooldown(u)/60000)} min`:'Jugar con '+petOf(u).name}</button>`}
+    ${hbar}</div>`;
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
@@ -2635,6 +2684,86 @@ function openCustomNpcModal() {
     <button class="btn gold" data-do="saveCustomNpc" type="button">Crear NPC</button>
     <button class="btn" data-do="closeModal" type="button">Cancelar</button>
   </div>`, true);
+}
+
+function openPetAdoptModal() {
+  const u = me();
+  if (!u) return toast('Inicia sesión primero');
+  if (u.pet) return toast('Ya tienes mascota. ¡Es para siempre!');
+  openModal(`
+    <h3 style="font-size:20px">🐾 Adoptar mascota</h3>
+    <p class="muted">Elige tu compañero mágico. La elección es permanente.</p>
+    <div class="grid g2" style="width:100%;text-align:left">
+      ${PETS.map(p=>`<button class="box" type="button" data-do="confirmAdoptPet" data-id="${p.id}" style="cursor:pointer">
+        <div class="row" style="justify-content:space-between"><strong>${p.icon} ${p.name}</strong><span class="pill gold">Adoptar</span></div>
+        <p class="muted" style="font-size:13px;margin-top:6px">${p.desc}</p>
+      </button>`).join('')}
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button" style="margin-top:8px">Cancelar</button>
+  `, true);
+}
+
+function startPetPlayMinigame() {
+  const u = me(); if (!u || !u.pet) return toast('Necesitas una mascota');
+  const pet = petOf(u); if (!pet) return;
+  if (petPlayCooldown(u) > 0) return toast(`Espera ${Math.ceil(petPlayCooldown(u)/60000)} min para volver a jugar`);
+  openCanvasModal(
+    `${pet.icon} Juega con tu ${pet.name}`,
+    `Atrapa a tu mascota 5 veces antes de que se escape.`,
+    'Haz clic o toca a tu mascota en el lienzo.',
+    false
+  );
+  const petObj = { x: 400, y: 200, vx: 3.5, vy: 2.8 };
+  let hits = 0, startTime = Date.now(), duration = 10000;
+
+  function finishPetPlay() {
+    u.happiness = Math.min(100, (u.happiness||50) + 3);
+    u.flight_xp = (u.flight_xp || 0) + 2;
+    u.galeones = (u.galeones || 0) + 1;
+    u.petLastPlay = Date.now();
+    db.log.unshift({u:u.username, h:u.house, a:`Jugó con su ${pet.name}`, p:0, x:2});
+    db.log.length = Math.min(db.log.length, 15);
+    chime(); closeMinigame();
+    commit(`${u.username} jugó con su ${pet.name}`);
+    toast(`${pet.icon} ¡${pet.name} está feliz! +3 Felicidad, +2 XP de vuelo, +1 🪙`);
+  }
+
+  mgClickHandler = (mx, my) => {
+    if (Math.hypot(mx - petObj.x, my - petObj.y) <= 42) {
+      hits++;
+      tone([660, 880], 'sine', 0.03, 0.14, 0.1);
+      petObj.x = 80 + Math.random() * 640;
+      petObj.y = 70 + Math.random() * 260;
+      if (hits >= 5) finishPetPlay();
+    }
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    const rem = Math.max(0, duration - (Date.now() - startTime));
+    if (rem <= 0) {
+      closeMinigame();
+      toast(`${pet.icon} ${pet.name} se escapó entre las sombras.`);
+      return;
+    }
+    petObj.x += petObj.vx; petObj.y += petObj.vy;
+    if (petObj.x < 40 || petObj.x > 760) petObj.vx *= -1;
+    if (petObj.y < 40 || petObj.y > 360) petObj.vy *= -1;
+    if (Math.random() < 0.08) { petObj.vx += (Math.random()-0.5)*1.5; petObj.vy += (Math.random()-0.5)*1.5; }
+    const sp = Math.hypot(petObj.vx, petObj.vy);
+    if (sp > 6) { petObj.vx *= 6/sp; petObj.vy *= 6/sp; }
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#14122e'; ctx.fillRect(0, 0, 800, 400);
+    ctx.fillStyle = 'rgba(227,187,78,0.15)';
+    for (let i = 0; i < 24; i++) ctx.fillRect((i*137)%800, (i*73)%400, 2, 2);
+    ctx.font = '56px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(pet.icon, petObj.x, petObj.y);
+
+    $('mgCanvasHud').textContent = `${pet.icon} Capturas: ${hits}/5 · ⏱️ ${(rem/1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
 }
 
 function renderQuidditchHistory() {
@@ -3157,7 +3286,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length),pet:null};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -3428,6 +3557,7 @@ const ARCADE_GAMES = [
   { id: 'defensa_copa', name: '4. Defensa de la Copa', mech: 'Tower Defense / Estrategia', ptsLabel: '5 pts', basePts: 5, xp: 0, desc: 'Coloca escudos Protego y torretas mágicas en los carriles para evitar que las criaturas lleguen a la Copa.' },
   { id: 'pocion_exp', name: '5. Poción Explosiva', mech: 'Lógica / Memoria', ptsLabel: '4 pts', basePts: 4, xp: 0, desc: 'Memoriza la receta del pergamino y selecciona los ingredientes en el orden exacto de la mesa desordenada.' },
   { id: 'escobas', name: '6. Carrera de Escobas', mech: 'Reflejos / Esquivar', ptsLabel: '3-5 pts · +4 XP', basePts: 5, xp: 4, desc: 'Carrera contrarreloj a 60 FPS esquivando bludgers y rivales mientras atraviesas aros dorados.' }
+  { id: 'ajedrez', name: '7. Ajedrez Mágico de Ron', mech: 'Puzzle / Táctica', ptsLabel: '4 pts · +1 XP', basePts: 4, xp: 1, desc: 'Captura al rey oscuro en pocos movimientos. Las piezas mágicas se quejan si sacrificas tropas.' }
 ];
 
 function arcadeCooldown(id) {
@@ -3499,7 +3629,8 @@ function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', fl
   const points = Math.round(basePoints * mult) + (user.role === 'prefect' ? 2 : 0);
 
   user.points += points;
-  if (flightXp) user.flight_xp = (user.flight_xp || 0) + flightXp;
+  const petBonus = petFlightBonus(user);
+  if (flightXp || petBonus) user.flight_xp = (user.flight_xp || 0) + flightXp + petBonus;
   let galEarned = Math.max(1, Math.round(basePoints / 2));
   if (user.buffDobleGaleon) { galEarned *= 2; user.buffDobleGaleon = false; }
   user.galeones = (user.galeones || 0) + galEarned;
@@ -3544,6 +3675,7 @@ function playArcade(id) {
   if (id === 'defensa_copa') return startTowerDefenseMinigame();
   if (id === 'pocion_exp') return startExplosivePotionMinigame();
   if (id === 'escobas') return startBroomRaceMinigame();
+  if (id === 'ajedrez') return startWizardChess();
 }
 
 /* 1. TROLL EN LAS MAZMORRAS (Acción / Esquivar - 3 a 5 pts) */
@@ -4200,6 +4332,165 @@ function startBroomRaceMinigame() {
   loop();
 }
 
+/* 7. AJEDREZ MÁGICO DE RON (Puzzle / Táctica - 4 pts + 1 XP) */
+function startWizardChess() {
+  openCanvasModal(
+    '♟️ 7. Ajedrez Mágico de Ron',
+    'Captura al rey oscuro en pocos movimientos. Las piezas se quejan si sacrificas tropas.',
+    'Clic en una pieza blanca para seleccionarla, luego en una casilla dorada para mover. Espacio no aplica.',
+    false
+  );
+
+  const PUZZLES = [
+    { name: 'La Torre Directa', maxMoves: 2, pieces: [
+      { type: 'rook', color: 'white', x: 0, y: 0 },
+      { type: 'king', color: 'black', x: 0, y: 4 }
+    ]},
+    { name: 'El Salto del Caballo', maxMoves: 2, pieces: [
+      { type: 'knight', color: 'white', x: 0, y: 0 },
+      { type: 'king', color: 'black', x: 0, y: 4 }
+    ]},
+    { name: 'La Doble Diagonal', maxMoves: 2, pieces: [
+      { type: 'bishop', color: 'white', x: 0, y: 0 },
+      { type: 'king', color: 'black', x: 4, y: 4 }
+    ]},
+    { name: 'La Reina Sabia', maxMoves: 3, pieces: [
+      { type: 'queen', color: 'white', x: 0, y: 0 },
+      { type: 'pawn', color: 'black', x: 1, y: 0 },
+      { type: 'king', color: 'black', x: 2, y: 0 }
+    ]}
+  ];
+  const puzzle = PUZZLES[Math.floor(Math.random() * PUZZLES.length)];
+  const board = puzzle.pieces.map(p => ({...p}));
+  let selected = null;
+  let movesLeft = puzzle.maxMoves;
+  const startTime = Date.now();
+  const duration = 45000;
+  let ended = false;
+
+  const SYM = { rook:'♜', knight:'♞', bishop:'♝', queen:'♛', king:'♚', pawn:'♟' };
+  const CELL = 70, OX = 400 - (CELL*5)/2, OY = 200 - (CELL*5)/2;
+
+  function cellAt(mx, my) {
+    const x = Math.floor((mx - OX) / CELL), y = Math.floor((my - OY) / CELL);
+    return (x < 0 || x > 4 || y < 0 || y > 4) ? null : { x, y };
+  }
+  function getPieceAt(x, y) { return board.find(p => p.x === x && p.y === y); }
+  function pathClear(piece, tx, ty) {
+    const dx = Math.sign(tx - piece.x), dy = Math.sign(ty - piece.y);
+    let x = piece.x + dx, y = piece.y + dy;
+    while (x !== tx || y !== ty) {
+      if (getPieceAt(x, y)) return false;
+      x += dx; y += dy;
+    }
+    return true;
+  }
+  function isValidMove(piece, tx, ty) {
+    const dx = tx - piece.x, dy = ty - piece.y;
+    if (dx === 0 && dy === 0) return false;
+    const target = getPieceAt(tx, ty);
+    if (target && target.color === piece.color) return false;
+    switch (piece.type) {
+      case 'rook': return (dx === 0 || dy === 0) && pathClear(piece, tx, ty);
+      case 'bishop': return Math.abs(dx) === Math.abs(dy) && pathClear(piece, tx, ty);
+      case 'queen': return (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) && pathClear(piece, tx, ty);
+      case 'knight': return (Math.abs(dx) === 2 && Math.abs(dy) === 1) || (Math.abs(dx) === 1 && Math.abs(dy) === 2);
+      case 'king': return Math.abs(dx) <= 1 && Math.abs(dy) <= 1;
+      case 'pawn': return dx === 0 && dy === 1;
+    }
+    return false;
+  }
+
+  mgClickHandler = (mx, my) => {
+    if (ended) return;
+    const cell = cellAt(mx, my);
+    if (!cell) return;
+    const clicked = getPieceAt(cell.x, cell.y);
+
+    if (selected) {
+      if (clicked && clicked.color === 'white') { selected = clicked; return; }
+      if (!isValidMove(selected, cell.x, cell.y)) { buzzSnd(); toast('♟️ Movimiento inválido.'); return; }
+
+      const captured = getPieceAt(cell.x, cell.y);
+      if (captured) board.splice(board.indexOf(captured), 1);
+      selected.x = cell.x; selected.y = cell.y;
+      movesLeft--;
+      tone([440, 550], 'triangle', 0.05, 0.15, 0.1);
+
+      if (captured && captured.type === 'king') {
+        ended = true;
+        awardMinigamePoints(4, 'Ajedrez Mágico de Ron', 1, 'ajedrez');
+        return;
+      }
+
+      if (captured) {
+        const u = me();
+        if (u) u.happiness = Math.max(0, (u.happiness||50) - 1);
+        toast('♟️ Una pieza blanca se queja del sacrificio (-1 Felicidad)');
+      }
+
+      if (movesLeft <= 0) {
+        ended = true; commit(); closeMinigame();
+        toast('♟️ Ron se rasca la cabeza: "Mmm, casi. Otra vez será."');
+        return;
+      }
+      selected = null;
+    } else if (clicked && clicked.color === 'white') {
+      selected = clicked;
+    }
+  };
+
+  function loop() {
+    if (!mgActive) return;
+    const rem = Math.max(0, duration - (Date.now() - startTime));
+    if (rem <= 0 && !ended) {
+      ended = true; closeMinigame();
+      toast('♟️ Se acabó el tiempo. Ron te mira decepcionado.');
+      return;
+    }
+
+    ctx.clearRect(0, 0, 800, 400);
+    ctx.fillStyle = '#0f0d24'; ctx.fillRect(0, 0, 800, 400);
+
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#3a346e' : '#5a5298';
+      ctx.fillRect(OX + x*CELL, OY + y*CELL, CELL, CELL);
+    }
+
+    if (selected) {
+      for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
+        if (isValidMove(selected, x, y)) {
+          ctx.fillStyle = 'rgba(227,187,78,0.35)';
+          ctx.fillRect(OX + x*CELL + 4, OY + y*CELL + 4, CELL - 8, CELL - 8);
+          ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 2;
+          ctx.strokeRect(OX + x*CELL + 4, OY + y*CELL + 4, CELL - 8, CELL - 8);
+        }
+      }
+    }
+
+    board.forEach(p => {
+      const cx = OX + p.x*CELL + CELL/2, cy = OY + p.y*CELL + CELL/2;
+      if (selected && selected.x === p.x && selected.y === p.y) {
+        ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(cx, cy, CELL/2 - 4, 0, Math.PI*2); ctx.stroke();
+      }
+      ctx.font = '44px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = p.color === 'white' ? '#fff' : '#c43b34';
+      ctx.strokeStyle = p.color === 'white' ? '#000' : '#fff';
+      ctx.lineWidth = 2;
+      const sym = SYM[p.type];
+      ctx.strokeText(sym, cx, cy + 4);
+      ctx.fillText(sym, cx, cy + 4);
+    });
+
+    ctx.fillStyle = '#e3bb4e'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(`♟️ ${puzzle.name}`, 20, 30);
+    $('mgCanvasHud').textContent = `Movimientos: ${movesLeft} · ⏱️ ${(rem/1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+  loop();
+}
+
 /* ===== 9. Eventos ===== */
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-do]');if(!b)return;
@@ -4223,6 +4514,10 @@ document.addEventListener('click',e=>{
     case 'draft':draft[d.k]=Number(d.v);refreshCreator();break;
     case 'draftStyle':draft.style=d.v;refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
+    case 'draftPet': draft.pet = d.id || null; refreshCreator(); break;
+    case 'adoptPet': openPetAdoptModal(); break;
+    case 'confirmAdoptPet': API.adoptPet(d.id); closeModal(); break;
+    case 'playWithPet': startPetPlayMinigame(); break;
     case 'saveChar':{
       const nm=$('cName'),pw=$('cPass');
       if(nm)draft.name=nm.value;
