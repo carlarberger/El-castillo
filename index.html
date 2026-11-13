@@ -1369,7 +1369,7 @@ const API={
       u.happiness = Math.min(100, u.happiness + 5);
       db.houses.find(h=>h.id===u.house).points += 8;
       u.loc = 'biblioteca';
-      toast(`${msg} +8 pts, +5 Felicidad.`);
+      toast(`${msg} +8 pts, +5 Felicidad.`)
     }
     commit('Escabullirse de noche');
   },
