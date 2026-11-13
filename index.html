@@ -567,7 +567,114 @@ const ACTS={
  historia:{name:'Historia de la Magia',mg:'👻 Crónicas de Binns',points:8,desc:'Domina los hitos históricos del mundo mágico sin dormirte con el Prof. Binns.',room:'historia',loc:'Aula 4F',prof:'Cuthbert Binns'},
  vuelo:{name:'Clase de Vuelo',mg:'🟡 Caza de la Snitch',points:10,flightXp:5,desc:'Atrapa la Snitch Dorada esquivando las Bludgers con Rolanda Hooch.',room:'quidditch',loc:'Campo de Quidditch',prof:'Rolanda Hooch'},
  astronomia:{name:'Astronomía',mg:'✨ Mapa Celeste',points:8,desc:'Conecta las estrellas de la constelación en orden con Aurora Sinistra.',room:'astronomia',loc:'Torre de Astronomía',prof:'Aurora Sinistra'},
- runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,desc:'Encuentra las parejas de glifos antiguos ocultos en los pergaminos.',room:'biblioteca',loc:'Torre de Runas',prof:'Bathsheda Babbling'}};
+ runas:{name:'Runas Antiguas',mg:'📜 Parejas Rúnicas',points:8,minYear:3,desc:'Encuentra las parejas de glifos antiguos ocultos en los pergaminos.',room:'biblioteca',loc:'Torre de Runas',prof:'Bathsheda Babbling'}};
+
+const CURRICULUM = {
+  encantamientos: {
+    1: { name: 'Lumos / Wingardium Leviosa', desc: 'Ilumina la varita y hace levitar objetos pequeños.', diff: 1 },
+    2: { name: 'Expelliarmus / Rictusempra', desc: 'Desarma al oponente y lanza cosquillas mágicas.', diff: 2 },
+    3: { name: 'Expecto Patronum (Iniciación)', desc: 'Conjura una neblina plateada protectora.', diff: 3 },
+    4: { name: 'Accio / Depulso', desc: 'Atrae o repele objetos a distancia.', diff: 3 },
+    5: { name: 'Stupefy / Protego (T.I.M.O.)', desc: 'Aturde rivales y levanta escudos mágicos.', diff: 4 },
+    6: { name: 'Encantamientos No Verbales (É.X.T.A.S.I.S.)', desc: 'Ejecuta conjuros complejos sin pronunciar palabra.', diff: 5 },
+    7: { name: 'Expecto Patronum Corpóreo / Fianto Duri', desc: 'Invoca un guardián completo y refuerza defensas arcanas.', diff: 5 }
+  },
+  pociones: {
+    1: { name: 'Poción para curar forúnculos', desc: 'Elixir básico con ortigas secas y colmillos de serpiente.', diff: 1 },
+    2: { name: 'Poción Herbovitalizante', desc: 'Restaura la energía y cura resfriados mágicos.', diff: 2 },
+    3: { name: 'Poción Encogedora', desc: 'Reduce temporalmente el tamaño de criaturas u objetos.', diff: 3 },
+    4: { name: 'Antídoto contra venenos comunes', desc: 'Neutraliza toxinas en clase de nivel intermedio.', diff: 3 },
+    5: { name: 'Filtro de la Paz (T.I.M.O.)', desc: 'Calma la ansiedad; requiere control estricto del vapor.', diff: 4 },
+    6: { name: 'Amortentia / Felix Felicis (É.X.T.A.S.I.S.)', desc: 'Pociones maestras de aroma personal y suerte líquida.', diff: 5 },
+    7: { name: 'Elixir de Maestría Alquímica', desc: 'Destilación avanzada de nivel É.X.T.A.S.I.S. y magia superior.', diff: 5 }
+  },
+  transformaciones: {
+    1: { name: 'Cerilla en aguja', desc: 'Transfiguración inanimada básica de primer año.', diff: 1 },
+    2: { name: 'Escarabajos en botones', desc: 'Transfiguración animal pequeña con precisión.', diff: 2 },
+    3: { name: 'Animales en copas de agua', desc: 'Transformación de vertebrados con varita.', diff: 3 },
+    4: { name: 'Transformación entre especies', desc: 'Cambia rasgos físicos entre distintas criaturas.', diff: 3 },
+    5: { name: 'Desvanecimiento de Mamíferos (T.I.M.O.)', desc: 'Haz desaparecer objetos y pequeños mamíferos.', diff: 4 },
+    6: { name: 'Transformación No Verbal (É.X.T.A.S.I.S.)', desc: 'Transfigura sin conjuro hablado.', diff: 5 },
+    7: { name: 'Transformación Humana Completa', desc: 'Dominio total de transfiguración humana y avanzada.', diff: 5 }
+  },
+  defensa: {
+    1: { name: 'Flipendo / Chispas básicas', desc: 'Empuje mágico y defensa elemental contra plagas.', diff: 1 },
+    2: { name: 'Duelo básico y detección de maleficios', desc: 'Postura de duelo y reflejos iniciales.', diff: 2 },
+    3: { name: 'Riddikulus (Boggarts)', desc: 'Convierte tus peores miedos en algo ridículo.', diff: 3 },
+    4: { name: 'Defensa contra Maldiciones', desc: 'Resistencia mental y contrahechizos tácticos.', diff: 3 },
+    5: { name: 'Protego y Duelo T.I.M.O.', desc: 'Desvía maleficios y contraataca en tiempo real.', diff: 4 },
+    6: { name: 'Defensa No Verbal (É.X.T.A.S.I.S.)', desc: 'Bloquea ataques sin delatar tu conjuro.', diff: 5 },
+    7: { name: 'Protego Horribilis / Duelo de Aurores', desc: 'Barreras oscuras de élite contra magia letal.', diff: 5 }
+  },
+  herbologia: {
+    1: { name: 'Díctamo y Lazo del Diablo', desc: 'Curación herbal básica y reacción ante la luz.', diff: 1 },
+    2: { name: 'Mandrágoras jóvenes', desc: 'Trasplante seguro usando orejeras protectoras.', diff: 2 },
+    3: { name: 'Higos secos y plantas saltarinas', desc: 'Recolección ágil de flora inquieta.', diff: 3 },
+    4: { name: 'Bubotubérculos', desc: 'Extracción cuidadosa de pus curativo.', diff: 3 },
+    5: { name: 'Arbusto Autofertilizante (T.I.M.O.)', desc: 'Control de especies agresivas en el invernadero.', diff: 4 },
+    6: { name: 'Tentácula Venenosa (É.X.T.A.S.I.S.)', desc: 'Poda de flora letal con reflejos rápidos.', diff: 5 },
+    7: { name: 'Flora Alquímica Letal', desc: 'Cultivo de especímenes raros y altamente peligrosos.', diff: 5 }
+  },
+  criaturas: {
+    1: { name: 'Puffskein y Gusarajos', desc: 'Cuidado dócil de criaturas clasificadas X–XX.', diff: 1 },
+    2: { name: 'Duendecillos de Cornualles', desc: 'Contención de criaturas traviesas de nivel XXX.', diff: 2 },
+    3: { name: 'Hipogrifo (Buckbeak)', desc: 'Reverencia obligatoria ante criaturas orgullosas.', diff: 3 },
+    4: { name: 'Escregutos de Cola Explosiva', desc: 'Manejo de híbridos ígneos de nivel XXXX.', diff: 3 },
+    5: { name: 'Bowtruckles y Knarls (T.I.M.O.)', desc: 'Observación y trato de criaturas esquivas.', diff: 4 },
+    6: { name: 'Unicornios y Occamys (É.X.T.A.S.I.S.)', desc: 'Acercamiento respetuoso a seres de alta pureza.', diff: 5 },
+    7: { name: 'Fénix y Criaturas XXXXX', desc: 'Estudio de criaturas legendarias y letales.', diff: 5 }
+  },
+  astronomia: {
+    1: { name: 'Uso del Telescopio', desc: 'Calibración básica y fases lunares.', diff: 1 },
+    2: { name: 'Constelaciones del Hemisferio Norte', desc: 'Identificación de estrellas principales.', diff: 2 },
+    3: { name: 'Órbitas de Júpiter y sus Lunas', desc: 'Seguimiento planetario nocturno.', diff: 3 },
+    4: { name: 'Eclipses Mágicos y Mareas', desc: 'Influencia lunar en ingredientes de pociones.', diff: 3 },
+    5: { name: 'Cartas Estelares (T.I.M.O.)', desc: 'Cartografía celeste de precisión.', diff: 4 },
+    6: { name: 'Alineaciones Planetarias (É.X.T.A.S.I.S.)', desc: 'Predicción astronómica compleja.', diff: 5 },
+    7: { name: 'Efemérides y Astronomía Arcana', desc: 'Cálculo estelar de nivel maestro.', diff: 5 }
+  },
+  vuelo: {
+    1: { name: 'Levantar la escoba (¡Arriba!)', desc: 'Control básico y vuelo raso sobre el césped.', diff: 1 },
+    2: { name: 'Giros cerrados y esquiva básica', desc: 'Maniobras de agilidad en el campo.', diff: 2 },
+    3: { name: 'Persecución de Snitch en tormenta', desc: 'Vuelo rápido con visibilidad reducida.', diff: 3 },
+    4: { name: 'Maniobras de Quidditch competitivo', desc: 'Tácticas aéreas contra Bludgers.', diff: 3 },
+    5: { name: 'Finta de Wronski (T.I.M.O.)', desc: 'Picado extremo de Buscador.', diff: 4 },
+    6: { name: 'Vuelo acrobático sin manos (É.X.T.A.S.I.S.)', desc: 'Equilibrio total en escoba de carreras.', diff: 5 },
+    7: { name: 'Maestría aérea de Buscador Profesional', desc: 'Reflejos de élite en el estadio.', diff: 5 }
+  },
+  historia: {
+    1: { name: 'Fundadores de Hogwarts', desc: 'Orígenes del castillo y las cuatro casas.', diff: 1 },
+    2: { name: 'La Cámara Secreta y mitos antiguos', desc: 'Leyendas históricas del colegio.', diff: 2 },
+    3: { name: 'Juicios de brujas medievales', desc: 'Historia de la relación entre magos y muggles.', diff: 3 },
+    4: { name: 'Rebeliones de los Duendes (1289)', desc: 'Conflictos históricos con el Prof. Binns.', diff: 3 },
+    5: { name: 'Estatuto del Secreto (T.I.M.O.)', desc: 'Leyes internacionales de ocultamiento.', diff: 4 },
+    6: { name: 'Guerras de los Gigantes (É.X.T.A.S.I.S.)', desc: 'Crónicas de conflictos mágicos antiguos.', diff: 5 },
+    7: { name: 'Historiografía mágica contemporánea', desc: 'Análisis histórico de nivel maestro.', diff: 5 }
+  },
+  runas: {
+    3: { name: 'Alfabeto rúnico básico', desc: 'Optativa de 3.º año: glifos fundamentales.', diff: 3 },
+    4: { name: 'Traducción de inscripciones nórdicas', desc: 'Lectura de tablillas antiguas.', diff: 3 },
+    5: { name: 'Textos arcanos (T.I.M.O.)', desc: 'Traducción avanzada de runas mágicas.', diff: 4 },
+    6: { name: 'Runas No Verbales (É.X.T.A.S.I.S.)', desc: 'Encantamientos rúnicos de alto nivel.', diff: 5 },
+    7: { name: 'Descifrado de códices milenarios', desc: 'Maestría absoluta en runas antiguas.', diff: 5 }
+  }
+};
+
+function getClassSpec(key, u) {
+  const rawYr = typeof userYear === 'function' ? userYear(u) : 1;
+  const minYear = ACTS[key]?.minYear || 1;
+  const isMaster = rawYr === 8;
+  const yr = isMaster ? 7 : Math.max(1, Math.min(7, rawYr));
+  const locked = rawYr === 0 || (!isMaster && yr < minYear);
+  const curr = CURRICULUM[key] || {};
+  const entry = curr[yr] || curr[minYear] || { name: ACTS[key]?.name || key, desc: ACTS[key]?.desc || '', diff: 1 };
+  const diff = isMaster ? 5 : entry.diff;
+  const labels = { 1: 'Iniciación', 2: 'Básico', 3: 'Intermedio', 4: 'T.I.M.O.', 5: isMaster ? 'Maestro' : 'É.X.T.A.S.I.S.' };
+  const stars = '★'.repeat(diff) + '☆'.repeat(5 - diff);
+  const bonusPts = (diff - 1) * 2;
+  const bonusGal = diff;
+  return { yr, rawYr, minYear, locked, isMaster, diff, label: labels[diff], stars, topic: entry.name, desc: entry.desc, bonusPts, bonusGal };
+}
 
 const PROFESSORS=[
  {id:'dumbledore',name:'Albus Dumbledore',title:'Director de Hogwarts',subject:'Dirección y Magia Antigua',room:'comedor',house:'gryffindor',look:{skin:0,hair:3,style:'largo',eyes:1},quote:'«Son nuestras elecciones, mucho más que nuestras habilidades, las que muestran lo que verdaderamente somos.»',taskQ:'¿Qué criatura mágica acompaña a Albus Dumbledore y renace de sus cenizas?',opts:['El fénix Fawkes','Un hipogrifo','Un dragón galés'],ans:0},
@@ -1034,7 +1141,7 @@ function relTier(rel){
   if(!rel) return {label:'🌱 Conocido',col:'off',bonus:0};
   if(rel.rival) return {label:`⚔️ Rival (${rel.score} pts)`,col:'warn',bonus:1};
   if(rel.score>=80) return {label:'💖 Vínculo Inquebrantable',col:'gold',bonus:3};
-  if(rel.score>=50) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
+  if(rel.score>=goal0) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
   if(rel.score>=20) return {label:'🤝 Amigo',col:'good',bonus:1};
   return {label:'🌱 Conocido',col:'off',bonus:0};
 }
@@ -1313,15 +1420,17 @@ const API={
   },
   attend(key,extra=0,extraFlight=0){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
+    const _sp=getClassSpec(key,u);must(!_sp.locked,`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);
     if(!db.free){const s=classStatus(key);
       if(s.st==='soon')throw new Error(`Abre hoy a las ${s.slot.from} (en ${dur(s.rem)})`);
       must(s.st==='open',s.slot&&s.day?`Próxima: ${DAYL[s.day]} a las ${s.slot.from}`:'Esta clase no está disponible');}
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para repetir esta clase`);
     
+    const spec=getClassSpec(key,u);
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round((cfg.points+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
+    const pts=Math.round((cfg.points+spec.bonusPts+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
     
-    const _galAtt = Math.round(2 * mult) * (u.buffDobleGaleon ? 2 : 1);
+    const _galAtt = Math.round((1 + spec.bonusGal) * mult) * (u.buffDobleGaleon ? 2 : 1);
     u.buffDobleGaleon = false;
     u.galeones = (u.galeones || 0) + _galAtt;
     u.points+=pts;
@@ -1352,15 +1461,17 @@ const API={
   },
   trainMinigame(key,hit){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
+    const _sp=getClassSpec(key,u);must(!_sp.locked,`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);
     const open=db.free||classStatus(key).st==='open';
     if(open){
       return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0);
     }
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);
+    const spec=getClassSpec(key,u);
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const base=hit?5:2;
+    const base=(hit?5:2)+Math.floor(spec.bonusPts/2);
     const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
-    const _galTr = Math.round((hit?3:1) * mult) * (u.buffDobleGaleon ? 2 : 1);
+    const _galTr = Math.round(((hit?2:1) + Math.floor(spec.bonusGal/2)) * mult) * (u.buffDobleGaleon ? 2 : 1);
     u.buffDobleGaleon = false;
     u.galeones = (u.galeones || 0) + _galTr;
     u.points+=pts;if(fx)u.flight_xp+=fx;
@@ -1455,16 +1566,16 @@ const API={
     }
     npc.locSlot=slotKey();
 
-    const actKeys=Object.keys(ACTS).filter(k=>k!=='vuelo'||npc.npc_quidditch);
+    const actKeys=Object.keys(ACTS).filter(k=>(k!=='vuelo'||npc.npc_quidditch)&&!getClassSpec(k,npc).locked);
     const k=actKeys[Math.floor(Math.random()*actKeys.length)];
-    const cfg=ACTS[k];
-    const pts=Math.round(cfg.points*0.5);
+    const cfg=ACTS[k], npcSpec=getClassSpec(k,npc);
+    const pts=Math.round((cfg.points+npcSpec.bonusPts)*0.5);
     const fx=(cfg.flightXp && npc.npc_quidditch)?2:0;
     npc.points+=pts;
     if(fx)npc.flight_xp+=fx;
     const hObj=db.houses.find(h=>h.id===npc.house);
     if(hObj)hObj.points+=pts;
-    db.log.unshift({u:'🤖 '+npc.username,h:npc.house,a:cfg.name,p:pts,x:fx});
+    db.log.unshift({u:'🤖 '+npc.username,h:npc.house,a:`${cfg.name} (${npcSpec.topic})`,p:pts,x:fx});
     db.log.length=Math.min(db.log.length,15);
 
     if(Math.random()<0.35){
@@ -1994,7 +2105,8 @@ function renderPlay(){
   
   const ev=activeEvent(),mult=ev?ev.mult:1,pref=u.role==='prefect'?2:0;
   area.innerHTML=`<div class="acts">${Object.entries(ACTS).map(([k,a])=>{
-    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round(a.points*mult)+pref;
+    const spec=getClassSpec(k,u);
+    const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round((a.points+spec.bonusPts)*mult)+pref;
     let badge,info;
     if(db.free){badge='<span class="pill good">Libre</span>';info=s.slot&&s.st!=='closed'?`Hoy ${s.slot.from}–${fmt(s.slot.to)}`:'Sin restricción'}
     else if(s.st==='open'){badge='<span class="pill good">Abierta</span>';info=`Cierra en ${dur(s.rem)}`}
@@ -2002,11 +2114,13 @@ function renderPlay(){
     else if(s.st==='closed'){badge='<span class="pill off">Cerrada</span>';info=`Abre el ${DAYL[s.day].toLowerCase()} a las ${s.slot.from}`}
     else{badge='<span class="pill off">Sin clase</span>';info='No hay clase esta semana'}
     return `<div class="act"><div class="row" style="justify-content:space-between"><h4>${a.name}</h4>${badge}</div>
-      <p class="muted" style="font-size:12px"><strong>${a.mg}</strong> — ${a.desc}</p>
+      <div class="row" style="gap:6px"><span class="pill ${spec.isMaster?'gold':''}" style="font-size:11px">${spec.isMaster?'🎓 Maestro':`Año ${spec.yr}`} · ${spec.stars} (${spec.label})</span></div>
+      <p style="font-size:12px;color:var(--fg)"><strong>${spec.locked?`🔒 Requiere ${spec.minYear}.º curso`:`Tema de ${spec.yr}.º:`}</strong> ${spec.locked?'':esc(spec.topic)}</p>
+      <p class="muted" style="font-size:12px">${spec.locked?'Este conocimiento es demasiado avanzado para tu año actual.':esc(spec.desc)}</p>
       <p style="font-size:12px;color:${open?'var(--good)':'var(--warn)'}">${info}</p>
-      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts`:`Práctica: +${Math.round(5*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
-      <div class="row">${!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
-      <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${cd>0?'disabled':''} title="${a.mg}">${cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
+      <span class="pill gold mono" style="align-self:flex-start">${open?`Clase: +${pts} pts · +${1+spec.bonusGal}🪙`:`Práctica: +${Math.round((5+Math.floor(spec.bonusPts/2))*mult)+pref} pts`}${a.flightXp?` · +${a.flightXp} XP`:''}</span>
+      <div class="row">${spec.locked?`<button class="btn sm" disabled type="button">🔒 Nivel ${spec.minYear}.º</button>`:!open?'<button class="btn sm" disabled type="button">Aula cerrada</button>':cd>0?`<button class="btn sm" disabled type="button">Espera ${Math.ceil(cd/1000)} s</button>`:`<button class="btn sm gold" data-do="attend" data-k="${k}" type="button">Asistir</button>`}
+      <button class="btn sm ${open?'':'gold'}" data-do="practice" data-k="${k}" type="button" ${(cd>0||spec.locked)?'disabled':''} title="${a.mg}">${spec.locked?'🔒 Bloqueado':cd>0?`${Math.ceil(cd/1000)} s`:'🎮 Minijuego'}</button></div></div>`}).join('')}</div>
     <div class="log">${db.log.slice(0,8).map(l=>`<span><strong>${esc(l.u)}</strong> · ${esc(l.a)} <b style="color:var(--good)">+${l.p}</b>${l.x?` <b style="color:var(--rav)">+${l.x} XP</b>`:''}</span>`).join('')}</div>`;
 }
 function renderTeams(){
@@ -2479,6 +2593,7 @@ function startTryoutMinigame(pos){
 }
 
 function practice(k){
+  const _u=me();if(_u){const _sp=getClassSpec(k,_u);if(_sp.locked){toast(`Este conocimiento es demasiado avanzado para tu año actual (requiere ${_sp.minYear}.º curso).`);return;}}
   const cd=API.cooldown(k);
   if(cd>0){toast(`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);return}
   if(k==='pociones') return mgPociones();
@@ -2495,6 +2610,7 @@ function practice(k){
 
 /* 8. TRANSFORMACIONES: Transfiguración Exacta */
 function mgTransformaciones(){
+  const spec=getClassSpec('transformaciones',me());
   const STAGES=['☕','🪡','🪶','🐱','🦉'];
   let idx=0,hits=0,tries=0,iv=null;
   openModal(`<h3 style="font-size:20px">🐱 Transfiguración Exacta (Prof. McGonagall)</h3>
@@ -2508,7 +2624,7 @@ function mgTransformaciones(){
   iv=setInterval(()=>{
     idx=(idx+1)%STAGES.length;
     const el=$('mgTransIcon');if(el)el.textContent=STAGES[idx];
-  },360);
+  },Math.max(190, 440 - spec.diff * 45));
   mgClean=()=>clearInterval(iv);
   $('mgTransBtn').onclick=()=>{
     tries++;
@@ -2594,10 +2710,12 @@ function mgHistoria(){
 /* 1. POCIONES: Caldero de Memoria */
 function mgPociones(){
   const INGS=[['🕷️','Araña'],['🌿','Asfódelo'],['💎','Bezoar'],['🍄','Hongo'],['🩸','Draco'],['🌙','Lunar']];
-  const seq=Array.from({length:4},()=>Math.floor(Math.random()*INGS.length));
+  const spec=getClassSpec('pociones',me());
+  const seqLen=3+Math.floor(spec.diff/2);
+  const seq=Array.from({length:seqLen},()=>Math.floor(Math.random()*INGS.length));
   let step=0,locked=true,timers=[];
   openModal(`<h3 style="font-size:20px">🧪 Caldero de Memoria</h3>
-    <p class="muted" id="mgSub">Observa el orden de los 4 ingredientes del caldero…</p>
+    <p class="muted" id="mgSub">Observa el orden de los ${seqLen} ingredientes (${spec.topic})…</p>
     <div class="mg-stage">
       <div class="mg-cauldron" id="mgCauldron">⚗️</div>
       <div class="grid g3" id="mgIngs">${INGS.map(([ic,nm],i)=>`<button type="button" class="mg-ing" data-i="${i}" disabled><b>${ic}</b><small>${nm}</small></button>`).join('')}</div>
@@ -2615,7 +2733,7 @@ function mgPociones(){
     locked=false;
     const c=$('mgCauldron'),s=$('mgSub');
     if(c)c.textContent='❓';
-    if(s)s.textContent='¡Tu turno! Pulsa los 4 ingredientes en el mismo orden (0/4)';
+    if(s)s.textContent='¡Tu turno! Pulsa los ${seqLen} ingredientes en el mismo orden (0/${seqLen})';
     document.querySelectorAll('#mgIngs .mg-ing').forEach(b=>b.disabled=false);
   },500+seq.length*650+200));
   mgClean=()=>timers.forEach(clearTimeout);
@@ -2637,6 +2755,7 @@ function mgPociones(){
 
 /* 2. ENCANTAMIENTOS: Pulso de Varita */
 function mgEncantamientos(){
+  const spec=getClassSpec('encantamientos',me());
   let pos=50,dir=1,hits=0,tries=0,iv=null;
   openModal(`<h3 style="font-size:20px">🪄 Pulso de Varita: Wingardium Leviosa</h3>
     <p class="muted">Detén el pulso dentro de la zona dorada <strong>3 veces</strong>.</p>
@@ -2647,7 +2766,7 @@ function mgEncantamientos(){
     </div>
     <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
   iv=setInterval(()=>{
-    pos+=dir*3.6;
+    pos+=dir*(2.8 + spec.diff * 0.65);
     if(pos>=96){pos=96;dir=-1}else if(pos<=4){pos=4;dir=1}
     const el=$('mgCur');if(el)el.style.left=pos+'%';
   },24);
@@ -2665,11 +2784,13 @@ function mgEncantamientos(){
 
 /* 3. HERBOLOGÍA: Mandrágoras Rebeldes */
 function mgHerbologia(){
-  let score=0,timeLeft=9,activePot=-1,isBad=false,iv1=null,iv2=null;
+  const spec=getClassSpec('herbologia',me());
+  const goal=4+spec.diff;
+  let score=0,timeLeft=10,activePot=-1,isBad=false,iv1=null,iv2=null;
   openModal(`<h3 style="font-size:20px">🌱 Mandrágoras Rebeldes</h3>
-    <p class="muted">Atrapa <strong>5 Mandrágoras (🌱)</strong> antes de que se agote el tiempo. ¡Evita las Tentáculas (🥀)!</p>
+    <p class="muted">Atrapa <strong>${goal} Mandrágoras (🌱)</strong> antes de que se agote el tiempo. ¡Evita las Tentáculas (🥀)!</p>
     <div class="mg-stage">
-      <div class="mg-hud"><span class="pill gold" id="mgHerbScore">Mandrágoras: 0/5</span><span class="mono" id="mgHerbTime">9 s</span></div>
+      <div class="mg-hud"><span class="pill gold" id="mgHerbScore">Mandrágoras: 0/${goal}</span><span class="mono" id="mgHerbTime">9 s</span></div>
       <div class="mg-pots" id="mgPots">${Array.from({length:6},(_,i)=>`<button type="button" class="mg-pot" data-p="${i}">🪴</button>`).join('')}</div>
     </div>
     <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
@@ -2682,11 +2803,11 @@ function mgHerbologia(){
     });
   };
   spawn();
-  iv1=setInterval(spawn,700);
+  iv1=setInterval(spawn,Math.max(430, 820 - spec.diff * 65));
   iv2=setInterval(()=>{
     timeLeft--;
     if($('mgHerbTime'))$('mgHerbTime').textContent=timeLeft+' s';
-    if(timeLeft<=0)finishMinigame('herbologia',score>=5,'¡Invernadero controlado!','Se escaparon algunas mandrágoras');
+    if(timeLeft<=0)finishMinigame('herbologia',score>=goal,'¡Invernadero controlado!','Se escaparon algunas mandrágoras');
   },1000);
   mgClean=()=>{clearInterval(iv1);clearInterval(iv2)};
   $('mgPots').onclick=e=>{
@@ -2696,8 +2817,8 @@ function mgHerbologia(){
     activePot=-1;b.classList.remove('up');b.textContent='🪴';
     if(isBad){score=Math.max(0,score-1);buzzSnd()}
     else{score++;tone([587.33,783.99],'sine',.04,.16,.1)}
-    if($('mgHerbScore'))$('mgHerbScore').textContent=`Mandrágoras: ${score}/5`;
-    if(score>=5)finishMinigame('herbologia',true,'¡5 Mandrágoras trasplantadas!');
+    if($('mgHerbScore'))$('mgHerbScore').textContent=`Mandrágoras: ${score}/${goal}`;
+    if(score>=goal)finishMinigame('herbologia',true,'¡5 Mandrágoras trasplantadas!');
   };
 }
 
@@ -2709,7 +2830,8 @@ function mgDefensa(){
     {q:'🐍 ¡Un maleficio aturdidor viene de frente!',a:'Protego',ic:'🛡️'},
     {q:'🪄 ¡Tu rival alza su varita para atacar!',a:'Expelliarmus',ic:'⚡'}
   ];
-  let round=0,timeLeft=8,cur=null,iv=null;
+  const spec=getClassSpec('defensa',me());
+  let round=0,timeLeft=Math.max(5, 11 - spec.diff),cur=null,iv=null;
   openModal(`<h3 style="font-size:20px">🛡️ Duelo contra las Artes Oscuras</h3>
     <p class="muted">Elige el contrahechizo correcto en <strong>3 asaltos</strong> antes de que se agote el tiempo.</p>
     <div class="mg-stage">
@@ -2745,6 +2867,7 @@ function mgDefensa(){
 
 /* 5. VUELO: Caza de la Snitch Dorada */
 function mgVuelo(){
+  const spec=getClassSpec('vuelo',me());
   let caught=0,timeLeft=10,iv1=null,iv2=null;
   openModal(`<h3 style="font-size:20px">🟡 Caza de la Snitch Dorada</h3>
     <p class="muted">Atrapa la Snitch <strong>4 veces</strong> en 10 s para ganar puntos y <strong>+4 XP de vuelo extra</strong>. ¡No toques las Bludgers (⚫)!</p>
@@ -2764,7 +2887,7 @@ function mgVuelo(){
     if(b1){b1.style.left=rnd()+'%';b1.style.top=rnd()+'%'}
     if(b2){b2.style.left=rnd()+'%';b2.style.top=rnd()+'%'}
   };
-  iv1=setInterval(moveAll,560);
+  iv1=setInterval(moveAll,Math.max(330, 660 - spec.diff * 58));
   iv2=setInterval(()=>{
     timeLeft--;
     if($('mgSnitchTime'))$('mgSnitchTime').textContent=timeLeft+' s';
@@ -3237,10 +3360,12 @@ function closeMinigame() {
 function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', flightXp = 0, gameId = 'troll') {
   const user = me();
   if (!user || !user.house) { closeMinigame(); return; }
+  const yr = Math.max(1, Math.min(7, typeof userYear === 'function' ? userYear(user) : 1));
+  const diffBonus = yr === 1 ? 0 : yr === 2 ? 1 : yr <= 4 ? 2 : yr === 5 ? 3 : 4;
   const ev = activeEvent(), mult = ev ? ev.mult : 1;
-  const points = Math.round(basePoints * mult) + (user.role === 'prefect' ? 2 : 0);
+  const points = Math.round((basePoints + diffBonus) * mult) + (user.role === 'prefect' ? 2 : 0);
 
-  const galeonesGanados = Math.max(2, Math.round(basePoints)) * mult * (user.buffDobleGaleon ? 2 : 1);
+  const galeonesGanados = Math.max(2, Math.round(basePoints + Math.ceil(diffBonus / 2))) * mult * (user.buffDobleGaleon ? 2 : 1);
   user.buffDobleGaleon = false;
   user.galeones = (user.galeones || 0) + galeonesGanados;
   user.points += points;
