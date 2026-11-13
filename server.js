@@ -80,7 +80,7 @@ const SERVER_ACTS = [
   { key: 'defensa', name: 'Defensa contra las Artes Oscuras', points: 5, room: 'defensa' },
   { key: 'historia', name: 'Historia de la Magia', points: 4, room: 'historia' },
   { key: 'astronomia', name: 'Astronomía', points: 4, room: 'astronomia' },
-  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca' }
+  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca', minYear: 3 }
 ];
 
 const SERVER_NPC_LINES = [
@@ -220,6 +220,9 @@ function sanitizeState(state) {
       return true;
     });
   }
+  if (Array.isArray(state.matches)) {
+    state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
+  }
   if (!state.relations || typeof state.relations !== 'object') state.relations = {};
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
@@ -298,8 +301,11 @@ setInterval(async () => {
     if (!npcs.length) return;
 
     const npc = npcs[Math.floor(Math.random() * npcs.length)];
-    const act = SERVER_ACTS[Math.floor(Math.random() * SERVER_ACTS.length)];
-    const pts = act.points;
+    const npcYr = userYear(state, npc);
+    const availActs = SERVER_ACTS.filter(a => npcYr >= (a.minYear || 1));
+    const act = availActs[Math.floor(Math.random() * availActs.length)] || SERVER_ACTS[0];
+    const diffBonus = npcYr === 1 ? 0 : npcYr === 2 ? 1 : npcYr <= 4 ? 2 : npcYr === 5 ? 3 : 4;
+    const pts = act.points + Math.floor(diffBonus / 2);
 
     npc.points = (Number(npc.points) || 0) + pts;
 
