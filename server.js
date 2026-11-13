@@ -23,49 +23,50 @@ const uri = process.env.MONGODB_URI;
 let client = null;
 let db = null;
 
-const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc = false, pass = '', loc = 'comedor') => ({
+const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc = false, pass = '', loc = 'comedor', npc_trait = '') => ({
   id, username, house, points, flight_xp, role, is_admin,
   is_npc: !!is_npc,
   pass: pass || '',
   loc: loc || 'comedor',
   locSlot: '',
+  npc_trait: npc_trait || 'Aprendiz prometedor',
+  npc_path: null,
+  npc_quidditch: false,
+  npc_decided: false,
+  npc_trials: 0,
   look,
   created_at: id
 });
 
 const BASE_NPCS = [
-  U(101, 'Aldebarán V.', 'gryffindor', 85, 30, 'prefect', false, { skin: 1, hair: 0, style: 'corto', eyes: 0 }, true, '', 'gryffindor'),
-  U(102, 'Matilde S.', 'gryffindor', 75, 25, 'student', false, { skin: 0, hair: 4, style: 'largo', eyes: 2 }, true, '', 'quidditch'),
-  U(103, 'Gael T.', 'gryffindor', 60, 20, 'student', false, { skin: 2, hair: 1, style: 'rizado', eyes: 0 }, true, '', 'patio'),
-  U(104, 'Lyra M.', 'ravenclaw', 90, 35, 'prefect', false, { skin: 0, hair: 5, style: 'largo', eyes: 4 }, true, '', 'biblioteca'),
-  U(105, 'Caspian R.', 'ravenclaw', 72, 20, 'student', false, { skin: 1, hair: 1, style: 'corto', eyes: 1 }, true, '', 'astronomia'),
-  U(106, 'Emilia C.', 'ravenclaw', 64, 15, 'student', false, { skin: 0, hair: 3, style: 'rizado', eyes: 1 }, true, '', 'ravenclaw'),
-  U(107, 'Seraphina K.', 'slytherin', 88, 28, 'prefect', false, { skin: 0, hair: 0, style: 'largo', eyes: 2 }, true, '', 'mazmorras'),
-  U(108, 'Dorian B.', 'slytherin', 74, 22, 'student', false, { skin: 1, hair: 3, style: 'corto', eyes: 3 }, true, '', 'slytherin'),
-  U(109, 'Antonia V.', 'slytherin', 58, 15, 'student', false, { skin: 2, hair: 0, style: 'largo', eyes: 0 }, true, '', 'terrenos'),
-  U(110, 'Benjamín L.', 'hufflepuff', 82, 25, 'prefect', false, { skin: 1, hair: 2, style: 'rizado', eyes: 0 }, true, '', 'invernaderos'),
-  U(111, 'Isolde F.', 'hufflepuff', 68, 18, 'student', false, { skin: 0, hair: 3, style: 'largo', eyes: 2 }, true, '', 'cabana'),
-  U(112, 'Martín O.', 'hufflepuff', 55, 12, 'student', false, { skin: 3, hair: 0, style: 'corto', eyes: 0 }, true, '', 'comedor')
+  U(101, 'Aldebarán V.', 'gryffindor', 40, 0, 'student', false, { skin: 1, hair: 0, style: 'corto', eyes: 0 }, true, '', 'gryffindor', 'Valiente pero indeciso entre volar o liderar'),
+  U(102, 'Matilde S.', 'gryffindor', 35, 0, 'student', false, { skin: 0, hair: 4, style: 'largo', eyes: 2 }, true, '', 'patio', 'Reflejos rápidos; sueña con probarse en el aire'),
+  U(103, 'Gael T.', 'gryffindor', 30, 0, 'student', false, { skin: 2, hair: 1, style: 'rizado', eyes: 0 }, true, '', 'comedor', 'Especialista en encantamientos defensivos'),
+  U(104, 'Lyra M.', 'ravenclaw', 45, 0, 'student', false, { skin: 0, hair: 5, style: 'largo', eyes: 4 }, true, '', 'biblioteca', 'Mente brillante buscando aplicar su estrategia'),
+  U(105, 'Caspian R.', 'ravenclaw', 35, 0, 'student', false, { skin: 1, hair: 1, style: 'corto', eyes: 1 }, true, '', 'astronomia', 'Observador de estrellas con gran vista para buscar'),
+  U(106, 'Emilia C.', 'ravenclaw', 30, 0, 'student', false, { skin: 0, hair: 3, style: 'rizado', eyes: 1 }, true, '', 'ravenclaw', 'Creativa en pociones y acertijos antiguos'),
+  U(107, 'Seraphina K.', 'slytherin', 45, 0, 'student', false, { skin: 0, hair: 0, style: 'largo', eyes: 2 }, true, '', 'mazmorras', 'Ambiciosa; busca destacar en su casa'),
+  U(108, 'Dorian B.', 'slytherin', 35, 0, 'student', false, { skin: 1, hair: 3, style: 'corto', eyes: 3 }, true, '', 'slytherin', 'Calculador y veloz bajo presión'),
+  U(109, 'Antonia V.', 'slytherin', 30, 0, 'student', false, { skin: 2, hair: 0, style: 'largo', eyes: 0 }, true, '', 'terrenos', 'Intrépida en duelos y artes mágicas'),
+  U(110, 'Benjamín L.', 'hufflepuff', 40, 0, 'student', false, { skin: 1, hair: 2, style: 'rizado', eyes: 0 }, true, '', 'invernaderos', 'Leal y protector con sus compañeros'),
+  U(111, 'Isolde F.', 'hufflepuff', 35, 0, 'student', false, { skin: 0, hair: 3, style: 'largo', eyes: 2 }, true, '', 'cabana', 'Amante de las criaturas y el vuelo libre'),
+  U(112, 'Martín O.', 'hufflepuff', 30, 0, 'student', false, { skin: 3, hair: 0, style: 'corto', eyes: 0 }, true, '', 'comedor', 'Constante y tenaz en cada prueba')
 ];
 
 const defaultDb = {
   users: BASE_NPCS,
   houses: [
-    { id: 'gryffindor', points: 220 },
-    { id: 'ravenclaw', points: 226 },
-    { id: 'slytherin', points: 220 },
-    { id: 'hufflepuff', points: 205 }
+    { id: 'gryffindor', points: 105 },
+    { id: 'ravenclaw', points: 110 },
+    { id: 'slytherin', points: 110 },
+    { id: 'hufflepuff', points: 105 }
   ],
   log: [
-    { u: '🤖 Lyra M.', h: 'ravenclaw', a: 'Astronomía', p: 16, x: 0 },
-    { u: '🤖 Aldebarán V.', h: 'gryffindor', a: 'Clase de Vuelo', p: 20, x: 5 },
-    { u: '🤖 Seraphina K.', h: 'slytherin', a: 'Pociones', p: 20, x: 0 }
+    { u: '🤖 Lyra M.', h: 'ravenclaw', a: 'Astronomía', p: 8, x: 0 },
+    { u: '🤖 Aldebarán V.', h: 'gryffindor', a: 'Encantamientos', p: 10, x: 0 },
+    { u: '🤖 Seraphina K.', h: 'slytherin', a: 'Pociones', p: 10, x: 0 }
   ],
-  apps: [
-    { id: 1, user_id: 104, house: 'ravenclaw', traits: ['Sabiduría', 'Liderazgo', 'Justicia'], pitch: 'Guiaré a Ravenclaw con ingenio y estrategia.', votes: 1, status: 'pending' },
-    { id: 2, user_id: 101, house: 'gryffindor', traits: ['Valentía', 'Lealtad', 'Responsabilidad'], pitch: 'Defenderé el honor de Gryffindor en cada clase.', votes: 1, status: 'pending' },
-    { id: 3, user_id: 107, house: 'slytherin', traits: ['Astucia', 'Liderazgo', 'Sabiduría'], pitch: 'La excelencia llevará a Slytherin a ganar la Copa.', votes: 1, status: 'pending' }
-  ],
+  apps: [],
   votes: [],
   events: [
     { name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }
@@ -77,8 +78,8 @@ const defaultDb = {
   free: false,
   npcAi: true,
   chat: [
-    { id: 1, u: '🤖 Aldebarán V.', h: 'gryffindor', role: 'prefect', ch: 'global', text: '¡Bienvenidos al Castillo! Creen su personaje con contraseña para competir.', time: '20:40' },
-    { id: 2, u: '🤖 Lyra M.', h: 'ravenclaw', role: 'prefect', ch: 'global', text: 'Los alumnos NPC ya estamos entrenando en las aulas y en el campo de Quidditch.', time: '20:42' }
+    { id: 1, u: '🤖 Aldebarán V.', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Bienvenidos al Castillo! Estamos preparándonos para las pruebas de cada casa.', time: '20:40' },
+    { id: 2, u: '🤖 Lyra M.', h: 'ravenclaw', role: 'student', ch: 'global', text: '¿Alguien me acompaña en una prueba para decidir si postulo a Quidditch o a Prefecta?', time: '20:42' }
   ],
   matches: [],
   cooldowns: {},
@@ -88,15 +89,32 @@ const defaultDb = {
 function sanitizeState(state) {
   if (!state || !Array.isArray(state.users)) return { ...defaultDb };
   const legacyNames = ['carla r.', 'vicente d.', 'matilde s.', 'joaquín p.', 'antonia v.', 'benjamín l.'];
-  // Eliminar los antiguos personajes por defecto sin contraseña (IDs 1..6)
   state.users = state.users.filter(u => {
     if (u.id <= 6 && !u.pass && !u.is_npc && legacyNames.includes((u.username || '').toLowerCase())) return false;
     return true;
   });
-  // Si aún no están los NPCs base, agregarlos
   if (!state.users.some(u => u.is_npc)) {
     BASE_NPCS.forEach(npc => {
       if (!state.users.some(u => u.id === npc.id)) state.users.push({ ...npc });
+    });
+  }
+  state.users.forEach(u => {
+    if (u.is_npc) {
+      const baseRef = BASE_NPCS.find(b => b.id === u.id);
+      if (!u.npc_trait && baseRef) u.npc_trait = baseRef.npc_trait;
+      if (!u.npc_decided) {
+        u.flight_xp = 0;
+        u.npc_quidditch = false;
+        u.role = 'student';
+        u.npc_path = null;
+      }
+    }
+  });
+  if (Array.isArray(state.apps)) {
+    state.apps = state.apps.filter(a => {
+      const usr = state.users.find(x => x.id === a.user_id);
+      if (usr && usr.is_npc && !usr.npc_decided) return false;
+      return true;
     });
   }
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
