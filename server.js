@@ -62,6 +62,7 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_decided: false,
   npc_trials: 0,
   animagus: null,
+  pet: null, petLastUse: null, petLastPlay: null,
   yearOffset: Number(yearOffset) || 0,
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
@@ -220,6 +221,9 @@ function sanitizeState(state) {
     if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
     if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
     if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
+    if (typeof u.pet === 'undefined') u.pet = null;
+    if (typeof u.petLastUse === 'undefined') u.petLastUse = null;
+    if (typeof u.petLastPlay === 'undefined') u.petLastPlay = null;
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
