@@ -13,10 +13,8 @@ app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'index.html');
-  const index2Path = path.join(__dirname, 'index2.html');
   const castilloPath = path.join(__dirname, 'El Castillo.html');
   if (fs.existsSync(indexPath)) res.sendFile(indexPath);
-  else if (fs.existsSync(index2Path)) res.sendFile(index2Path);
   else if (fs.existsSync(castilloPath)) res.sendFile(castilloPath);
   else res.status(404).send('No se encontró el archivo del juego.');
 });
@@ -38,17 +36,6 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_decided: false,
   npc_trials: 0,
   animagus: null,
-  quidditch_approved: false,
-  happiness: 50,
-  pride: 50,
-  academic_progress: 0,
-  animagus_stage: 0,
-  personality: [],
-  galeones: 15,
-  inv: {},
-  cromos: {},
-  inmunidadFilchHasta: 0,
-  buffDobleGaleon: false,
   yearOffset: Number(yearOffset) || 0,
   look,
   created_at: id
@@ -88,7 +75,7 @@ const SERVER_ACTS = [
   { key: 'defensa', name: 'Defensa contra las Artes Oscuras', points: 5, room: 'defensa' },
   { key: 'historia', name: 'Historia de la Magia', points: 4, room: 'historia' },
   { key: 'astronomia', name: 'Astronomía', points: 4, room: 'astronomia' },
-  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca', minYear: 3 }
+  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca' }
 ];
 
 const SERVER_NPC_LINES = [
@@ -196,11 +183,6 @@ function sanitizeState(state) {
 
   state.users.forEach(u => {
     if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
-    if (typeof u.galeones !== 'number') u.galeones = 15;
-    if (!u.inv || typeof u.inv !== 'object') u.inv = {};
-    if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
-    if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
-    if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
       u.npc_quidditch = false;
@@ -227,9 +209,6 @@ function sanitizeState(state) {
       if (usr && usr.is_npc && !usr.npc_decided) return false;
       return true;
     });
-  }
-  if (Array.isArray(state.matches)) {
-    state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
   }
   if (!state.relations || typeof state.relations !== 'object') state.relations = {};
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
@@ -309,11 +288,8 @@ setInterval(async () => {
     if (!npcs.length) return;
 
     const npc = npcs[Math.floor(Math.random() * npcs.length)];
-    const npcYr = userYear(state, npc);
-    const availActs = SERVER_ACTS.filter(a => npcYr >= (a.minYear || 1));
-    const act = availActs[Math.floor(Math.random() * availActs.length)] || SERVER_ACTS[0];
-    const diffBonus = npcYr === 1 ? 0 : npcYr === 2 ? 1 : npcYr <= 4 ? 2 : npcYr === 5 ? 3 : 4;
-    const pts = act.points + Math.floor(diffBonus / 2);
+    const act = SERVER_ACTS[Math.floor(Math.random() * SERVER_ACTS.length)];
+    const pts = act.points;
 
     npc.points = (Number(npc.points) || 0) + pts;
 
