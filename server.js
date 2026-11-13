@@ -23,66 +23,85 @@ const uri = process.env.MONGODB_URI;
 let client = null;
 let db = null;
 
-const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc = false, pass = '', loc = 'comedor', npc_trait = '') => ({
+const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc = false, pass = '', loc = 'comedor', npc_trait = '', is_canon = false, yearOffset = 0) => ({
   id, username, house, points, flight_xp, role, is_admin,
   is_npc: !!is_npc,
+  is_canon: !!is_canon,
   pass: pass || '',
   loc: loc || 'comedor',
   locSlot: '',
-  npc_trait: npc_trait || 'Aprendiz prometedor',
+  npc_trait: npc_trait || 'Alumno del castillo',
   npc_path: null,
   npc_quidditch: false,
   npc_decided: false,
   npc_trials: 0,
+  animagus: null,
+  yearOffset: Number(yearOffset) || 0,
   look,
   created_at: id
 });
 
 const BASE_NPCS = [
-  U(101, 'Aldebarán V.', 'gryffindor', 40, 0, 'student', false, { skin: 1, hair: 0, style: 'corto', eyes: 0 }, true, '', 'gryffindor', 'Valiente pero indeciso entre volar o liderar'),
-  U(102, 'Matilde S.', 'gryffindor', 35, 0, 'student', false, { skin: 0, hair: 4, style: 'largo', eyes: 2 }, true, '', 'patio', 'Reflejos rápidos; sueña con probarse en el aire'),
-  U(103, 'Gael T.', 'gryffindor', 30, 0, 'student', false, { skin: 2, hair: 1, style: 'rizado', eyes: 0 }, true, '', 'comedor', 'Especialista en encantamientos defensivos'),
-  U(104, 'Lyra M.', 'ravenclaw', 45, 0, 'student', false, { skin: 0, hair: 5, style: 'largo', eyes: 4 }, true, '', 'biblioteca', 'Mente brillante buscando aplicar su estrategia'),
-  U(105, 'Caspian R.', 'ravenclaw', 35, 0, 'student', false, { skin: 1, hair: 1, style: 'corto', eyes: 1 }, true, '', 'astronomia', 'Observador de estrellas con gran vista para buscar'),
-  U(106, 'Emilia C.', 'ravenclaw', 30, 0, 'student', false, { skin: 0, hair: 3, style: 'rizado', eyes: 1 }, true, '', 'ravenclaw', 'Creativa en pociones y acertijos antiguos'),
-  U(107, 'Seraphina K.', 'slytherin', 45, 0, 'student', false, { skin: 0, hair: 0, style: 'largo', eyes: 2 }, true, '', 'mazmorras', 'Ambiciosa; busca destacar en su casa'),
-  U(108, 'Dorian B.', 'slytherin', 35, 0, 'student', false, { skin: 1, hair: 3, style: 'corto', eyes: 3 }, true, '', 'slytherin', 'Calculador y veloz bajo presión'),
-  U(109, 'Antonia V.', 'slytherin', 30, 0, 'student', false, { skin: 2, hair: 0, style: 'largo', eyes: 0 }, true, '', 'terrenos', 'Intrépida en duelos y artes mágicas'),
-  U(110, 'Benjamín L.', 'hufflepuff', 40, 0, 'student', false, { skin: 1, hair: 2, style: 'rizado', eyes: 0 }, true, '', 'invernaderos', 'Leal y protector con sus compañeros'),
-  U(111, 'Isolde F.', 'hufflepuff', 35, 0, 'student', false, { skin: 0, hair: 3, style: 'largo', eyes: 2 }, true, '', 'cabana', 'Amante de las criaturas y el vuelo libre'),
-  U(112, 'Martín O.', 'hufflepuff', 30, 0, 'student', false, { skin: 3, hair: 0, style: 'corto', eyes: 0 }, true, '', 'comedor', 'Constante y tenaz en cada prueba')
+  U(201, 'Harry Potter', 'gryffindor', 55, 0, 'student', false, { skin: 0, hair: 0, style: 'corto', eyes: 2 }, true, '', 'gryffindor', 'Mismo año que tú · Reflejos innatos para el vuelo y DCAO', true, 0),
+  U(202, 'Hermione Granger', 'gryffindor', 65, 0, 'student', false, { skin: 0, hair: 1, style: 'rizado', eyes: 0 }, true, '', 'biblioteca', 'Mismo año que tú · La bruja más brillante de su generación', true, 0),
+  U(203, 'Ron Weasley', 'gryffindor', 45, 0, 'student', false, { skin: 0, hair: 4, style: 'corto', eyes: 1 }, true, '', 'comedor', 'Mismo año que tú · Estratega de ajedrez mágico y amigo leal', true, 0),
+  U(204, 'Ginny Weasley', 'gryffindor', 0, 0, 'student', false, { skin: 0, hair: 4, style: 'largo', eyes: 0 }, true, '', 'gryffindor', '1 año menor que Harry · Entra a 1.º curso a partir del Año 2', true, -1),
+  U(205, 'Neville Longbottom', 'gryffindor', 42, 0, 'student', false, { skin: 0, hair: 1, style: 'corto', eyes: 0 }, true, '', 'invernaderos', 'Mismo año que tú · Prodigio en Herbología con gran valentía', true, 0),
+  U(214, 'Fred Weasley', 'gryffindor', 50, 0, 'student', false, { skin: 0, hair: 4, style: 'corto', eyes: 0 }, true, '', 'patio', '2 años mayor · Ingenioso bromista y potente Golpeador', true, 2),
+  U(215, 'George Weasley', 'gryffindor', 50, 0, 'student', false, { skin: 0, hair: 4, style: 'corto', eyes: 0 }, true, '', 'patio', '2 años mayor · Maestro de pasadizos secretos y vuelo', true, 2),
+  U(216, 'Percy Weasley', 'gryffindor', 54, 0, 'student', false, { skin: 0, hair: 4, style: 'corto', eyes: 1 }, true, '', 'biblioteca', '4 años mayor · Estricto con el reglamento y aspirante a Prefecto', true, 4),
+  U(217, 'Oliver Wood', 'gryffindor', 56, 0, 'student', false, { skin: 1, hair: 1, style: 'corto', eyes: 0 }, true, '', 'quidditch', '4 años mayor · Apasionado estratega de Quidditch', true, 4),
+  U(206, 'Luna Lovegood', 'ravenclaw', 0, 0, 'student', false, { skin: 0, hair: 3, style: 'largo', eyes: 1 }, true, '', 'ravenclaw', '1 año menor que Harry · Entra a 1.º curso a partir del Año 2', true, -1),
+  U(207, 'Cho Chang', 'ravenclaw', 48, 0, 'student', false, { skin: 1, hair: 0, style: 'largo', eyes: 0 }, true, '', 'astronomia', '1 año mayor · Ágil en el aire y leal compañera de Ravenclaw', true, 1),
+  U(208, 'Draco Malfoy', 'slytherin', 58, 0, 'student', false, { skin: 0, hair: 3, style: 'corto', eyes: 3 }, true, '', 'mazmorras', 'Mismo año que tú · Ambicioso y competitivo en Slytherin', true, 0),
+  U(209, 'Pansy Parkinson', 'slytherin', 44, 0, 'student', false, { skin: 0, hair: 0, style: 'corto', eyes: 0 }, true, '', 'slytherin', 'Mismo año que tú · Influyente en la sala común de Slytherin', true, 0),
+  U(210, 'Blaise Zabini', 'slytherin', 46, 0, 'student', false, { skin: 3, hair: 0, style: 'corto', eyes: 0 }, true, '', 'mazmorras', 'Mismo año que tú · Calculador y talentoso en Pociones y Duelos', true, 0),
+  U(211, 'Cedric Diggory', 'hufflepuff', 62, 0, 'student', false, { skin: 0, hair: 1, style: 'corto', eyes: 3 }, true, '', 'patio', '2 años mayor · Ejemplar, justo y líder natural de Hufflepuff', true, 2),
+  U(212, 'Hannah Abbott', 'hufflepuff', 44, 0, 'student', false, { skin: 0, hair: 3, style: 'rizado', eyes: 0 }, true, '', 'invernaderos', 'Mismo año que tú · Dedicada en Herbología y leal amiga', true, 0),
+  U(218, 'Ernie Macmillan', 'hufflepuff', 48, 0, 'student', false, { skin: 0, hair: 3, style: 'corto', eyes: 1 }, true, '', 'biblioteca', 'Mismo año que tú · Pomposo pero sumamente leal y futuro Prefecto de Hufflepuff', true, 0),
+  U(213, 'Nymphadora Tonks', 'hufflepuff', 0, 0, 'student', false, { skin: 0, hair: 5, style: 'corto', eyes: 4 }, true, '', 'defensa', '7 años mayor que Harry · Graduada justo antes del Año 1 (Aprendiz de Auror y Metamorfomaga)', true, 7),
+  U(101, 'Aldebarán V.', 'gryffindor', 40, 0, 'student', false, { skin: 1, hair: 0, style: 'corto', eyes: 0 }, true, '', 'gryffindor', 'Mismo año que tú · Valiente compañero de Gryffindor', false, 0),
+  U(104, 'Lyra M.', 'ravenclaw', 45, 0, 'student', false, { skin: 0, hair: 5, style: 'largo', eyes: 4 }, true, '', 'biblioteca', 'Mismo año que tú · Mente brillante de Ravenclaw', false, 0),
+  U(107, 'Seraphina K.', 'slytherin', 45, 0, 'student', false, { skin: 0, hair: 0, style: 'largo', eyes: 2 }, true, '', 'mazmorras', '1 año mayor · Ambiciosa estratega de Slytherin', false, 1),
+  U(110, 'Benjamín L.', 'hufflepuff', 40, 0, 'student', false, { skin: 1, hair: 2, style: 'rizado', eyes: 0 }, true, '', 'invernaderos', '1 año mayor · Leal protector de Hufflepuff', false, 1)
 ];
 
 const SERVER_ACTS = [
   { key: 'pociones', name: 'Pociones', points: 5, room: 'mazmorras' },
+  { key: 'transformaciones', name: 'Transformaciones', points: 5, room: 'transformaciones' },
   { key: 'encantamientos', name: 'Encantamientos', points: 5, room: 'encantamientos' },
+  { key: 'criaturas', name: 'Cuidado de Criaturas Mágicas', points: 5, room: 'cabana' },
   { key: 'herbologia', name: 'Herbología', points: 5, room: 'invernaderos' },
   { key: 'defensa', name: 'Defensa contra las Artes Oscuras', points: 5, room: 'defensa' },
+  { key: 'historia', name: 'Historia de la Magia', points: 4, room: 'historia' },
   { key: 'astronomia', name: 'Astronomía', points: 4, room: 'astronomia' },
-  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'historia' }
+  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca' }
 ];
 
 const SERVER_NPC_LINES = [
   '¡Vamos con todo por la Copa de las Casas este mes!',
-  '¿Alguien viene a practicar encantamientos antes de la cena?',
-  'Acabo de ver al Troll en las mazmorras, ¡tengan cuidado!',
-  '¡Recuerden completar sus 3 clases para el bono de la Misión Diaria!',
-  'Estudiando runas antiguas en la biblioteca, qué glifos tan complejos.',
-  '¡Qué buena música hay hoy en el Gran Comedor!'
+  '¿Alguien viene a Transformaciones con la profesora McGonagall?',
+  'Hagrid nos mostró un Hipogrifo increíble hoy en Cuidado de Criaturas Mágicas.',
+  'Casi me quedo dormido en Historia de la Magia con el profesor Binns…',
+  '¡Cuidado por la noche! Dicen que se vieron Mortífagos cerca de los terrenos.',
+  'Recuerden volver a los dormitorios antes de las 22:00 por el toque de queda.',
+  '¡Practicar nuestro hechizo Patronus y la forma Animaga nos salvará en las incursiones!',
+  '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?'
 ];
 
 const defaultDb = {
   users: BASE_NPCS,
   houses: [
-    { id: 'gryffindor', points: 105 },
-    { id: 'ravenclaw', points: 110 },
-    { id: 'slytherin', points: 110 },
-    { id: 'hufflepuff', points: 105 }
+    { id: 'gryffindor', points: 457 },
+    { id: 'ravenclaw', points: 93 },
+    { id: 'slytherin', points: 193 },
+    { id: 'hufflepuff', points: 200 }
   ],
   log: [
-    { u: '🤖 Lyra M.', h: 'ravenclaw', a: 'Astronomía', p: 8, x: 0 },
-    { u: '🤖 Aldebarán V.', h: 'gryffindor', a: 'Encantamientos', p: 10, x: 0 },
-    { u: '🤖 Seraphina K.', h: 'slytherin', a: 'Pociones', p: 10, x: 0 }
+    { u: '🤖 Hermione Granger', h: 'gryffindor', a: 'Transformaciones', p: 10, x: 0 },
+    { u: '🤖 Cho Chang', h: 'ravenclaw', a: 'Cuidado de Criaturas Mágicas', p: 10, x: 0 },
+    { u: '🤖 Draco Malfoy', h: 'slytherin', a: 'Pociones', p: 10, x: 0 },
+    { u: '🤖 Cedric Diggory', h: 'hufflepuff', a: 'Defensa contra las Artes Oscuras', p: 10, x: 0 }
   ],
   apps: [],
   votes: [],
@@ -90,21 +109,39 @@ const defaultDb = {
     { name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }
   ],
   period: 'application',
+  schoolYear: 1,
   clockMode: 'real',
   mockTime: null,
   mockDay: null,
   free: false,
   npcAi: true,
+  relations: {},
+  profAffinity: {},
+  raidShield: 100,
   chat: [
-    { id: 1, u: '🤖 Aldebarán V.', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Bienvenidos al Castillo! Estamos preparándonos para las pruebas de cada casa.', time: '20:40' },
-    { id: 2, u: '🤖 Lyra M.', h: 'ravenclaw', role: 'student', ch: 'global', text: '¿Alguien me acompaña en una prueba para decidir si postulo a Quidditch o a Prefecta?', time: '20:42' }
+    { id: 1, u: '🤖 Hermione Granger', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!', time: '20:40' },
+    { id: 2, u: '🤖 Cedric Diggory', h: 'hufflepuff', role: 'student', ch: 'global', text: '¡Bienvenidos los de 1.º curso! Los de 3.º los ayudaremos a orientarse por el castillo.', time: '20:42' }
   ],
   matches: [],
   cooldowns: {},
   missions: {}
 };
 
-// Recalcula siempre los puntos de cada casa como la suma real de todos sus miembros (jugadores + bots NPC) + victorias de Quidditch
+function userYear(state, u) {
+  const sy = Math.max(1, Math.min(7, Number(state?.schoolYear) || 1));
+  if (!u) return sy;
+  const off = typeof u.yearOffset === 'number' ? u.yearOffset : 0;
+  const yr = sy + off;
+  if (yr <= 0) return 0;
+  if (yr > 7) return 8;
+  return yr;
+}
+
+function isEnrolled(state, u) {
+  const yr = userYear(state, u);
+  return yr >= 1 && yr <= 7;
+}
+
 function reconcileHousePoints(state) {
   if (!state || !Array.isArray(state.houses) || !Array.isArray(state.users)) return;
   const matchWins = { gryffindor: 0, ravenclaw: 0, slytherin: 0, hufflepuff: 0 };
@@ -117,7 +154,7 @@ function reconcileHousePoints(state) {
   }
   state.houses.forEach(h => {
     const sum = state.users
-      .filter(u => u.house === h.id)
+      .filter(u => u.house === h.id && isEnrolled(state, u))
       .reduce((acc, u) => acc + (Number(u.points) || 0), 0);
     h.points = sum + (matchWins[h.id] || 0);
   });
@@ -125,35 +162,57 @@ function reconcileHousePoints(state) {
 
 function sanitizeState(state) {
   if (!state || !Array.isArray(state.users)) return { ...defaultDb };
+  if (!state.schoolYear || state.schoolYear < 1 || state.schoolYear > 7) state.schoolYear = 1;
+
   const legacyNames = ['carla r.', 'vicente d.', 'matilde s.', 'joaquín p.', 'antonia v.', 'benjamín l.'];
   state.users = state.users.filter(u => {
     if (u.id <= 6 && !u.pass && !u.is_npc && legacyNames.includes((u.username || '').toLowerCase())) return false;
     return true;
   });
-  if (!state.users.some(u => u.is_npc)) {
-    BASE_NPCS.forEach(npc => {
-      if (!state.users.some(u => u.id === npc.id)) state.users.push({ ...npc });
-    });
-  }
-  state.users.forEach(u => {
-    if (u.is_npc) {
-      const baseRef = BASE_NPCS.find(b => b.id === u.id);
-      if (!u.npc_trait && baseRef) u.npc_trait = baseRef.npc_trait;
-      if (!u.npc_decided) {
-        u.flight_xp = 0;
-        u.npc_quidditch = false;
-        u.role = 'student';
-        u.npc_path = null;
-      }
+
+  BASE_NPCS.forEach(npc => {
+    const existing = state.users.find(u => u.id === npc.id || (u.username || '').toLowerCase() === npc.username.toLowerCase());
+    if (!existing) {
+      state.users.push({ ...npc });
+    } else if (existing.is_npc) {
+      if (npc.is_canon) existing.is_canon = true;
+      existing.yearOffset = npc.yearOffset;
+      existing.npc_trait = npc.npc_trait;
     }
   });
+
+  state.users.forEach(u => {
+    if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
+    if (u.is_npc && !u.npc_decided) {
+      u.flight_xp = 0;
+      u.npc_quidditch = false;
+      u.role = 'student';
+      u.npc_path = null;
+    }
+    if (u.is_npc && (userYear(state, u) === 0 || (u.yearOffset || 0) >= 7)) {
+      u.points = 0;
+      u.flight_xp = 0;
+      u.npc_quidditch = false;
+      u.role = 'student';
+      u.npc_decided = false;
+      u.npc_path = null;
+    }
+    if (u.is_npc && isEnrolled(state, u) && (u.points || 0) === 0 && (u.yearOffset || 0) < 0) {
+      u.points = 35;
+    }
+  });
+
   if (Array.isArray(state.apps)) {
     state.apps = state.apps.filter(a => {
       const usr = state.users.find(x => x.id === a.user_id);
+      if (!usr || !isEnrolled(state, usr)) return false;
       if (usr && usr.is_npc && !usr.npc_decided) return false;
       return true;
     });
   }
+  if (!state.relations || typeof state.relations !== 'object') state.relations = {};
+  if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
+  if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
   reconcileHousePoints(state);
   return state;
@@ -220,12 +279,12 @@ io.on('connection', async (socket) => {
   }
 });
 
-// Motor autónomo en el servidor: cada 25 segundos un bot NPC entrena, suma puntos a sí mismo y a su casa, y se guarda en MongoDB/db.json
+// Motor autónomo en el servidor: cada 25 segundos un personaje del canon o NPC matriculado (1.º a 7.º) entrena y suma puntos
 setInterval(async () => {
   try {
     const state = await loadState();
     if (!state.npcAi) return;
-    const npcs = state.users.filter(u => u.is_npc && u.house);
+    const npcs = state.users.filter(u => u.is_npc && u.house && isEnrolled(state, u));
     if (!npcs.length) return;
 
     const npc = npcs[Math.floor(Math.random() * npcs.length)];
@@ -233,7 +292,13 @@ setInterval(async () => {
     const pts = act.points;
 
     npc.points = (Number(npc.points) || 0) + pts;
-    npc.loc = act.room;
+
+    const hour = state.clockMode === 'mock' && state.mockTime ? Number(state.mockTime.split(':')[0]) : new Date().getHours();
+    if ((hour >= 22 || hour < 7) && !state.free) {
+      npc.loc = npc.house;
+    } else {
+      npc.loc = act.room;
+    }
 
     if (npc.npc_quidditch && Math.random() < 0.35) {
       npc.flight_xp = (Number(npc.flight_xp) || 0) + 2;
