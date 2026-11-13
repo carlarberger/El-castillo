@@ -141,6 +141,7 @@ select{width:auto}
 .dot{width:11px;height:11px;border-radius:50%;background:var(--hc);border:1.5px solid #fff;transition:transform .3s}
 .dot.me{box-shadow:0 0 0 3px var(--gold)}
 .dot.find{transform:scale(2);z-index:3}
+.room.filch{outline:2px solid var(--bad); background:repeating-linear-gradient(45deg, #2a1418, #2a1418 10px, #1c0d10 10px, #1c0d10 20px);}
 
 /* schedule */
 .slots{display:grid;gap:6px}
@@ -215,6 +216,15 @@ th{color:var(--gold)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 
+/* stadium */
+.stadium{background:radial-gradient(ellipse at center, #2a5f31 0%, #1a3d20 100%);border:2px solid #5a4a2a;border-radius:12px;height:120px;position:relative;overflow:hidden;margin-bottom:12px;display:flex;justify-content:center;align-items:center}
+.stadium::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(255,255,255,0.3);transform:translateX(-50%)}
+.stadium .hoop{position:absolute;width:30px;height:60px;border:3px solid #e3bb4e;border-radius:50%;top:50%;transform:translateY(-50%)}
+.stadium .hoop.left{left:10%}.stadium .hoop.right{right:10%}
+.stadium .snitch{position:absolute;width:10px;height:10px;background:#e3bb4e;border-radius:50%;box-shadow:0 0 10px #e3bb4e;animation:fly 4s infinite linear}
+@keyframes fly{0%{top:20%;left:10%}25%{top:80%;left:40%}50%{top:30%;left:70%}75%{top:70%;left:90%}100%{top:20%;left:10%}}
+.stadium-score{position:absolute;top:10px;background:rgba(0,0,0,0.6);color:#e3bb4e;padding:4px 12px;border-radius:8px;font-family:var(--display);font-weight:900;letter-spacing:2px;border:1px solid #e3bb4e}
+
 /* modal + toast */
 .modal{position:fixed;inset:0;z-index:100;background:rgba(6,5,18,.72);backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px;overflow-y:auto}
 .modal .panel{max-width:440px;width:100%;text-align:center;display:grid;gap:12px;justify-items:center}
@@ -271,7 +281,6 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .mg-card{height:68px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:26px;cursor:pointer;display:grid;place-items:center;transition:.15s}
 .mg-card.open{border-color:var(--gold);background:var(--glow);color:var(--gold)}
 .mg-card.matched{border-color:var(--good);background:color-mix(in srgb,var(--good) 20%,var(--surface));color:var(--good)}
-
 
 /* ===== ARCADE CANVAS 2D ===== */
 .arcade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
@@ -605,6 +614,16 @@ const SCHEDULE={
   T('13:00','15:00','Almuerzo','comedor'),T('15:00','19:00','Tiempo libre','terrenos',true),T('19:00','20:30','Cena','comedor'),
   C('20:30','22:00','historia','Repaso nocturno'),T('22:00','24:00','Toque de queda (Dormitorios)','dormitorio')]};
 
+const RANDOM_FINDS = [
+  {name:'Cromo de Rana de Chocolate de Dumbledore', pts:5, xp:0, icon:'🃏'},
+  {name:'Galeón de oro perdido', pts:8, xp:0, icon:'🪙'},
+  {name:'Pista del Mapa del Merodeador', pts:6, xp:0, icon:'🗺️'},
+  {name:'Grajeas Bertie Bott', pts:5, xp:2, icon:'🍬'},
+  {name:'Encuentro con Dobby', pts:7, xp:0, icon:'🧦'},
+  {name:'Pluma de Fénix', pts:8, xp:2, icon:'🪶'},
+  {name:'Broma de Peeves', pts:5, xp:0, icon:'👻'}
+];
+
 /* ===== 3. Estado, Personajes del Canon, NPCs y Sincronización MULTIJUGADOR ===== */
 function hashPass(str){
   str=String(str||'').trim();if(!str)return '';
@@ -613,21 +632,17 @@ function hashPass(str){
   return 'hp_'+(h>>>0).toString(16)+'_'+str.length;
 }
 
+const FEMALES = ['Hermione Granger','Ginny Weasley','Luna Lovegood','Cho Chang','Pansy Parkinson','Hannah Abbott','Nymphadora Tonks','Lyra M.','Seraphina K.'];
+
 const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor',npc_trait='',is_canon=false,yearOffset=0)=>({
   id,username,house,points,flight_xp,role,is_admin,
   is_npc:!!is_npc,is_canon:!!is_canon,pass:pass||'',loc:loc||'comedor',locSlot:'',
   npc_trait:npc_trait||'Alumno del castillo',npc_path:null,npc_quidditch:false,npc_decided:false,npc_trials:0,animagus:null,
+  quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
 
-// yearOffset indica la diferencia de años respecto a la generación de Harry Potter (y la nuestra):
-//  0 = Mismo curso que Harry (1.º cuando el Castillo está en Año 1)
-// -1 = 1 año menor que Harry (en Año 1 aún NO han entrado a Hogwarts; ingresan a 1.º en el Año 2: Ginny Weasley y Luna Lovegood)
-// +1 = 1 año mayor que Harry (2.º curso en Año 1: Cho Chang)
-// +2 = 2 años mayor que Harry (3.º curso en Año 1: Cedric Diggory, Fred Weasley, George Weasley)
-// +4 = 4 años mayor que Harry (5.º curso en Año 1: Percy Weasley, Oliver Wood)
-// +7 = 7 años mayor que Harry (Graduada justo antes del Año 1: Nymphadora Tonks, Aprendiz de Auror)
 const BASE_NPCS=[
   U(201,'Harry Potter','gryffindor',55,0,'student',false,{skin:0,hair:0,style:'corto',eyes:2},true,'','gryffindor','Mismo año que tú · Reflejos innatos para el vuelo y DCAO',true,0),
   U(202,'Hermione Granger','gryffindor',65,0,'student',false,{skin:0,hair:1,style:'rizado',eyes:0},true,'','biblioteca','Mismo año que tú · La bruja más brillante de su generación',true,0),
@@ -682,15 +697,13 @@ let db = {
   {id:1,u:'🤖 Hermione Granger',h:'gryffindor',role:'student',ch:'global',text:'¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!',time:'20:40'},
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
  ],
- matches:[], cooldowns:{}, missions:{}
+ matches:[], cooldowns:{}, missions:{}, filchLoc: 'patio'
 };
 
 const savedUid = Number(localStorage.getItem('castillo_uid')) || null;
 const savedPass = localStorage.getItem('castillo_pass') || '';
 const session={uid:savedUid,passHash:savedPass,channel:'global',isAdmin:false};
 
-// Calcula el curso actual de un personaje según el Año Escolar del Castillo (db.schoolYear, 1..7) + su diferencia de edad (yearOffset)
-// Devuelve: 0 = aún no ha ingresado a Hogwarts (ej: Ginny y Luna en Año 1), 1..7 = curso actual en Hogwarts, 8 = ya graduado
 function userYear(u){
   const sy=Math.max(1,Math.min(7,Number(db?.schoolYear)||1));
   if(!u) return sy;
@@ -747,18 +760,20 @@ function ensureDbIntegrity(){
   db.users.forEach((u,i)=>{
     if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length];
     if(typeof u.yearOffset!=='number') u.yearOffset=0;
+    if(!u.gender) u.gender = FEMALES.includes(u.username) ? 'f' : 'm';
+    if(typeof u.quidditch_approved === 'undefined') {
+        u.quidditch_approved = u.is_npc && u.npc_quidditch ? true : false;
+    }
     if(u.is_npc && !u.npc_decided){
       if(u.flight_xp!==0 || u.npc_quidditch || u.role==='prefect'){
         u.flight_xp=0;u.npc_quidditch=false;u.role='student';u.npc_path=null;changed=true;
       }
     }
-    // Si aún no tiene edad para entrar a Hogwarts (userYear===0, ej: Ginny/Luna en Año 1) o si ya egresó antes de empezar (yearOffset>=7, ej: Tonks), no suma puntos de alumno
     if(u.is_npc && (userYear(u)===0 || (u.yearOffset||0)>=7)){
       if(u.points!==0 || u.flight_xp!==0 || u.npc_quidditch || u.role==='prefect'){
         u.points=0;u.flight_xp=0;u.npc_quidditch=false;u.role='student';u.npc_decided=false;u.npc_path=null;changed=true;
       }
     }
-    // Cuando un personaje menor (ej: Ginny o Luna) acaba de ingresar en 2.º año y tenía 0 puntos, darle su base de bienvenida
     if(u.is_npc && isEnrolled(u) && (u.points||0)===0 && (u.yearOffset||0)<0){
       u.points=35;changed=true;
     }
@@ -854,7 +869,6 @@ const slotKey=()=>{const s=curSlot();return curDay()+(s?s.from:'-')};
 const isCurfew=()=>{const s=curSlot();return !!(s&&(s.room==='dormitorio'||/toque de queda/i.test(s.label||'')))};
 const canRoam=()=>{if(db.free)return true;if(isCurfew())return false;const s=curSlot();return !!(s&&s.free)};
 
-// Durante el Toque de Queda, cada alumno y NPC está automáticamente en el dormitorio de su propia casa
 function userLoc(u){
   const s=curSlot();
   if(!u) return (s&&s.room&&s.room!=='dormitorio')?s.room:'comedor';
@@ -883,7 +897,6 @@ function classStatus(key){
   return{st:'none'};
 }
 
-// Funciones auxiliares de Amistades y Relaciones
 function relKey(id1,id2){const a=Math.min(Number(id1),Number(id2)),b=Math.max(Number(id1),Number(id2));return `${a}_${b}`;}
 function getRel(id1,id2){
   db.relations=db.relations||{};
@@ -1007,7 +1020,33 @@ const API={
     must(canRoam(),'Solo puedes moverte libremente en recreo o modo libre');
     must(ROOMS.some(r=>r[0]===roomId),'Sala desconocida');
     u.loc=roomId;u.locSlot=slotKey();
+    
+    if(Math.random() < 0.48) {
+      const f = RANDOM_FINDS[Math.floor(Math.random()*RANDOM_FINDS.length)];
+      u.points += f.pts;
+      if(f.xp) u.flight_xp += f.xp;
+      db.log.unshift({u:u.username,h:u.house,a:`Hallazgo: ${f.name}`,p:f.pts,x:f.xp});
+      openRandomFindModal(f);
+    }
     commit();
+  },
+  sneak(){
+    const u=me();must(u&&u.house,'Inicia sesión primero');
+    must(isCurfew()&&!db.free,'Solo puedes escabullirte en el toque de queda');
+    
+    const caught = Math.random() < 0.45;
+    if(caught){
+      u.points = Math.max(0, u.points - 10);
+      db.houses.find(h=>h.id===u.house).points -= 10;
+      u.loc = u.house;
+      toast('¡Filch y la Sra. Norris te atraparon! -10 pts y de vuelta a tu Sala Común.');
+    }else{
+      u.points += 8;
+      db.houses.find(h=>h.id===u.house).points += 8;
+      u.loc = 'biblioteca';
+      toast('¡Esquivaste a Filch y encontraste un secreto! +8 pts.');
+    }
+    commit('Escabullirse de noche');
   },
   freeAct(){
     const u=me();must(u&&u.house,'Elige tu casa primero');
@@ -1039,16 +1078,16 @@ const API={
     
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
-    db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
     
-    // ===== MISIONES DIARIAS =====
     db.missions = db.missions || {};
-    db.missions[u.id] = db.missions[u.id] || { classes: 0 };
-    db.missions[u.id].classes++;
-    if (db.missions[u.id].classes === 3) {
+    const _today = curDay();
+    const _m = db.missions[u.id] = db.missions[u.id] || { classes: 0, day: _today, claimed: false };
+    if (_m.day !== _today) { _m.classes = 0; _m.day = _today; _m.claimed = false; }
+    _m.classes++;
+    if (_m.classes >= 3 && !_m.claimed) {
+        _m.claimed = true;
         u.points += 20;
-        db.houses.find(h => h.id === u.house).points += 20;
         db.log.unshift({u: u.username, h: u.house, a: 'Misión Diaria (3 clases)', p: 20, x: 0});
         toast('¡Misión Diaria completada! +20 pts extra');
     }
@@ -1079,13 +1118,71 @@ const API={
     commit(`${u.username} +${pts} pts en ${cfg.mg}`);
     return{pts,fx,trained:true};
   },
-  /* ===== IA DE NPCs Y PRUEBAS DE DESTINO ===== */
+  completeQuidditchTryout(pos, success) {
+    const u=me(); must(u&&u.house,'Inicia sesión');
+    if(success){
+      u.quidditch_approved = true;
+      u.flight_xp += 15;
+      u.points += 12;
+      db.log.unshift({u:u.username,h:u.house,a:`Aprobó prueba de Quidditch (${pos})`,p:12,x:15});
+      toast(`¡Aprobaste la prueba como ${pos}! +15 XP, +12 pts`);
+    }else{
+      u.flight_xp += 5;
+      db.log.unshift({u:u.username,h:u.house,a:`Prueba de Quidditch fallida`,p:0,x:5});
+      toast('No superaste la prueba. +5 XP de consolación.');
+    }
+    closeModal();
+    commit('Prueba de Quidditch');
+  },
   setSchoolYear(yr){
     must(session.isAdmin,'Solo el Profesorado (Admin) puede cambiar el Año Escolar del Castillo');
     const n=Math.max(1,Math.min(7,Number(yr)||1));
     db.schoolYear=n;
+    db.users.forEach(u=>{
+      if(userYear(u)===8 && u.role!=='student'){ u.role='student'; }
+    });
     fanfare();
-    commit(`El Castillo avanzó al Año Escolar ${n} (${n}.º curso de la generación de Harry)`);
+    commit(`El Castillo avanzó al Año Escolar ${n}`);
+  },
+  toggleDelegado(id){
+    must(session.isAdmin,'Solo el Director/Profesorado puede nombrar Delegados (Premio Anual)');
+    const t=db.users.find(u=>u.id===id);if(!t)return;
+    const yr = userYear(t);
+    if(t.role!=='delegado' && yr!==7) throw new Error(`Solo los alumnos de 7.º curso pueden ser elegidos Delegados. ${t.username} está en ${yr===8?'Graduado':yr+'.º curso'}.`);
+    if(t.role!=='delegado'){
+      const yearDelegates = db.users.filter(u=>userYear(u)===7 && u.role==='delegado');
+      if(yearDelegates.length >= 2) throw new Error('Ya hay 2 Delegados en este año generacional.');
+      if(yearDelegates.some(d=>d.gender===t.gender)) throw new Error(`Ya hay un Delegado de género ${t.gender==='m'?'masculino':'femenino'} en este año.`);
+    }
+    t.role=t.role==='delegado'?'student':'delegado';
+    commit(t.username+' ahora es '+t.role);
+  },
+  punish(id){
+    const u=me(); must(u && (u.role==='prefect' || session.isAdmin), 'Solo Prefectos o Profesorado pueden castigar');
+    const t=db.users.find(x=>x.id===id); must(t,'Alumno no encontrado');
+    t.points=Math.max(0, t.points-5);
+    db.log.unshift({u:u.username,h:u.house,a:`Castigó a ${t.username}`,p:-5,x:0});
+    commit(`${u.username} castigó a ${t.username}`);
+  },
+  appointDelegado(id){
+    must(session.isAdmin,'Solo admin');
+    const t=db.users.find(u=>u.id===id);
+    must(t,'Alumno no encontrado');
+    must(userYear(t)===7,'Solo 7mo año');
+    const yrDels = db.users.filter(u=>userYear(u)===7 && u.role==='delegado');
+    if(yrDels.length >= 2) throw new Error('Ya hay 2 Delegados en este año');
+    if(yrDels.some(d=>d.gender===t.gender)) throw new Error('Ya hay un Delegado de este género');
+    t.role='delegado';
+    commit(`${t.username} es ahora Delegado`);
+  },
+  cheer(id, house){
+    const u=me();must(u,'Inicia sesión');
+    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
+    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
+    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
+    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
+    else m.cheerB=(m.cheerB||0)+1;
+    commit(`Animos para ${house}`);
   },
   npcStep(silent=false){
     if(!db.npcAi && !silent) throw new Error('La IA de NPCs está pausada');
@@ -1146,6 +1243,7 @@ const API={
     if(decision==='quidditch'){
       const xpGain=npc.npc_quidditch?15:20;
       npc.npc_quidditch=true;
+      npc.quidditch_approved=true;
       npc.npc_path='quidditch';
       npc.flight_xp=(npc.flight_xp||0)+xpGain;
       npc.points+=10;
@@ -1188,6 +1286,7 @@ const API={
       db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`¡Qué gran duelo de práctica junto a ${u.username}! Estamos listos para defender la Copa. ⚡`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
     }else if(decision==='leave_quidditch'){
       npc.npc_quidditch=false;
+      npc.quidditch_approved=false;
       npc.flight_xp=0;
       npc.npc_path='scholar';
       npc.points+=10;
@@ -1220,7 +1319,7 @@ const API={
     const m=db.matches.find(x=>x.id===id);must(m&&m.status==='waiting','Partido no disponible');
     [m.a,m.b].forEach(h=>{
       const curIn=m.players.filter(p=>p.house===h);
-      const availNpcs=db.users.filter(u=>u.is_npc&&isEnrolled(u)&&u.house===h&&!m.players.some(p=>p.uid===u.id));
+      const availNpcs=db.users.filter(u=>u.is_npc&&isEnrolled(u)&&u.house===h&&!m.players.some(p=>p.uid===u.id)&&u.quidditch_approved);
       availNpcs.slice(0,Math.max(0,3-curIn.length)).forEach(npc=>{
         const n=m.players.filter(p=>p.house===h).length;
         if(n<7) m.players.push({uid:npc.id,username:'🤖 '+npc.username,house:h,pos:POSITIONS[n]||'Suplente',action:null,is_npc:true});
@@ -1230,26 +1329,50 @@ const API={
   },
   apply(traits,pitch){
     must(traits.length===3,'Elige exactamente 3 características');must(db.period==='application','La postulación no está abierta');
-    const u=me();must(u&&u.house,'Elige casa primero');must(!db.apps.some(a=>a.user_id===u.id&&a.status==='pending'),'Ya estás postulado');
+    const u=me();must(u&&u.house,'Elige casa primero');
+    const yr = userYear(u);
+    must(yr>=4 && yr<=7, `Solo los alumnos de 4.º a 7.º curso pueden postularse a Prefecto (estás en ${yr===8?'Graduado':yr+'.º curso'}).`);
+    must(!db.apps.some(a=>a.user_id===u.id&&a.status==='pending'),'Ya estás postulado');
     db.apps.push({id:Math.max(0,...db.apps.map(a=>a.id))+1,user_id:u.id,house:u.house,traits,pitch:(pitch||'').trim(),votes:0,status:'pending'});
     chime();commit(u.username+' se postuló a prefecto');
   },
   vote(id){
     must(db.period==='voting','La votación no está abierta');const u=me();must(u,'Sin sesión');
     const a=db.apps.find(x=>x.id===id&&x.status==='pending');must(a,'La postulación no existe');
-    must(a.house===u.house,'Solo puedes votar por tu casa');must(a.user_id!==u.id,'No puedes votarte');must(!db.votes.some(v=>v.voter===u.id),'Ya votaste');
-    db.votes.push({app:id,voter:u.id});a.votes++;chime();commit('Voto registrado en '+u.house);
+    must(a.house===u.house || u.is_admin,'Solo puedes votar por tu casa, o el Profesorado puede otorgar su voto especial.');
+    must(a.user_id!==u.id,'No puedes votarte a ti mismo');
+    must(!db.votes.some(v=>v.voter===u.id),'Ya votaste');
+    db.votes.push({app:id,voter:u.id});
+    const pts = u.is_admin ? 3 : 1;
+    a.votes += pts;
+    chime();commit((u.is_admin?'Voto del Profesorado registrado (+3) en ':'Voto registrado en ')+u.house);
   },
   setPeriod(p){
     must(session.isAdmin,'Solo admin');const elected=[];
     if(p==='closed'){
-      HOUSES.forEach(h=>{const top=db.apps.filter(a=>a.house===h.id&&a.status==='pending').sort((a,b)=>b.votes-a.votes)[0];
-        if(top&&top.votes>0){const w=db.users.find(u=>u.id===top.user_id);if(w){w.role='prefect';elected.push(`${w.username} (${h.name})`);}top.status='elected';}});
+      HOUSES.forEach(h => {
+        const houseApps = db.apps.filter(a => a.house === h.id && a.status === 'pending').sort((a,b)=>b.votes-a.votes);
+        const electedThisHouse = [];
+        for (const a of houseApps) {
+           const stu = db.users.find(x => x.id === a.user_id);
+           if (stu && stu.gender) {
+              if (electedThisHouse.length < 2 && !electedThisHouse.includes(stu.gender)) {
+                 const alreadyElectedYear = db.users.filter(x => x.house === h.id && x.role === 'prefect' && userYear(x) === userYear(stu) && x.gender === stu.gender);
+                 if (alreadyElectedYear.length === 0) {
+                     stu.role = 'prefect';
+                     electedThisHouse.push(stu.gender);
+                     a.status = 'elected';
+                     elected.push(`${stu.username} (${h.name})`);
+                 }
+              }
+           }
+        }
+      });
       db.apps.forEach(a=>{if(a.status==='pending')a.status='archived'});db.votes=[];if(elected.length)fanfare();
     }else if(p==='application')db.votes=[];
     db.period=p;commit(elected.length?'Prefectos: '+elected.join(', '):'Período: '+p);return elected;
   },
-  teams(){const r={};HOUSES.forEach(h=>{r[h.id]=db.users.filter(u=>u.house===h.id&&isEnrolled(u)&&u.flight_xp>0&&(!u.is_npc||u.npc_quidditch)).sort((a,b)=>b.flight_xp-a.flight_xp||b.points-a.points).slice(0,7)
+  teams(){const r={};HOUSES.forEach(h=>{r[h.id]=db.users.filter(u=>u.house===h.id&&isEnrolled(u)&&u.quidditch_approved).sort((a,b)=>b.flight_xp-a.flight_xp||b.points-a.points).slice(0,7)
     .map((p,i)=>({id:p.id,username:p.username,is_npc:p.is_npc,year:userYear(p),xp:p.flight_xp,pos:POSITIONS[i]||'Suplente',rank:i+1}))});return r},
   slot(uid,h){return (this.teams()[h]||[]).find(p=>p.id===uid)||null},
   launch(name,desc,mult){must(session.isAdmin,'Solo admin');db.events.forEach(e=>e.active=false);
@@ -1269,10 +1392,16 @@ const API={
   setFree(v){must(session.isAdmin,'Solo admin');db.free=!!v;commit(v?'Modo libre activado':'Horario estricto restaurado')},
   award(id,pts){must(session.isAdmin,'Solo admin');const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
     t.points+=pts;if(t.house)db.houses.find(h=>h.id===t.house).points+=pts;commit(`Admin otorgó ${pts} pts a ${t.username}`)},
-  togglePrefect(id){must(session.isAdmin,'Solo admin');const t=db.users.find(u=>u.id===id);if(!t)return;t.role=t.role==='prefect'?'student':'prefect';commit(t.username+' ahora es '+t.role)},
+  togglePrefect(id){
+    must(session.isAdmin,'Solo admin');const t=db.users.find(u=>u.id===id);if(!t)return;
+    const yr = userYear(t);
+    if(t.role!=='prefect' && (yr<4 || yr>7)) throw new Error(`${t.username} está en ${yr===8?'Graduado':yr+'.º curso'}. Solo alumnos activos de 4.º a 7.º año pueden ser Prefectos.`);
+    t.role=t.role==='prefect'?'student':'prefect';
+    commit(t.username+' ahora es '+t.role);
+  },
   resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
   newMatch(a,b){must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
-    db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false});
+    db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
     commit(`Partido: ${a} vs ${b}`)},
   join(id){const u=me();must(u&&u.house,'Necesitas iniciar sesión con tu personaje');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
     must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
@@ -1285,7 +1414,6 @@ const API={
   act(id,action){const u=me(),m=db.matches.find(x=>x.id===id);must(u&&m&&m.status==='active','Partido no activo');
     const p=m.players.find(x=>x.uid===u.id);must(p,'No estás en el partido');must(!p.action,'Ya enviaste tu acción');
     p.action=action;
-    // Asegurar que los NPCs del partido elijan acción automáticamente
     m.players.forEach(pl=>{if(pl.is_npc&&!pl.action){const opts=ACTIONS[pl.pos]||[['attack']];pl.action=opts[0][0];}});
     commit();if(m.players.every(x=>x.action))this.resolve(id)},
   resolve(id){const m=db.matches.find(x=>x.id===id);if(!m||m.status!=='active'||m.resolving||m.last>=m.round)return;
@@ -1295,14 +1423,19 @@ const API={
     m.resolving=false;m.last=m.round;
     const pl=(h,pos,a)=>m.players.filter(p=>p.house===h&&p.pos===pos&&p.action===a);
     const keepA=pl(m.a,'Guardián','block').length>0,keepB=pl(m.b,'Guardián','block').length>0;
-    pl(m.a,'Cazador','attack').forEach(()=>{if(Math.random()<(keepB?.17:.35)){m.sa+=10;m.log.push(`${HOUSE(m.a).name} +10`)}});
-    pl(m.b,'Cazador','attack').forEach(()=>{if(Math.random()<(keepA?.17:.35)){m.sb+=10;m.log.push(`${HOUSE(m.b).name} +10`)}});
+    const cheerA=(m.cheerA||0)*0.02, cheerB=(m.cheerB||0)*0.02;
+    
+    pl(m.a,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.6,(keepB?.17:.35)+cheerA)){m.sa+=10;m.log.push(`${HOUSE(m.a).name} +10`)}});
+    pl(m.b,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.6,(keepA?.17:.35)+cheerB)){m.sb+=10;m.log.push(`${HOUSE(m.b).name} +10`)}});
+    
     if(m.round===m.snitch&&!m.caught){
-      if(pl(m.a,'Buscador','search').length&&Math.random()<.5){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
-      else if(pl(m.b,'Buscador','search').length&&Math.random()<.5){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
+      if(pl(m.a,'Buscador','search').length&&Math.random()<Math.min(0.7,.5+cheerA)){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
+      else if(pl(m.b,'Buscador','search').length&&Math.random()<Math.min(0.7,.5+cheerB)){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
       else{m.snitch+=5;m.log.push('La Snitch esquiva a todos')}}
+      
     m.players.forEach(p=>{p.action=p.is_npc?(ACTIONS[p.pos]?.[0]?.[0]||'attack'):null});
     m.round++;m.deadline=Date.now()+ROUND_MS;
+    
     if(m.caught||m.round>m.max){m.status='finished';m.winner=m.sa>m.sb?m.a:m.sb>m.sa?m.b:'empate';
       if(m.winner!=='empate'){db.houses.find(h=>h.id===m.winner).points+=50;
         m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
@@ -1326,7 +1459,7 @@ function closeModal(){
   const m=$('modalRoot');m.hidden=true;m.innerHTML='';
 }
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')closeModal();
+  if(e.key==='Escape'){closeModal();if(typeof closeMinigame==='function')closeMinigame();}
   if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.room.go')){e.preventDefault();e.target.click()}
 });
 const crest=(id,lg)=>{const h=HOUSE(id);return h?`<span class="crest ${lg?'lg':''} h-${id}" aria-hidden="true">${h.letter}</span>`:''};
@@ -1406,13 +1539,23 @@ function renderMap(){
   const term=mapTerm.trim().toLowerCase();
   const byRoom={};
   db.users.filter(x=>x.house&&isEnrolled(x)).forEach(x=>{const r=userLoc(x);(byRoom[r]=byRoom[r]||[]).push(x)});
+  
+  let filchRoom = null;
+  if (isCurfew() && !db.free) {
+      const filchRooms=['patio','biblioteca','mazmorras','escalera','comedor'];
+      if(!db.filchLoc || !filchRooms.includes(db.filchLoc)) db.filchLoc=filchRooms[Math.floor(Math.random()*filchRooms.length)];
+      filchRoom = db.filchLoc;
+  }
+
   $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col])=>{
     const isHouse=!!HOUSE(id),hereUsers=byRoom[id]||[],isMyRoom=u&&id===myLoc;
+    const hasFilch = (filchRoom === id);
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
     const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)} (${userYear(x)}.º curso)${x.is_npc?' · NPC':''}">${av(x,22)}</span>`).join('');
-    const foot=hereUsers.length?`${hereUsers.length} ${hereUsers.length===1?'alumno':'alumnos'}`:(isHouse?pts+' pts':'');
-    return `<div class="room ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
-      <div class="rn">${name}</div><div class="dots">${pawns}</div>
+    const filchHtml = hasFilch ? `<span class="pawn" title="Argus Filch">${avatar({skin:1,hair:3,style:'corto',eyes:0},'',22)}</span>` : '';
+    const foot=hereUsers.length||hasFilch?`${hereUsers.length?hereUsers.length+' alumnos':''}${hasFilch?' ⚠️ Filch':''}`:(isHouse?pts+' pts':'');
+    return `<div class="room ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''} ${hasFilch?'filch':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
+      <div class="rn">${name}</div><div class="dots">${pawns}${filchHtml}</div>
       <div class="rc">${foot}</div></div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
@@ -1428,7 +1571,9 @@ function renderYou(){
   }
   const loc=userLoc(u),ev=activeEvent(),mult=ev?ev.mult:1;
   let h=`<span class="pawn big me">${av(u,34)}</span><div style="min-width:0"><strong>${esc(u.username)}</strong><div class="hint">${canRoam()?`En ${esc(roomName(loc))}`:`${esc(s?slotLabel(s):'Recreo libre')}`}</div></div>`;
-  if(canRoam()&&u.house){
+  if(isCurfew()&&!db.free){
+    h+=`<button class="btn gold sm" type="button" data-do="sneak" style="background:var(--bad);border-color:var(--bad);color:#fff">🥷 Escabullirme por los pasillos</button>`;
+  } else if(canRoam()&&u.house){
     const fa=FREE_ACTS[loc],cd=fa?API.cooldown('free_'+loc):0;
     if(fa)h+=`<button class="btn gold sm" type="button" data-do="freeact" ${cd>0?'disabled':''}>${cd>0?`Espera ${Math.ceil(cd/1000)} s`:`${fa.name} · +${Math.round(fa.pts*mult)+(u.role==='prefect'?2:0)} pts${fa.xp?' · +'+fa.xp+' XP':''}`}</button>`;
     h+=`<div class="chips"><span class="hint" style="align-self:center">Tiempo libre · Ir a:</span>${DEST.concat(u.house).map(id=>`<button type="button" class="chip ${loc===id?'on':''}" data-do="goto" data-id="${id}">${id===u.house?'Mi sala común':roomName(id)}</button>`).join('')}</div>`;
@@ -1459,19 +1604,36 @@ function renderCasas(){
       <ul>${mem.slice(0,3).map(m=>`<li><span>${m.is_npc?'🤖 ':''}${esc(m.username)} (${userYear(m)}.º)</span><span class="mono">${m.points}</span></li>`).join('')||'<li><span>Sin alumnos</span></li>'}</ul></article>`}).join('');
 }
 function renderPrefects(){
-  const u=me(),box=$('prefectBox'),list=db.users.filter(x=>x.role==='prefect');
+  const u=me(),box=$('prefectBox'),list=db.users.filter(x=>x.role==='prefect' || x.role==='delegado');
   const names={closed:'Cerrado',application:'Postulación abierta',voting:'Votación abierta'};
   const apps=db.apps.filter(a=>a.status==='pending').map(a=>({...a,name:(db.users.find(x=>x.id===a.user_id)||{}).username||'Alumno'})).sort((a,b)=>b.votes-a.votes);
   const myVote=u?db.votes.find(v=>v.voter===u.id):null;
-  let h=`<div class="row" style="justify-content:space-between;margin-bottom:14px"><div class="row"><strong>En ejercicio</strong>${list.length?list.map(p=>`<span class="hbadge h-${p.house}">${p.is_npc?'🤖 ':''}${esc(p.username)}</span>`).join(''):'<span class="muted">Sin prefectos electos</span>'}</div><span class="pill ${db.period==='closed'?'off':'gold'}">${names[db.period]}</span></div>`;
+  
+  let h=`<div class="row" style="justify-content:space-between;margin-bottom:14px"><div class="row"><strong>En ejercicio</strong>${list.length?list.map(p=>`<span class="hbadge h-${p.house}">${p.is_npc?'🤖 ':''}${esc(p.username)} ${p.role==='delegado'?'👑':'🛡️'}</span>`).join(''):'<span class="muted">Sin prefectos electos</span>'}</div><span class="pill ${db.period==='closed'?'off':'gold'}">${names[db.period]}</span></div>`;
+  
+  if (u && (u.role === 'prefect' || session.isAdmin)) {
+     h += `<div class="box" style="margin-bottom:14px; border-color:var(--bad)">
+       <h4 style="color:var(--bad);margin-bottom:8px">📖 Libro de Disciplina</h4>
+       <div class="row"><select id="punishTarget">${db.users.filter(x=>x.house===u.house && x.id!==u.id && x.role!=='delegado').map(x=>`<option value="${x.id}">${esc(x.username)} (${x.points} pts)</option>`).join('')}</select>
+       <button class="btn sm danger" data-do="punish" type="button">Restar -5 pts</button></div>
+     </div>`;
+  }
+
   if(db.period==='application'&&u&&u.house){
     if(apps.some(a=>a.user_id===u.id))h+=`<p class="pill good" style="margin-bottom:12px">Ya estás postulado. Pide votos cuando se abra la votación.</p>`;
-    else h+=`<div class="box"><p style="margin-bottom:8px">Elige <strong>3 características</strong> (${traitsDraft.length}/3)</p><div class="chips" style="margin-bottom:12px">${PREFECT_TRAITS.map(t=>`<button type="button" class="chip ${traitsDraft.includes(t)?'on':''}" data-do="trait" data-v="${t}">${t}</button>`).join('')}</div>
-      <label class="muted" for="pitch" style="font-size:13px">Mensaje para tu casa</label><textarea id="pitch" rows="2" placeholder="Explica por qué mereces guiar a tu casa…">${esc(pitchDraft)}</textarea>
-      <button class="btn gold" style="margin-top:10px" data-do="apply" type="button">Postularme</button></div>`;
+    else {
+      const yr = userYear(u);
+      if(yr >= 4 && yr <= 7) {
+        h+=`<div class="box"><p style="margin-bottom:8px">Elige <strong>3 características</strong> (${traitsDraft.length}/3)</p><div class="chips" style="margin-bottom:12px">${PREFECT_TRAITS.map(t=>`<button type="button" class="chip ${traitsDraft.includes(t)?'on':''}" data-do="trait" data-v="${t}">${t}</button>`).join('')}</div>
+        <label class="muted" for="pitch" style="font-size:13px">Mensaje para tu casa</label><textarea id="pitch" rows="2" placeholder="Explica por qué mereces guiar a tu casa…">${esc(pitchDraft)}</textarea>
+        <button class="btn gold" style="margin-top:10px" data-do="apply" type="button">Postularme</button></div>`;
+      } else {
+        h+=`<p class="muted" style="margin-bottom:12px">Solo los alumnos de 4.º a 7.º curso pueden postularse. Actualmente estás en ${yr===8?'Graduado':yr+'.º curso'}.</p>`;
+      }
+    }
   }else if(db.period==='voting')h+=`<p class="muted" style="margin-bottom:10px">Vota por un candidato de tu casa. No puedes votarte a ti mismo.</p>`;
   h+=apps.length?`<div class="apps">${apps.map(a=>{
-    const can=db.period==='voting'&&u&&a.house===u.house&&a.user_id!==u.id&&!myVote;
+    const can=db.period==='voting'&&u&&(a.house===u.house||u.is_admin)&&a.user_id!==u.id&&!myVote;
     return `<div class="app h-${a.house}"><div class="top"><div class="row"><strong>${esc(a.name)}</strong>${hbadge(a.house)}${u&&a.user_id===u.id?'<span class="pill">Tú</span>':''}</div><span class="pill gold mono">${a.votes} votos</span></div>
       <div class="traits" style="margin-top:8px">${a.traits.map(t=>`<span class="pill">${esc(t)}</span>`).join('')}</div>
       ${a.pitch?`<p class="muted" style="margin-top:8px;font-style:italic">“${esc(a.pitch)}”</p>`:''}
@@ -1515,11 +1677,18 @@ function renderPlay(){
     return;
   }
   const q=u.house?API.slot(u.id,u.house):null;
-  const mis=((db.missions||{})[u.id]?.classes)||0;
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
+  const _mUser=(db.missions||{})[u.id];
+  const mis=(_mUser&&_mUser.day===curDay())?_mUser.classes:0;
+  
+  let extraBadge = '';
+  if (u.role === 'delegado') extraBadge = '<span class="pill gold" style="box-shadow:0 0 10px var(--gold)">🌟 Delegado</span>';
+  
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
+  
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
+  
   const ev=activeEvent(),mult=ev?ev.mult:1,pref=u.role==='prefect'?2:0;
   area.innerHTML=`<div class="acts">${Object.entries(ACTS).map(([k,a])=>{
     const s=classStatus(k),open=db.free||s.st==='open',cd=API.cooldown(k),pts=Math.round(a.points*mult)+pref;
@@ -1540,7 +1709,8 @@ function renderPlay(){
 function renderTeams(){
   const t=API.teams(),u=me();
   $('teams').innerHTML=HOUSES.map(h=>`<div class="box h-${h.id}" style="${u&&u.house===h.id?'border-color:var(--gold)':''}"><div class="row" style="justify-content:space-between;margin-bottom:6px"><strong class="row">${crest(h.id)}${h.name}</strong><span class="muted" style="font-size:12px">${t[h.id].length}/7</span></div>
-    ${t[h.id].length?t[h.id].map(p=>`<div class="prow ${u&&p.id===u.id?'me':''}"><span><b style="color:var(--gold)">#${p.rank}</b> ${p.is_npc?'🤖 ':''}${esc(p.username)} <small class="muted">(${p.year}.º)</small> <em class="muted">${p.pos}</em></span><span class="mono">${p.xp} XP</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sin jugadores. Entrena Clase de Vuelo.</p>'}</div>`).join('');
+    ${t[h.id].length?t[h.id].map(p=>`<div class="prow ${u&&p.id===u.id?'me':''}"><span><b style="color:var(--gold)">#${p.rank}</b> ${p.is_npc?'🤖 ':''}${esc(p.username)} <small class="muted">(${p.year}.º)</small> <em class="muted">${p.pos}</em></span><span class="mono">${p.xp} XP</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sin jugadores en el equipo.</p>'}
+    ${u&&u.house===h.id&&!u.quidditch_approved?`<button class="btn sm gold" data-do="openTryout" type="button" style="width:100%;margin-top:8px">🧹 Prueba de Selección</button>`:''}</div>`).join('');
 }
 const ACTIONS={Cazador:[['attack','Atacar'],['defend','Defender']],Guardián:[['block','Bloquear'],['idle','Esperar']],Buscador:[['search','Buscar Snitch'],['idle','Esperar']],Golpeador:[['hit','Golpear'],['idle','Esperar']]};
 function renderMatches(){
@@ -1552,17 +1722,42 @@ function renderMatches(){
     const my=u?m.players.find(p=>p.uid===u.id):null,A=HOUSE(m.a),B=HOUSE(m.b);
     const state=m.status==='waiting'?'Esperando jugadores':m.status==='active'?`Ronda ${m.round}/${m.max}`:(m.winner==='empate'?'Empate':HOUSE(m.winner).name+' gana');
     const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${u&&p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
+    
     let ctl='';
     if(m.status==='active'&&my&&!my.action)ctl=`<div class="box" style="margin-top:10px"><p style="font-size:13px;margin-bottom:8px">Tu turno como ${my.pos} · <span id="timer-${m.id}" class="mono">--</span></p><div class="row">${(ACTIONS[my.pos]||[]).map(([a,l])=>`<button class="btn sm gold" data-do="act" data-m="${m.id}" data-a="${a}" type="button">${l}</button>`).join('')}</div></div>`;
     else if(my&&my.action)ctl=`<p class="pill good" style="margin-top:10px">Acción enviada. Esperando al resto.</p>`;
+    
+    let stadium = '';
+    if (m.status === 'active' || m.status === 'waiting') {
+        stadium = `<div class="stadium">
+            <div class="stadium-score">${m.sa} - ${m.sb}</div>
+            <div class="hoop left"></div>
+            <div class="hoop right"></div>
+            <div class="snitch"></div>
+            <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.5)">Cabina de Lee Jordan</div>
+        </div>`;
+    }
+    
+    let cheerBtns = '';
+    if (m.status === 'active' && u && !my) {
+        cheerBtns = `<div class="row" style="margin-top:8px;justify-content:center">
+            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.a}" type="button">📣 Animar ${A.name}</button>
+            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.b}" type="button">📣 Animar ${B.name}</button>
+        </div>`;
+    }
+
     let btn='';
     if(m.status==='waiting'){
       if(my)btn+=`<button class="btn sm" data-do="leave" data-m="${m.id}" type="button">Salir</button>`;
       else if(u&&(u.house===m.a||u.house===m.b))btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
       btn+=` <button class="btn sm" data-do="fillNpcMatch" data-m="${m.id}" type="button">🤖 Rellenar con NPCs</button>`;
       if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
-    return `<div class="match"><div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
-      <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
+    
+    return `<div class="match">
+      ${stadium}
+      <div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
+      <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>
+      ${cheerBtns}${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
       ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos activos. ${session.isAdmin?'Crea uno arriba.':'Pide al profesorado que convoque un partido.'}</p>`;
   $('matches').innerHTML=h;
 }
@@ -1601,7 +1796,7 @@ function renderAdmin(){
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
    <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button></td></tr>`).join('')}</tbody></table></div>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button></td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -1613,7 +1808,7 @@ function renderStudents(){
   $('students').innerHTML=l.length?l.map(u=>{
     const yr=userYear(u);
     const yrTxt=yr===0?`⏳ Entra en Año ${1-(u.yearOffset||0)}`:yr===8?'🎓 Graduado':`${yr}.º curso`;
-    return `<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}" style="${yr===0?'opacity:.68':''}"><span class="pawn">${av(u,28)}</span><span><strong>${esc(u.username)} ${u.is_npc?'<span class="pill" style="font-size:10px;padding:1px 6px">🤖 NPC</span>':''}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'} · ${yrTxt}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${yr===0?'—':u.points}</span></button>`;
+    return `<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}" style="${yr===0?'opacity:.68':''}"><span class="pawn">${av(u,28)}</span><span><strong>${esc(u.username)} ${u.is_npc?'<span class="pill" style="font-size:10px;padding:1px 6px">🤖 NPC</span>':''}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'} · ${yrTxt}${u.role==='prefect'?' · Prefecto':''}${u.role==='delegado'?' · Delegado':''}</small></span><span class="sp mono">${yr===0?'—':u.points}</span></button>`;
   }).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
 }
 function renderCourses(){
@@ -1654,6 +1849,54 @@ function finishMinigame(k,hit,msgWin,msgLose){
     closeModal();
     toast(err.message);
   }
+}
+
+function openRandomFindModal(f){
+  openModal(`<div style="font-size:50px">${f.icon}</div>
+    <h3 style="font-size:22px;color:var(--gold)">¡Hallazgo Mágico!</h3>
+    <p class="muted">Mientras caminabas por el castillo, encontraste:</p>
+    <div class="box" style="width:100%;text-align:center">
+      <strong style="font-size:18px">${esc(f.name)}</strong><br>
+      <span class="pill gold" style="margin-top:8px">+${f.pts} pts${f.xp?` · +${f.xp} XP`:''}</span>
+    </div>
+    <button class="btn gold" data-do="closeModal" type="button">¡Genial!</button>`);
+}
+
+function openQuidditchTryoutModal(){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  if(u.quidditch_approved){toast('Ya estás en el equipo');return;}
+  openModal(`<h3 style="font-size:20px">🧹 Prueba de Selección de Quidditch</h3>
+    <p class="muted">Madam Hooch te evalúa. Elige un puesto y demuestra tu habilidad:</p>
+    <div class="grid g2" style="width:100%;gap:8px">
+      ${POSITIONS.map(p=>`<button class="btn" type="button" data-do="startTryout" data-p="${p}">${p}</button>`).join('')}
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`,true);
+}
+
+function startTryoutMinigame(pos){
+  let timeLeft = 5;
+  let hit = false;
+  openModal(`<h3 style="font-size:20px">🧹 Prueba de Vuelo: ${pos}</h3>
+    <p class="muted">¡Detén la barra en la zona dorada para aprobar!</p>
+    <div class="mg-stage">
+      <div class="mg-bar"><div class="mg-zone"></div><div class="mg-cur" id="mgCur" style="left:0%"></div></div>
+      <button class="btn gold" id="mgCastBtn" type="button" style="width:100%">🪄 ¡Frenar Escoba!</button>
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
+  
+  let posX=0, dir=1;
+  const iv = setInterval(()=>{
+    posX += dir*4.5;
+    if(posX>=100){posX=100;dir=-1}else if(posX<=0){posX=0;dir=1}
+    const el=$('mgCur'); if(el) el.style.left=posX+'%';
+  }, 24);
+  mgClean=()=>clearInterval(iv);
+
+  $('mgCastBtn').onclick=()=>{
+    clearInterval(iv);
+    const success = posX >= 35 && posX <= 65;
+    API.completeQuidditchTryout(pos, success);
+  };
 }
 
 function practice(k){
@@ -2312,6 +2555,10 @@ function openRaidModal(){
 
 function resolveRaidAction(deId,mode){
   const u=me();must(u&&u.house,'Inicia sesión primero');
+  const _lastRaid=(db.cooldowns[u.id]||{})['dark_raid']||0;
+  const _remRaid=Math.max(0,15000-(Date.now()-_lastRaid));
+  must(_remRaid<=0,`Espera ${Math.ceil(_remRaid/1000)} s para otra incursión`);
+  
   const de=DEATH_EATERS.find(x=>x.id===deId)||DEATH_EATERS[0];
   const hasAnim=!!u.animagus;
   const ev=activeEvent(),mult=ev?ev.mult:1;
@@ -2545,7 +2792,6 @@ function startTrollMinigame() {
   function gameLoopUpdate() {
     if (!mgActive) return;
 
-    // Movimiento jugador
     if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x = Math.max(24, player.x - 4.8);
     if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x = Math.min(540, player.x + 4.8);
     if ((keys['ArrowUp'] || keys['w'] || keys['W']) && player.y >= 300) { player.vy = -11.5; tone([360, 520], 'sine', 0.03, 0.12, 0.06); }
@@ -2554,14 +2800,12 @@ function startTrollMinigame() {
     if (player.inv > 0) player.inv--;
     if (player.cd > 0) player.cd--;
 
-    // Disparo del jugador
     if (keys[' '] && player.cd <= 0) {
       spells.push({ x: player.x + player.w, y: player.y + 18, vx: 9.5, r: 7 });
       player.cd = 18;
       tone([660, 880], 'triangle', 0.03, 0.12, 0.08);
     }
 
-    // IA del Troll
     troll.timer--;
     if (troll.state === 'attack') {
       if (troll.timer % 45 === 0) {
@@ -2578,7 +2822,7 @@ function startTrollMinigame() {
       }
       if (troll.rocksThrown >= 4) {
         troll.state = 'stunned';
-        troll.timer = 155; // ~2.5s aturdido
+        troll.timer = 155;
         troll.rocksThrown = 0;
       }
     } else if (troll.state === 'stunned') {
@@ -2588,7 +2832,6 @@ function startTrollMinigame() {
       }
     }
 
-    // Actualizar proyectiles del troll
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const p = projectiles[i];
       p.x += p.vx;
@@ -2608,7 +2851,6 @@ function startTrollMinigame() {
       }
     }
 
-    // Actualizar hechizos del jugador
     for (let i = spells.length - 1; i >= 0; i--) {
       const s = spells[i];
       s.x += s.vx;
@@ -2632,7 +2874,6 @@ function startTrollMinigame() {
       }
     }
 
-    // Dibujar escenario de Mazmorras
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#120f24';
     ctx.fillRect(0, 0, 800, 400);
@@ -2641,7 +2882,6 @@ function startTrollMinigame() {
     ctx.strokeStyle = '#3b3469';
     ctx.strokeRect(0, 348, 800, 2);
 
-    // Dibujar Jugador
     ctx.save();
     if (player.inv > 0 && Math.floor(player.inv / 4) % 2 === 0) ctx.globalAlpha = 0.45;
     ctx.fillStyle = player.color;
@@ -2652,7 +2892,6 @@ function startTrollMinigame() {
     ctx.beginPath();
     ctx.arc(player.x + player.w / 2, player.y + 12, 9, 0, Math.PI * 2);
     ctx.fill();
-    // Varita
     ctx.strokeStyle = '#e3bb4e';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -2661,7 +2900,6 @@ function startTrollMinigame() {
     ctx.stroke();
     ctx.restore();
 
-    // Dibujar Troll
     ctx.fillStyle = troll.state === 'stunned' ? '#63a87b' : '#3f8a4f';
     ctx.beginPath();
     ctx.roundRect(troll.x, troll.y, troll.w, troll.h, 12);
@@ -2669,7 +2907,6 @@ function startTrollMinigame() {
     ctx.fillStyle = '#1b1405';
     ctx.fillRect(troll.x + 18, troll.y + 24, 12, 12);
     ctx.fillRect(troll.x + 52, troll.y + 24, 12, 12);
-    // Barra de vida del Troll
     ctx.fillStyle = '#2a1820';
     ctx.fillRect(troll.x, troll.y - 18, troll.w, 8);
     ctx.fillStyle = '#4cc38a';
@@ -2680,7 +2917,6 @@ function startTrollMinigame() {
       ctx.fillText('💫 ¡ATURDIDO! ¡ATACA!', troll.x - 32, troll.y - 26);
     }
 
-    // Dibujar Proyectiles del Troll
     projectiles.forEach(p => {
       ctx.fillStyle = p.wave ? '#e8a33d' : '#8d88a8';
       ctx.beginPath();
@@ -2688,7 +2924,6 @@ function startTrollMinigame() {
       ctx.fill();
     });
 
-    // Dibujar Hechizos del Jugador
     spells.forEach(s => {
       ctx.fillStyle = '#e3bb4e';
       ctx.beginPath();
@@ -2696,7 +2931,6 @@ function startTrollMinigame() {
       ctx.fill();
     });
 
-    // Partículas
     for (let i = particles.length - 1; i >= 0; i--) {
       const pt = particles[i];
       pt.x += pt.vx; pt.y += pt.vy; pt.life--;
@@ -2857,7 +3091,6 @@ function startSnitchCanvasMinigame() {
     ctx.fillStyle = '#0d1530';
     ctx.fillRect(0, 0, 800, 400);
 
-    // Aros de Quidditch de fondo
     ctx.strokeStyle = 'rgba(227,187,78,0.22)';
     ctx.lineWidth = 3;
     [160, 400, 640].forEach(ax => {
@@ -2865,7 +3098,6 @@ function startSnitchCanvasMinigame() {
       ctx.beginPath(); ctx.moveTo(ax, 218); ctx.lineTo(ax, 400); ctx.stroke();
     });
 
-    // Estela dorada
     for (let i = trail.length - 1; i >= 0; i--) {
       const t = trail[i]; t.life--;
       ctx.fillStyle = `rgba(227,187,78,${t.life / 24})`;
@@ -2873,7 +3105,6 @@ function startSnitchCanvasMinigame() {
       if (t.life <= 0) trail.splice(i, 1);
     }
 
-    // Alas y Snitch
     const flap = Math.sin(Date.now() / 45) * 10;
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2.5;
@@ -2937,7 +3168,6 @@ function startTowerDefenseMinigame() {
       enemies.push({ x: 780, y: LANES[l], lane: l, hp: 2, spd: 1.6 + Math.random() * 0.9 });
     }
 
-    // Torretas disparan
     towers.forEach(t => {
       if (t.cd > 0) t.cd--;
       else {
@@ -2949,7 +3179,6 @@ function startTowerDefenseMinigame() {
       }
     });
 
-    // Proyectiles
     for (let i = bolts.length - 1; i >= 0; i--) {
       const b = bolts[i]; b.x += b.vx;
       if (b.x > 800) { bolts.splice(i, 1); continue; }
@@ -2965,7 +3194,6 @@ function startTowerDefenseMinigame() {
       }
     }
 
-    // Enemigos avanzan
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i]; e.x -= e.spd;
       if (e.x < 75) {
@@ -2983,7 +3211,6 @@ function startTowerDefenseMinigame() {
     ctx.fillStyle = '#121028';
     ctx.fillRect(0, 0, 800, 400);
 
-    // Carriles y Copa
     LANES.forEach(ly => {
       ctx.strokeStyle = '#2e2a63';
       ctx.lineWidth = 2;
@@ -2994,7 +3221,6 @@ function startTowerDefenseMinigame() {
       ctx.fillText('🏆', 48, ly + 10);
     });
 
-    // Dibujar Torretas
     towers.forEach(t => {
       ctx.fillStyle = '#4a6ee0';
       ctx.beginPath(); ctx.arc(t.x, t.y, 22, 0, Math.PI * 2); ctx.fill();
@@ -3002,14 +3228,12 @@ function startTowerDefenseMinigame() {
       ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif'; ctx.fillText('🛡️', t.x, t.y + 6);
     });
 
-    // Dibujar Enemigos
     enemies.forEach(e => {
       ctx.fillStyle = '#e5604f';
       ctx.beginPath(); ctx.arc(e.x, e.y, 20, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = '18px sans-serif'; ctx.fillText('🕷️', e.x, e.y + 6);
     });
 
-    // Dibujar rayos
     bolts.forEach(b => {
       ctx.fillStyle = '#e3bb4e';
       ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI * 2); ctx.fill();
@@ -3166,14 +3390,12 @@ function startBroomRaceMinigame() {
     ctx.fillStyle = '#0c132c';
     ctx.fillRect(0, 0, 800, 400);
 
-    // Líneas de velocidad
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     for (let i = 0; i < 6; i++) {
       const lx = ((800 - (tick * 9 + i * 140) % 800));
       ctx.beginPath(); ctx.moveTo(lx, 45 + i * 60); ctx.lineTo(lx + 45, 45 + i * 60); ctx.stroke();
     }
 
-    // Obstáculos y Aros
     obstacles.forEach(o => {
       if (o.ring) {
         ctx.strokeStyle = '#e3bb4e'; ctx.lineWidth = 4;
@@ -3186,7 +3408,6 @@ function startBroomRaceMinigame() {
       }
     });
 
-    // Jugador en escoba
     ctx.strokeStyle = '#a8622a'; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(flyer.x - 28, flyer.y + 6); ctx.lineTo(flyer.x + 24, flyer.y + 2); ctx.stroke();
     ctx.fillStyle = flyer.color;
@@ -3232,12 +3453,15 @@ document.addEventListener('click',e=>{
       break;
     }
     case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));break;
+    case 'sneak':API.sneak();break;
     case 'freeact':{const r=API.freeAct();toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'pickHouse':houseConfirm(d.id);break;
     case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
     case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'practice':practice(d.k);break;
     case 'playArcade':playArcade(d.g);break;
+    case 'openTryout':openQuidditchTryoutModal();break;
+    case 'startTryout':startTryoutMinigame(d.p);break;
     case 'npcFilter':npcFilterMode=d.f;renderNpcTrials();break;
     case 'openNpcTrial':openNpcTrialModal(Number(d.id));break;
     case 'npcChoice':{const res=API.resolveNpcTrial(Number(d.id),d.c);closeModal();toast(res.summary);break;}
@@ -3254,6 +3478,7 @@ document.addEventListener('click',e=>{
       if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
     case 'apply':API.apply(traitsDraft,$('pitch')?.value||'');traitsDraft=[];pitchDraft='';toast('Postulación enviada');break;
     case 'vote':API.vote(Number(d.id));toast('Voto registrado');break;
+    case 'punish':API.punish(Number($('punishTarget').value));break;
     case 'period':{const w=API.setPeriod(d.v);toast(w.length?'Prefectos electos: '+w.join(', '):'Período actualizado');break}
     case 'evQuick':API.launch('Torneo de los Tres Magos','Puntos dobles en todas las clases.',2);break;
     case 'evCustom':customEvent();break;
@@ -3268,13 +3493,14 @@ document.addEventListener('click',e=>{
     case 'adv':API.advance(parseInt(d.n));break;
     case 'free':API.setFree(!db.free);break;
     case 'award':API.award(Number(d.id),10);break;
-    case 'togglePref':API.togglePrefect(Number(d.id));break;
+    case 'togglePref':API.togglePrefect(Number(d.id));break; case 'toggleDel':API.toggleDelegado(Number(d.id));break;
     case 'reset':if(!resetArmed){resetArmed=true;renderAdmin();setTimeout(()=>{resetArmed=false;renderAdmin()},4000)}else{resetArmed=false;API.resetPoints()}break;
     case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value);break;
     case 'join':API.join(d.m);break;
     case 'leave':API.leave(d.m);break;
     case 'start':API.start(d.m);break;
     case 'act':API.act(d.m,d.a);break;
+    case 'cheer':API.cheer(d.m,d.h);break;
     case 'houseFilter':stuHouse=d.id;renderStudents();break;
     case 'openStu':studentSheet(Number(d.id));break;
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
