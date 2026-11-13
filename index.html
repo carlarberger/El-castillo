@@ -361,8 +361,10 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
             <label class="muted" for="userSwitch" style="font-size:13px">Simulador</label>
             <select id="userSwitch" aria-label="Cambiar de alumno"></select>
           </div>
-          <button class="btn sm" id="editCharBtn" type="button" data-do="editChar">🎨 Editar apariencia</button>
-          <button class="btn sm gold" id="newStudentBtn" type="button">Nuevo alumno</button>
+          <button class="btn sm" id="loginCharBtn" type="button" data-do="openLogin">🔑 Iniciar sesión</button>
+          <button class="btn sm" id="editCharBtn" type="button" data-do="editChar" style="display:none">🎨 Editar / Clave</button>
+          <button class="btn sm gold" id="newStudentBtn" type="button">✨ Crear personaje</button>
+          <button class="btn sm danger" id="logoutCharBtn" type="button" data-do="logoutChar" style="display:none">🚪 Salir</button>
         </div>
       </div>
       <div id="playArea"></div>
@@ -538,45 +540,126 @@ const SCHEDULE={
   T('13:00','15:00','Almuerzo','comedor'),T('15:00','19:00','Tiempo libre','terrenos',true),T('19:00','20:00','Cena','comedor'),
   T('20:00','20:30','Paseo nocturno','escalera',true),C('20:30','24:00','astronomia')]};
 
-/* ===== 3. Estado y sincronización MULTIJUGADOR ===== */
-const U=(id,username,house,points,flight_xp,role,is_admin,look)=>({
+/* ===== 3. Estado, NPCs con IA y Sincronización MULTIJUGADOR ===== */
+function hashPass(str){
+  str=String(str||'').trim();
+  if(!str)return '';
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  return 'hp_'+(h>>>0).toString(16)+'_'+str.length;
+}
+
+const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor')=>({
   id,username,house,points,flight_xp,role,is_admin,
-  look:look||DEFAULT_LOOKS[(id-1)%DEFAULT_LOOKS.length],
+  is_npc:!!is_npc,
+  pass:pass||'',
+  loc:loc||'comedor',
+  locSlot:'',
+  look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],
   created_at:id
 });
+
+const BASE_NPCS=[
+  U(101,'Aldebarán V.','gryffindor',85,30,'prefect',false,{skin:1,hair:0,style:'corto',eyes:0},true,'','gryffindor'),
+  U(102,'Matilde S.','gryffindor',75,25,'student',false,{skin:0,hair:4,style:'largo',eyes:2},true,'','quidditch'),
+  U(103,'Gael T.','gryffindor',60,20,'student',false,{skin:2,hair:1,style:'rizado',eyes:0},true,'','patio'),
+  U(104,'Lyra M.','ravenclaw',90,35,'prefect',false,{skin:0,hair:5,style:'largo',eyes:4},true,'','biblioteca'),
+  U(105,'Caspian R.','ravenclaw',72,20,'student',false,{skin:1,hair:1,style:'corto',eyes:1},true,'','astronomia'),
+  U(106,'Emilia C.','ravenclaw',64,15,'student',false,{skin:0,hair:3,style:'rizado',eyes:1},true,'','ravenclaw'),
+  U(107,'Seraphina K.','slytherin',88,28,'prefect',false,{skin:0,hair:0,style:'largo',eyes:2},true,'','mazmorras'),
+  U(108,'Dorian B.','slytherin',74,22,'student',false,{skin:1,hair:3,style:'corto',eyes:3},true,'','slytherin'),
+  U(109,'Antonia V.','slytherin',58,15,'student',false,{skin:2,hair:0,style:'largo',eyes:0},true,'','terrenos'),
+  U(110,'Benjamín L.','hufflepuff',82,25,'prefect',false,{skin:1,hair:2,style:'rizado',eyes:0},true,'','invernaderos'),
+  U(111,'Isolde F.','hufflepuff',68,18,'student',false,{skin:0,hair:3,style:'largo',eyes:2},true,'','cabana'),
+  U(112,'Martín O.','hufflepuff',55,12,'student',false,{skin:3,hair:0,style:'corto',eyes:0},true,'','comedor')
+];
+
+const NPC_CHAT_LINES=[
+  '¡Vamos con todo por la Copa de las Casas este mes!',
+  '¿Alguien viene a practicar encantamientos antes de la cena?',
+  'Acabo de ver al Troll en las mazmorras, ¡tengan cuidado!',
+  'El entrenamiento de Quidditch de hoy estuvo intensísimo.',
+  '¡Recuerden completar sus 3 clases para el bono de la Misión Diaria!',
+  'Estudiando runas antiguas en la biblioteca, qué glifos tan complejos.',
+  '¡La Snitch Dorada está rapidísima hoy en el campo!',
+  'Qué buena música hay hoy en el Gran Comedor.'
+];
+
 const socket = io();
 let db = {
- users:[
-  U(1,'Carla R.','ravenclaw',90,35,'student',false,{skin:0,hair:4,style:'corto',eyes:0}),
-  U(2,'Vicente D.','ravenclaw',70,20,'student',false,{skin:1,hair:0,style:'corto',eyes:0}),
-  U(3,'Matilde S.','gryffindor',85,30,'student',false,{skin:0,hair:2,style:'largo',eyes:2}),
-  U(4,'Joaquín P.','gryffindor',95,10,'prefect',false,{skin:2,hair:1,style:'corto',eyes:1}),
-  U(5,'Antonia V.','slytherin',88,25,'student',false,{skin:0,hair:0,style:'largo',eyes:3}),
-  U(6,'Benjamín L.','hufflepuff',82,25,'prefect',false,{skin:1,hair:3,style:'rizado',eyes:0})
+ users: BASE_NPCS.map(x=>({...x,look:{...x.look}})),
+ houses:[{id:'gryffindor',points:220},{id:'ravenclaw',points:226},{id:'slytherin',points:220},{id:'hufflepuff',points:205}],
+ log:[
+  {u:'🤖 Lyra M.',h:'ravenclaw',a:'Astronomía',p:16,x:0},
+  {u:'🤖 Aldebarán V.',h:'gryffindor',a:'Clase de Vuelo',p:20,x:5},
+  {u:'🤖 Seraphina K.',h:'slytherin',a:'Pociones',p:20,x:0}
  ],
- houses:[{id:'gryffindor',points:240},{id:'ravenclaw',points:224},{id:'slytherin',points:215},{id:'hufflepuff',points:195}],
- log:[], apps:[], votes:[],
+ apps:[
+  {id:1,user_id:104,house:'ravenclaw',traits:['Sabiduría','Liderazgo','Justicia'],pitch:'Guiaré a Ravenclaw con ingenio y estrategia.',votes:1,status:'pending'},
+  {id:2,user_id:101,house:'gryffindor',traits:['Valentía','Lealtad','Responsabilidad'],pitch:'Defenderé el honor de Gryffindor en cada clase.',votes:1,status:'pending'},
+  {id:3,user_id:107,house:'slytherin',traits:['Astucia','Liderazgo','Sabiduría'],pitch:'La excelencia llevará a Slytherin a ganar la Copa.',votes:1,status:'pending'}
+ ],
+ votes:[],
  events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
- period:'application',clockMode:'real',mockTime:null,mockDay:null,free:false,
- chat:[], matches:[], cooldowns:{}, missions:{}
+ period:'application',clockMode:'real',mockTime:null,mockDay:null,free:false,npcAi:true,
+ chat:[
+  {id:1,u:'🤖 Aldebarán V.',h:'gryffindor',role:'prefect',ch:'global',text:'¡Bienvenidos al Castillo! Creen su personaje con contraseña para competir.',time:'20:40'},
+  {id:2,u:'🤖 Lyra M.',h:'ravenclaw',role:'prefect',ch:'global',text:'Los alumnos NPC ya estamos entrenando en las aulas y en el campo de Quidditch.',time:'20:42'}
+ ],
+ matches:[], cooldowns:{}, missions:{}
 };
-const savedUid = Number(localStorage.getItem('castillo_uid')) || 1;
-const session={uid:savedUid,channel:'global',isAdmin:false};
 
-function ensureLooks(){
-  if(!db||!Array.isArray(db.users))return;
-  db.users.forEach((u,i)=>{
-    if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? u.id-1 : i) % DEFAULT_LOOKS.length];
+// No asignar ningún personaje por defecto: solo cargar si el usuario inició sesión en este navegador
+const savedUid = Number(localStorage.getItem('castillo_uid')) || null;
+const savedPass = localStorage.getItem('castillo_pass') || '';
+const session={uid:savedUid,passHash:savedPass,channel:'global',isAdmin:false};
+
+function ensureDbIntegrity(){
+  if(!db||!Array.isArray(db.users))return false;
+  let changed=false;
+  // Eliminar antiguos usuarios por defecto sin contraseña (IDs 1..6 del demo viejo) para que nadie los reciba por defecto
+  const legacyNames=['carla r.','vicente d.','matilde s.','joaquín p.','antonia v.','benjamín l.'];
+  const beforeLen=db.users.length;
+  db.users=db.users.filter(u=>{
+    if(u.id<=6 && !u.pass && !u.is_npc && legacyNames.includes((u.username||'').toLowerCase())) return false;
+    return true;
   });
+  if(db.users.length!==beforeLen) changed=true;
+
+  // Asegurar que existan los NPCs base para llenar el castillo
+  if(!db.users.some(u=>u.is_npc)){
+    BASE_NPCS.forEach(npc=>{
+      if(!db.users.some(u=>u.id===npc.id)){
+        db.users.push({...npc,look:{...npc.look}});
+        changed=true;
+      }
+    });
+  }
+  db.users.forEach((u,i)=>{
+    if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length];
+  });
+  if(typeof db.npcAi==='undefined') db.npcAi=true;
+  return changed;
+}
+
+function validateLocalSession(){
+  if(!session.uid) return;
+  const u=db.users.find(x=>x.id===session.uid);
+  // Si el personaje guardado no existe, es un NPC (y no eres admin), o tiene contraseña distinta a la guardada localmente, cerrar sesión local
+  if(!u || (!session.isAdmin && (u.is_npc || !u.pass || u.pass!==session.passHash))){
+    session.uid=null;
+    session.passHash='';
+    localStorage.removeItem('castillo_uid');
+    localStorage.removeItem('castillo_pass');
+  }
 }
 
 socket.on('init_db', (serverDb) => {
   if (serverDb && serverDb.users) {
     db = serverDb;
-    ensureLooks();
-    if (!db.users.some(u => u.id === session.uid) && db.users.length) {
-      session.uid = db.users[0].id;
-    }
+    const migrated = ensureDbIntegrity();
+    validateLocalSession();
+    if (migrated) socket.emit('sync_db', { db: db, reason: null });
     renderAll();
   }
 });
@@ -584,14 +667,15 @@ socket.on('init_db', (serverDb) => {
 socket.on('sync_db', (data) => {
   if (data && data.db) {
     db = data.db;
-    ensureLooks();
+    ensureDbIntegrity();
+    validateLocalSession();
     if (data.reason) toast('En vivo: ' + data.reason);
     renderAll();
   }
 });
 
 function commit(reason){
-  ensureLooks();
+  ensureDbIntegrity();
   socket.emit('sync_db', { db: db, reason: reason });
   renderAll();
 }
@@ -620,6 +704,10 @@ const canRoam=()=>{const s=curSlot();return !!(s&&s.free)||db.free};
 function userLoc(u){
   const s=curSlot(),def=s?s.room:'comedor';
   if(!u)return def;
+  if(u.is_npc&&u.loc&&ROOMS.some(r=>r[0]===u.loc)){
+    if(!canRoam()&&s&&s.type==='class')return s.room;
+    return u.loc;
+  }
   if(canRoam()&&u.loc&&u.locSlot===slotKey()&&ROOMS.some(r=>r[0]===u.loc))return u.loc;
   return def;
 }
@@ -636,10 +724,15 @@ function classStatus(key){
   return{st:'none'};
 }
 
-/* ===== 5. Lógica ===== */
+/* ===== 5. Lógica, Autenticación con Contraseña e IA de NPCs ===== */
 const me=()=>{
-  const u=db.users.find(u=>u.id===session.uid)||db.users[0]||null;
+  if(!session.uid)return null;
+  const u=db.users.find(u=>u.id===session.uid)||null;
   if(!u)return null;
+  if(!session.isAdmin){
+    if(u.is_npc)return null;
+    if(u.pass && u.pass!==session.passHash)return null;
+  }
   return Object.assign(u,{is_admin:!!session.isAdmin});
 };
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
@@ -648,31 +741,78 @@ const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,style:d.style||'
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
 const API={
-  register(name,look,house){
-    name=cleanName(name);must(name,'Escribe un nombre');
+  register(name,pass,look,house){
+    name=cleanName(name);must(name,'Escribe un nombre para tu personaje');
+    pass=String(pass||'').trim();must(pass.length>=3,'Pon una contraseña de al menos 3 caracteres');
+    const pHash=hashPass(pass);
     const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
     if(existing){
+      must(!existing.is_npc,'Ese nombre pertenece a un alumno NPC. Elige otro o inicia sesión.');
+      if(existing.pass && existing.pass!==pHash) throw new Error('Ese personaje ya existe y la contraseña no coincide');
+      existing.pass=pHash;
       if(look)existing.look=lookOf(look);
       if(!existing.house&&house&&HOUSE(house))existing.house=house;
-      session.uid=existing.id;
+      session.uid=existing.id;session.passHash=pHash;
       localStorage.setItem('castillo_uid',String(existing.id));
+      localStorage.setItem('castillo_pass',pHash);
       commit('Entró '+existing.username);
-      toast('Entraste como '+existing.username);
+      toast('Sesión iniciada como '+existing.username);
       return;
     }
     const chosenHouse=house&&HOUSE(house)?house:null;
-    const u=U(Math.max(0,...db.users.map(x=>x.id))+1,name,chosenHouse,0,0,'student',false,look?lookOf(look):null);
-    db.users.push(u);session.uid=u.id;
+    const newId=Math.max(10,...db.users.map(x=>x.id))+1;
+    const u=U(newId,name,chosenHouse,0,0,'student',false,look?lookOf(look):null,false,pHash,chosenHouse||'comedor');
+    db.users.push(u);
+    session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
+    localStorage.setItem('castillo_pass',pHash);
     if(chosenHouse)fanfare();
     commit('Nuevo alumno: '+name);
+    toast('¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
+  },
+  login(name,pass){
+    name=cleanName(name);must(name,'Escribe el nombre de tu personaje');
+    pass=String(pass||'').trim();must(pass,'Escribe tu contraseña');
+    const target=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
+    must(target,'No existe ningún personaje con ese nombre');
+    must(!target.is_npc,'Los alumnos NPC son controlados por la IA del castillo');
+    const pHash=hashPass(pass);
+    if(!target.pass){
+      target.pass=pHash;
+      session.uid=target.id;session.passHash=pHash;
+      localStorage.setItem('castillo_uid',String(target.id));
+      localStorage.setItem('castillo_pass',pHash);
+      chime();
+      commit(target.username+' protegió su cuenta con contraseña');
+      toast('Contraseña guardada. ¡Bienvenido de vuelta, '+target.username+'!');
+      return;
+    }
+    must(target.pass===pHash,'Contraseña incorrecta para '+target.username);
+    session.uid=target.id;session.passHash=pHash;
+    localStorage.setItem('castillo_uid',String(target.id));
+    localStorage.setItem('castillo_pass',pHash);
+    chime();
+    renderAll();
+    toast('¡Bienvenido de vuelta, '+target.username+'!');
+  },
+  logout(){
+    session.uid=null;session.passHash='';session.channel='global';
+    localStorage.removeItem('castillo_uid');
+    localStorage.removeItem('castillo_pass');
+    renderAll();
+    toast('Has cerrado sesión en este dispositivo.');
   },
   editChar(d){
-    const u=me();must(u,'Sin personaje');
+    const u=me();must(u,'Inicia sesión primero');
     const name=cleanName(d.name);must(name,'Escribe un nombre');
     must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
     u.username=name;
     u.look=lookOf(d);
+    if(d.pass&&String(d.pass).trim().length>=3){
+      u.pass=hashPass(d.pass);
+      session.passHash=u.pass;
+      localStorage.setItem('castillo_pass',u.pass);
+    }
     if(!u.house&&d.house&&HOUSE(d.house)){u.house=d.house;fanfare();}
     chime();
     commit(u.username+' actualizó su personaje');
@@ -756,6 +896,62 @@ const API={
     commit(`${u.username} +${pts} pts en ${cfg.mg}`);
     return{pts,fx,trained:true};
   },
+  /* ===== IA DE NPCs ===== */
+  npcStep(silent=false){
+    if(!db.npcAi && !silent) throw new Error('La IA de NPCs está pausada');
+    const npcs=db.users.filter(u=>u.is_npc&&u.house);
+    if(!npcs.length)return;
+    const npc=npcs[Math.floor(Math.random()*npcs.length)];
+    const allRooms=DEST.concat([npc.house,'mazmorras','astronomia','invernaderos','encantamientos','defensa']);
+    npc.loc=allRooms[Math.floor(Math.random()*allRooms.length)];
+    npc.locSlot=slotKey();
+
+    // Elegir actividad o clase para sumar vida al castillo
+    const actKeys=Object.keys(ACTS);
+    const k=actKeys[Math.floor(Math.random()*actKeys.length)];
+    const cfg=ACTS[k];
+    const pts=Math.round(cfg.points*0.5);
+    const fx=cfg.flightXp?2:0;
+    npc.points+=pts;
+    if(fx)npc.flight_xp+=fx;
+    const hObj=db.houses.find(h=>h.id===npc.house);
+    if(hObj)hObj.points+=pts;
+    db.log.unshift({u:'🤖 '+npc.username,h:npc.house,a:cfg.name,p:pts,x:fx});
+    db.log.length=Math.min(db.log.length,15);
+
+    // 35% de probabilidad de comentar algo en el Gran Comedor
+    if(Math.random()<0.35){
+      const line=NPC_CHAT_LINES[Math.floor(Math.random()*NPC_CHAT_LINES.length)];
+      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:line,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      if(db.chat.length>60)db.chat.shift();
+    }
+    commit(silent?null:`🤖 ${npc.username} sumó +${pts} pts en ${cfg.name}`);
+  },
+  spawnNpc(){
+    must(session.isAdmin,'Solo admin');
+    const NAMES=['Octavio L.','Cordelia V.','Tristán M.','Ariadna P.','Bastián R.','Valeria K.','Héctor D.','Nora G.','Lisandro F.','Helena S.'];
+    const counts=HOUSES.map(h=>({id:h.id,c:db.users.filter(u=>u.house===h.id).length})).sort((a,b)=>a.c-b.c);
+    const targetHouse=counts[0].id;
+    const used=new Set(db.users.map(u=>u.username.toLowerCase()));
+    let baseName=NAMES.find(n=>!used.has(n.toLowerCase()))||('Mago IA #'+(db.users.length+1));
+    const newId=Math.max(112,...db.users.map(x=>x.id))+1;
+    const look={skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
+    const npc=U(newId,baseName,targetHouse,30+Math.floor(Math.random()*40),10+Math.floor(Math.random()*20),'student',false,look,true,'',targetHouse);
+    db.users.push(npc);
+    commit(`Nuevo alumno IA: ${baseName} (${HOUSE(targetHouse).name})`);
+  },
+  fillMatchWithNpcs(id){
+    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='waiting','Partido no disponible');
+    [m.a,m.b].forEach(h=>{
+      const curIn=m.players.filter(p=>p.house===h);
+      const availNpcs=db.users.filter(u=>u.is_npc&&u.house===h&&!m.players.some(p=>p.uid===u.id));
+      availNpcs.slice(0,Math.max(0,3-curIn.length)).forEach(npc=>{
+        const n=m.players.filter(p=>p.house===h).length;
+        if(n<7) m.players.push({uid:npc.id,username:'🤖 '+npc.username,house:h,pos:POSITIONS[n]||'Suplente',action:null,is_npc:true});
+      });
+    });
+    commit('Equipos completados con jugadores IA');
+  },
   apply(traits,pitch){
     must(traits.length===3,'Elige exactamente 3 características');must(db.period==='application','La postulación no está abierta');
     const u=me();must(u&&u.house,'Elige casa primero');must(!db.apps.some(a=>a.user_id===u.id&&a.status==='pending'),'Ya estás postulado');
@@ -769,7 +965,7 @@ const API={
     db.votes.push({app:id,voter:u.id});a.votes++;chime();commit('Voto registrado en '+u.house);
   },
   setPeriod(p){
-    must(me()?.is_admin,'Solo admin');const elected=[];
+    must(session.isAdmin,'Solo admin');const elected=[];
     if(p==='closed'){
       HOUSES.forEach(h=>{const top=db.apps.filter(a=>a.house===h.id&&a.status==='pending').sort((a,b)=>b.votes-a.votes)[0];
         if(top&&top.votes>0){const w=db.users.find(u=>u.id===top.user_id);if(w){w.role='prefect';elected.push(`${w.username} (${h.name})`);}top.status='elected';}});
@@ -778,41 +974,44 @@ const API={
     db.period=p;commit(elected.length?'Prefectos: '+elected.join(', '):'Período: '+p);return elected;
   },
   teams(){const r={};HOUSES.forEach(h=>{r[h.id]=db.users.filter(u=>u.house===h.id&&u.flight_xp>0).sort((a,b)=>b.flight_xp-a.flight_xp||b.points-a.points).slice(0,7)
-    .map((p,i)=>({id:p.id,username:p.username,xp:p.flight_xp,pos:POSITIONS[i]||'Suplente',rank:i+1}))});return r},
+    .map((p,i)=>({id:p.id,username:p.username,is_npc:p.is_npc,xp:p.flight_xp,pos:POSITIONS[i]||'Suplente',rank:i+1}))});return r},
   slot(uid,h){return (this.teams()[h]||[]).find(p=>p.id===uid)||null},
-  launch(name,desc,mult){must(me()?.is_admin,'Solo admin');db.events.forEach(e=>e.active=false);
+  launch(name,desc,mult){must(session.isAdmin,'Solo admin');db.events.forEach(e=>e.active=false);
     db.events.push({name:(name||'Evento mágico').trim(),desc:(desc||'Bonificación activa').trim(),mult:Number(mult)||2,active:true});fanfare();commit('Evento: '+name)},
-  stopEvent(){db.events.forEach(e=>e.active=false);commit('Evento finalizado')},
-  say(text){const u=me(),t=(text||'').trim();if(!u||!t)return;
+  stopEvent(){must(session.isAdmin,'Solo admin');db.events.forEach(e=>e.active=false);commit('Evento finalizado')},
+  say(text){const u=me(),t=(text||'').trim();must(u,'Inicia sesión con tu personaje para chatear');if(!t)return;
     db.chat.push({id:Date.now(),u:u.username,h:u.house,role:u.role,ch:session.channel,text:t,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
     if(db.chat.length>60)db.chat.shift();commit()},
-  clock(mode,t,d){must(me()?.is_admin,'Solo admin');db.clockMode=mode;
+  clock(mode,t,d){must(session.isAdmin,'Solo admin');db.clockMode=mode;
     if(mode==='mock'){db.mockTime=t||db.mockTime||'09:00';db.mockDay=d||db.mockDay||realDay()}else{db.mockTime=null;db.mockDay=null}
     commit(mode==='mock'?`${DAYL[db.mockDay]} a las ${db.mockTime}`:'Hora real restaurada')},
-  advance(min){must(me()?.is_admin,'Solo admin');
+  advance(min){must(session.isAdmin,'Solo admin');
     if(db.clockMode!=='mock'){db.clockMode='mock';db.mockDay=curDay();db.mockTime=curTime()}
     let m=toMin(db.mockTime)+min,i=DAYS.indexOf(db.mockDay);
     while(m>=1440){m-=1440;i=(i+1)%7}while(m<0){m+=1440;i=(i+6)%7}
     db.mockTime=String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');db.mockDay=DAYS[i];commit(`Avance a ${DAYL[db.mockDay]} ${db.mockTime}`)},
-  setFree(v){must(me()?.is_admin,'Solo admin');db.free=!!v;commit(v?'Modo libre activado':'Horario estricto restaurado')},
-  award(id,pts){must(me()?.is_admin,'Solo admin');const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
+  setFree(v){must(session.isAdmin,'Solo admin');db.free=!!v;commit(v?'Modo libre activado':'Horario estricto restaurado')},
+  award(id,pts){must(session.isAdmin,'Solo admin');const t=db.users.find(u=>u.id===id);must(t,'Alumno no encontrado');
     t.points+=pts;if(t.house)db.houses.find(h=>h.id===t.house).points+=pts;commit(`Admin otorgó ${pts} pts a ${t.username}`)},
-  togglePrefect(id){must(me()?.is_admin,'Solo admin');const t=db.users.find(u=>u.id===id);if(!t)return;t.role=t.role==='prefect'?'student':'prefect';commit(t.username+' ahora es '+t.role)},
-  resetPoints(){must(me()?.is_admin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
-  newMatch(a,b){must(me()?.is_admin,'Solo admin');must(a!==b,'Deben ser casas distintas');
+  togglePrefect(id){must(session.isAdmin,'Solo admin');const t=db.users.find(u=>u.id===id);if(!t)return;t.role=t.role==='prefect'?'student':'prefect';commit(t.username+' ahora es '+t.role)},
+  resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
+  newMatch(a,b){must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
     db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false});
     commit(`Partido: ${a} vs ${b}`)},
-  join(id){const u=me();must(u&&u.house,'Necesitas casa');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
+  join(id){const u=me();must(u&&u.house,'Necesitas iniciar sesión con tu personaje');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
     must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
     if(m.players.some(p=>p.uid===u.id))return;const n=m.players.filter(p=>p.house===u.house).length;must(n<7,'Equipo lleno');
     m.players.push({uid:u.id,username:u.username,house:u.house,pos:POSITIONS[n]||'Suplente',action:null});commit(u.username+' se unió al partido')},
-  leave(id){const u=me(),m=db.matches.find(x=>x.id===id);if(!m||m.status!=='waiting')return;m.players=m.players.filter(p=>p.uid!==u.id);commit()},
-  start(id){must(me()?.is_admin,'Solo admin');const m=db.matches.find(x=>x.id===id);must(m&&m.status==='waiting','Estado inválido');
-    must(m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b),'Cada equipo necesita al menos 1 jugador');
-    m.status='active';m.round=1;m.deadline=Date.now()+ROUND_MS;m.players.forEach(p=>p.action=null);commit('Comienza el partido')},
-  act(id,action){const u=me(),m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
+  leave(id){const u=me(),m=db.matches.find(x=>x.id===id);if(!u||!m||m.status!=='waiting')return;m.players=m.players.filter(p=>p.uid!==u.id);commit()},
+  start(id){const m=db.matches.find(x=>x.id===id);must(m&&m.status==='waiting','Estado inválido');
+    must(m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b),'Cada equipo necesita al menos 1 jugador (puedes rellenar con NPCs)');
+    m.status='active';m.round=1;m.deadline=Date.now()+ROUND_MS;m.players.forEach(p=>p.action=p.is_npc?(ACTIONS[p.pos]?.[0]?.[0]||'attack'):null);commit('Comienza el partido')},
+  act(id,action){const u=me(),m=db.matches.find(x=>x.id===id);must(u&&m&&m.status==='active','Partido no activo');
     const p=m.players.find(x=>x.uid===u.id);must(p,'No estás en el partido');must(!p.action,'Ya enviaste tu acción');
-    p.action=action;commit();if(m.players.every(x=>x.action))this.resolve(id)},
+    p.action=action;
+    // Asegurar que los NPCs del partido elijan acción automáticamente
+    m.players.forEach(pl=>{if(pl.is_npc&&!pl.action){const opts=ACTIONS[pl.pos]||[['attack']];pl.action=opts[0][0];}});
+    commit();if(m.players.every(x=>x.action))this.resolve(id)},
   resolve(id){const m=db.matches.find(x=>x.id===id);if(!m||m.status!=='active'||m.resolving||m.last>=m.round)return;
     const r=m.round;m.resolving=true;
     setTimeout(()=>{const k=db.matches.find(x=>x.id===id);if(!k||k.status!=='active'||k.last>=r||k.round!==r)return;API.finish(k)},150+Math.random()*200)},
@@ -826,7 +1025,8 @@ const API={
       if(pl(m.a,'Buscador','search').length&&Math.random()<.5){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
       else if(pl(m.b,'Buscador','search').length&&Math.random()<.5){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
       else{m.snitch+=5;m.log.push('La Snitch esquiva a todos')}}
-    m.players.forEach(p=>p.action=null);m.round++;m.deadline=Date.now()+ROUND_MS;
+    m.players.forEach(p=>{p.action=p.is_npc?(ACTIONS[p.pos]?.[0]?.[0]||'attack'):null});
+    m.round++;m.deadline=Date.now()+ROUND_MS;
     if(m.caught||m.round>m.max){m.status='finished';m.winner=m.sa>m.sb?m.a:m.sb>m.sa?m.b:'empate';
       if(m.winner!=='empate'){db.houses.find(h=>h.id===m.winner).points+=50;
         m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
@@ -876,21 +1076,28 @@ function avatar(l,house,w=40){
 const av=(u,w)=>avatar(u&&u.look,u&&u.house,w);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
-let draft={name:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0};
 
 function creatorHTML(){
   const d=draft;
   const sw=(label,arr,key,names)=>`<div class="swrow"><span>${label}</span>${arr.map((c,i)=>`<button type="button" class="sw ${d[key]===i?'on':''}" style="background:${c}" data-do="draft" data-k="${key}" data-v="${i}" aria-label="${label}: ${names?names[i]:i+1}" title="${names?names[i]:''}"></button>`).join('')}</div>`;
   return `<div class="creator" id="creatorBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Tu túnica lleva los colores de tu casa.</p></div>
-   <div style="display:grid;gap:14px;min-width:0">
-    <div><label class="hint" for="cName">Nombre o nick</label><input id="cName" type="text" maxlength="18" value="${esc(d.name)}" placeholder="Ej: Camila N." autocomplete="off"></div>
+   <div style="display:grid;gap:12px;min-width:0">
+    <div><label class="hint" for="cName">Nombre de tu mago</label><input id="cName" type="text" maxlength="18" value="${esc(d.name)}" placeholder="Ej: Carla R." autocomplete="off"></div>
+    <div><label class="hint" for="cPass">${draftNew?'Contraseña (para entrar desde otro dispositivo)':'Nueva contraseña (dejar vacío para no cambiar)'}</label><input id="cPass" type="password" maxlength="32" value="${esc(d.pass||'')}" placeholder="${draftNew?'Mínimo 3 caracteres':'Solo si deseas cambiarla'}" autocomplete="new-password"></div>
     ${(draftNew||!me()?.house)?`<div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="draftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>`:''}
     ${sw('Piel',SKIN,'skin')}${sw('Pelo',HAIR,'hair',HAIRN)}${sw('Ojos',EYES,'eyes',EYEN)}
     <div class="swrow"><span>Peinado</span>${STYLES.map(([k,n])=>`<button type="button" class="chip ${d.style===k?'on':''}" data-do="draftStyle" data-v="${k}">${n}</button>`).join('')}</div>
-    <div class="row"><button class="btn gold" type="button" data-do="saveChar">${draftNew?'Entrar al castillo':'Guardar cambios'}</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
+    <div class="row"><button class="btn gold" type="button" data-do="saveChar">${draftNew?'✨ Crear y entrar':'Guardar cambios'}</button>${draftNew?`<button class="btn" type="button" data-do="openLogin">🔑 Ya tengo cuenta</button>`:''}<button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
    </div></div>`;
 }
-function refreshCreator(){const el=$('creatorBox');if(!el)return;const nm=$('cName');if(nm)draft.name=nm.value;el.outerHTML=creatorHTML()}
+function refreshCreator(){
+  const el=$('creatorBox');if(!el)return;
+  const nm=$('cName'),pw=$('cPass');
+  if(nm)draft.name=nm.value;
+  if(pw)draft.pass=pw.value;
+  el.outerHTML=creatorHTML();
+}
 
 /* ===== 7. Render ===== */
 function renderHero(){
@@ -926,18 +1133,23 @@ function renderMap(){
   $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col])=>{
     const isHouse=!!HOUSE(id),hereUsers=byRoom[id]||[],isMyRoom=u&&id===myLoc;
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
-    const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)}">${av(x,22)}</span>`).join('');
+    const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)}${x.is_npc?' (NPC)':''}">${av(x,22)}</span>`).join('');
     const foot=hereUsers.length?`${hereUsers.length} ${hereUsers.length===1?'alumno':'alumnos'}`:(isHouse?pts+' pts':'');
     return `<div class="room ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
       <div class="rn">${name}</div><div class="dots">${pawns}</div>
       <div class="rc">${foot}</div></div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
-  $('nowCount').textContent=`${db.users.filter(x=>x.house).length} alumnos en el castillo`;
+  const npcCount=db.users.filter(x=>x.is_npc).length, humCount=db.users.length-npcCount;
+  $('nowCount').textContent=`${humCount} jugadores y ${npcCount} NPCs en el castillo`;
 }
 function renderYou(){
   const u=me(),box=$('youBar'),s=curSlot();
-  if(!u){box.innerHTML=`<span class="hint">Crea tu personaje para entrar al castillo y moverte por el mapa en tiempo libre.</span><button class="btn gold sm" type="button" data-do="openNewChar">Crear personaje</button>`;return}
+  if(!u){
+    box.innerHTML=`<span class="hint">Modo espectador: crea tu propio personaje con contraseña o inicia sesión para jugar desde este dispositivo.</span>
+      <div class="row" style="margin-left:auto"><button class="btn gold sm" type="button" data-do="openNewChar">✨ Crear personaje</button><button class="btn sm" type="button" data-do="openLogin">🔑 Iniciar sesión</button></div>`;
+    return;
+  }
   const loc=userLoc(u),ev=activeEvent(),mult=ev?ev.mult:1;
   let h=`<span class="pawn big me">${av(u,34)}</span><div style="min-width:0"><strong>${esc(u.username)}</strong><div class="hint">${canRoam()?`En ${esc(roomName(loc))}`:`${esc(s?slotLabel(s):'Recreo libre')}`}</div></div>`;
   if(canRoam()&&u.house){
@@ -968,14 +1180,14 @@ function renderCasas(){
     const H=HOUSE(h.id),mem=db.users.filter(u=>u.house===h.id).sort((a,b)=>b.points-a.points);
     return `<article class="casa h-${h.id}">${crest(h.id,true)}<h3>${H.name}</h3><p style="font-size:14px;opacity:.9">${H.motto}</p>
       <p style="font:900 28px var(--display)" class="mono">${h.points}</p><p style="font-size:12px;opacity:.85">${mem.length} alumnos</p>
-      <ul>${mem.slice(0,3).map(m=>`<li><span>${esc(m.username)}</span><span class="mono">${m.points}</span></li>`).join('')||'<li><span>Sin alumnos</span></li>'}</ul></article>`}).join('');
+      <ul>${mem.slice(0,3).map(m=>`<li><span>${m.is_npc?'🤖 ':''}${esc(m.username)}</span><span class="mono">${m.points}</span></li>`).join('')||'<li><span>Sin alumnos</span></li>'}</ul></article>`}).join('');
 }
 function renderPrefects(){
   const u=me(),box=$('prefectBox'),list=db.users.filter(x=>x.role==='prefect');
   const names={closed:'Cerrado',application:'Postulación abierta',voting:'Votación abierta'};
   const apps=db.apps.filter(a=>a.status==='pending').map(a=>({...a,name:(db.users.find(x=>x.id===a.user_id)||{}).username||'Alumno'})).sort((a,b)=>b.votes-a.votes);
   const myVote=u?db.votes.find(v=>v.voter===u.id):null;
-  let h=`<div class="row" style="justify-content:space-between;margin-bottom:14px"><div class="row"><strong>En ejercicio</strong>${list.length?list.map(p=>`<span class="hbadge h-${p.house}">${esc(p.username)}</span>`).join(''):'<span class="muted">Sin prefectos electos</span>'}</div><span class="pill ${db.period==='closed'?'off':'gold'}">${names[db.period]}</span></div>`;
+  let h=`<div class="row" style="justify-content:space-between;margin-bottom:14px"><div class="row"><strong>En ejercicio</strong>${list.length?list.map(p=>`<span class="hbadge h-${p.house}">${p.is_npc?'🤖 ':''}${esc(p.username)}</span>`).join(''):'<span class="muted">Sin prefectos electos</span>'}</div><span class="pill ${db.period==='closed'?'off':'gold'}">${names[db.period]}</span></div>`;
   if(db.period==='application'&&u&&u.house){
     if(apps.some(a=>a.user_id===u.id))h+=`<p class="pill good" style="margin-bottom:12px">Ya estás postulado. Pide votos cuando se abra la votación.</p>`;
     else h+=`<div class="box"><p style="margin-bottom:8px">Elige <strong>3 características</strong> (${traitsDraft.length}/3)</p><div class="chips" style="margin-bottom:12px">${PREFECT_TRAITS.map(t=>`<button type="button" class="chip ${traitsDraft.includes(t)?'on':''}" data-do="trait" data-v="${t}">${t}</button>`).join('')}</div>
@@ -993,17 +1205,42 @@ function renderPrefects(){
 }
 function renderPlay(){
   const u=me(),sel=$('userSwitch');
-  if (u && u.is_admin) {
+  if (session.isAdmin) {
     $('adminControls').style.display = 'flex';
-    sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${esc(x.username)} · ${x.points} pts</option>`).join('');
+    sel.innerHTML=db.users.map(x=>`<option value="${x.id}" ${u&&x.id===u.id?'selected':''}>${x.is_npc?'🤖 ':''}${esc(x.username)} · ${x.points} pts</option>`).join('');
   } else {
     $('adminControls').style.display = 'none';
   }
+  const editBtn=$('editCharBtn'),logoutBtn=$('logoutCharBtn'),loginBtn=$('loginCharBtn'),newBtn=$('newStudentBtn');
+  if(u){
+    if(editBtn)editBtn.style.display='inline-flex';
+    if(logoutBtn)logoutBtn.style.display='inline-flex';
+    if(loginBtn)loginBtn.textContent='🔄 Cambiar cuenta';
+    if(newBtn)newBtn.style.display='none';
+  }else{
+    if(editBtn)editBtn.style.display='none';
+    if(logoutBtn)logoutBtn.style.display='none';
+    if(loginBtn){loginBtn.style.display='inline-flex';loginBtn.textContent='🔑 Iniciar sesión';}
+    if(newBtn)newBtn.style.display='inline-flex';
+  }
   const area=$('playArea'),who=$('whoami');
-  if(!u){who.innerHTML='';area.innerHTML='<p class="muted">Crea o selecciona tu alumno para empezar.</p>';return}
+  if(!u){
+    who.innerHTML=`<div><strong style="font-size:18px;color:var(--gold)">Bienvenido al Castillo</strong><p class="muted" style="font-size:13px">No tienes ningún personaje abierto en este dispositivo.</p></div>`;
+    area.innerHTML=`<div class="grid g2" style="margin-top:8px">
+      <div class="box" style="display:grid;gap:8px;align-content:between">
+        <div><h4 style="color:var(--gold);margin-bottom:4px">✨ Soy nuevo en el Castillo</h4><p class="muted" style="font-size:13px">Personaliza tu apariencia, elige tu casa y asigna una contraseña para poder usar tu personaje desde el móvil o PC.</p></div>
+        <button class="btn gold" type="button" data-do="openNewChar">✨ Crear mi personaje</button>
+      </div>
+      <div class="box" style="display:grid;gap:8px;align-content:between">
+        <div><h4 style="color:var(--gold);margin-bottom:4px">🔑 Ya tengo mi personaje</h4><p class="muted" style="font-size:13px">Si ya creaste tu mago en otro dispositivo o navegador, ingresa tu nombre y tu contraseña para continuar jugando.</p></div>
+        <button class="btn" type="button" data-do="openLogin">🔑 Entrar con mi contraseña</button>
+      </div>
+    </div>`;
+    return;
+  }
   const q=u.house?API.slot(u.id,u.house):null;
   const mis=((db.missions||{})[u.id]?.classes)||0;
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':''}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div></div>`;
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
     <div class="grid g4">${HOUSES.map(h=>`<button type="button" class="casa h-${h.id}" style="border:0;cursor:pointer;font:inherit" data-do="pickHouse" data-id="${h.id}">${crest(h.id,true)}<h3>${h.name}</h3><p style="font-size:14px">${h.motto}</p></button>`).join('')}</div>`;return}
@@ -1027,56 +1264,65 @@ function renderPlay(){
 function renderTeams(){
   const t=API.teams(),u=me();
   $('teams').innerHTML=HOUSES.map(h=>`<div class="box h-${h.id}" style="${u&&u.house===h.id?'border-color:var(--gold)':''}"><div class="row" style="justify-content:space-between;margin-bottom:6px"><strong class="row">${crest(h.id)}${h.name}</strong><span class="muted" style="font-size:12px">${t[h.id].length}/7</span></div>
-    ${t[h.id].length?t[h.id].map(p=>`<div class="prow ${u&&p.id===u.id?'me':''}"><span><b style="color:var(--gold)">#${p.rank}</b> ${esc(p.username)} <em class="muted">${p.pos}</em></span><span class="mono">${p.xp} XP</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sin jugadores. Entrena Clase de Vuelo.</p>'}</div>`).join('');
+    ${t[h.id].length?t[h.id].map(p=>`<div class="prow ${u&&p.id===u.id?'me':''}"><span><b style="color:var(--gold)">#${p.rank}</b> ${p.is_npc?'🤖 ':''}${esc(p.username)} <em class="muted">${p.pos}</em></span><span class="mono">${p.xp} XP</span></div>`).join(''):'<p class="muted" style="font-size:13px">Sin jugadores. Entrena Clase de Vuelo.</p>'}</div>`).join('');
 }
 const ACTIONS={Cazador:[['attack','Atacar'],['defend','Defender']],Guardián:[['block','Bloquear'],['idle','Esperar']],Buscador:[['search','Buscar Snitch'],['idle','Esperar']],Golpeador:[['hit','Golpear'],['idle','Esperar']]};
 function renderMatches(){
-  const u=me();if(!u){$('matches').innerHTML='';return}
+  const u=me();
   let h='';
-  if(u.is_admin)h+=`<div class="box" style="margin-bottom:12px"><div class="row"><select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><span class="muted">vs</span><select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select><button class="btn sm gold" data-do="newMatch" type="button">Crear partido</button></div></div>`;
-  const rel=db.matches.filter(m=>u.is_admin||m.a===u.house||m.b===u.house);
+  if(session.isAdmin)h+=`<div class="box" style="margin-bottom:12px"><div class="row"><select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><span class="muted">vs</span><select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select><button class="btn sm gold" data-do="newMatch" type="button">Crear partido</button></div></div>`;
+  const rel=db.matches.filter(m=>session.isAdmin||!u||m.a===u.house||m.b===u.house);
   h+=rel.length?rel.map(m=>{
-    const my=m.players.find(p=>p.uid===u.id),A=HOUSE(m.a),B=HOUSE(m.b);
+    const my=u?m.players.find(p=>p.uid===u.id):null,A=HOUSE(m.a),B=HOUSE(m.b);
     const state=m.status==='waiting'?'Esperando jugadores':m.status==='active'?`Ronda ${m.round}/${m.max}`:(m.winner==='empate'?'Empate':HOUSE(m.winner).name+' gana');
-    const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
+    const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${u&&p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
     let ctl='';
     if(m.status==='active'&&my&&!my.action)ctl=`<div class="box" style="margin-top:10px"><p style="font-size:13px;margin-bottom:8px">Tu turno como ${my.pos} · <span id="timer-${m.id}" class="mono">--</span></p><div class="row">${(ACTIONS[my.pos]||[]).map(([a,l])=>`<button class="btn sm gold" data-do="act" data-m="${m.id}" data-a="${a}" type="button">${l}</button>`).join('')}</div></div>`;
     else if(my&&my.action)ctl=`<p class="pill good" style="margin-top:10px">Acción enviada. Esperando al resto.</p>`;
     let btn='';
     if(m.status==='waiting'){
       if(my)btn+=`<button class="btn sm" data-do="leave" data-m="${m.id}" type="button">Salir</button>`;
-      else if(u.house===m.a||u.house===m.b)btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
-      if(u.is_admin&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
+      else if(u&&(u.house===m.a||u.house===m.b))btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
+      btn+=` <button class="btn sm" data-do="fillNpcMatch" data-m="${m.id}" type="button">🤖 Rellenar con NPCs</button>`;
+      if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
     return `<div class="match"><div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
       <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
-      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos. ${u.is_admin?'Crea uno arriba.':'Pide a un admin que cree uno.'}</p>`;
+      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos activos. ${session.isAdmin?'Crea uno arriba.':'Pide al profesorado que convoque un partido.'}</p>`;
   $('matches').innerHTML=h;
 }
 function renderChat(){
-  const u=me();if(!u)return;
+  const u=me();
   const glob=session.channel==='global';
   $('chGlobal').className='chip '+(glob?'on':'');$('chHouse').className='chip '+(glob?'':'on');
-  $('chHouse').textContent=u.house?'Sala Común de '+HOUSE(u.house).name:'Sala Común';
-  const msgs=db.chat.filter(m=>glob?m.ch==='global':m.ch===u.house);
+  $('chHouse').textContent=u&&u.house?'Sala Común de '+HOUSE(u.house).name:'Sala Común';
+  const msgs=db.chat.filter(m=>glob?m.ch==='global':(u&&m.ch===u.house));
   const box=$('chatBox'),atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<40;
   box.innerHTML=msgs.length?msgs.map(m=>`<div class="msg"><span>${hbadge(m.h)} <strong>${esc(m.u)}</strong>${m.role==='prefect'?' <span class="pill gold">Prefecto</span>':''} ${esc(m.text)}</span><time>${esc(m.time)}</time></div>`).join(''):'<p class="muted" style="text-align:center;padding:30px 0">Sin mensajes todavía. Saluda.</p>';
   if(atEnd)box.scrollTop=box.scrollHeight;
 }
 function renderAdmin(){
-  const u=me(),slot=$('adminSlot');
-  if(!u||!u.is_admin){slot.innerHTML='';return}
+  const slot=$('adminSlot');
+  if(!session.isAdmin){slot.innerHTML='';return}
   const ev=activeEvent(),active=document.activeElement&&slot.contains(document.activeElement)&&document.activeElement.id;
   const dsel=db.mockDay||curDay(),tval=db.mockTime||'09:00';
+  const npcCount=db.users.filter(x=>x.is_npc).length;
   slot.innerHTML=`<div class="admin"><h3 style="font-size:18px;margin-bottom:14px">Panel de administración</h3><div class="grid g2" style="align-items:start">
    <div class="box"><h4>Período de prefectos</h4><div class="row"><button class="btn sm ${db.period==='application'?'gold':''}" data-do="period" data-v="application" type="button">Postulación</button><button class="btn sm ${db.period==='voting'?'gold':''}" data-do="period" data-v="voting" type="button">Votación</button><button class="btn sm ${db.period==='closed'?'gold':''}" data-do="period" data-v="closed" type="button">Cerrar y elegir</button></div></div>
    <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
+   <div class="box" style="grid-column:1/-1"><h4>🤖 Alumnos IA / NPCs (${npcCount} activos)</h4>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Los NPCs exploran salas, entrenan en clases, participan en Quidditch y conversan en el Gran Comedor automáticamente.</p>
+    <div class="row">
+      <button class="btn sm ${db.npcAi?'gold':''}" data-do="toggleNpcAi" type="button">${db.npcAi?'🤖 IA Automática: ACTIVA':'🤖 IA Automática: PAUSADA'}</button>
+      <button class="btn sm" data-do="npcNow" type="button">⚡ Simular acción IA ahora</button>
+      <button class="btn sm" data-do="spawnNpc" type="button">➕ Añadir nuevo NPC</button>
+    </div></div>
    <div class="box" style="grid-column:1/-1"><h4>Reloj y horario</h4>
     <p style="margin-bottom:10px;font-size:14px">${DAYL[curDay()]} · <b class="mono">${curTime()}</b> · modo ${db.clockMode==='mock'?'simulado':'real'}</p>
     <div class="row" style="margin-bottom:10px"><select id="mockDay" aria-label="Día simulado">${DAYS.map(d=>`<option value="${d}" ${d===dsel?'selected':''}>${DAYL[d]}</option>`).join('')}</select><input id="mockTime" type="time" value="${tval}" style="width:auto" aria-label="Hora simulada"><button class="btn sm gold" data-do="mock" type="button">Simular</button><button class="btn sm" data-do="real" type="button">Hora real</button></div>
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
-   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button></td></tr>`).join('')}</tbody></table></div>
+   <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button></td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -1085,7 +1331,7 @@ function renderStudents(){
   const t=stuTerm.trim().toLowerCase();
   let l=db.users.filter(u=>(stuHouse==='all'||u.house===stuHouse)&&(!t||u.username.toLowerCase().includes(t)));
   l.sort(stuSort==='az'?(a,b)=>a.username.localeCompare(b.username,'es'):stuSort==='new'?(a,b)=>a.id-b.id:(a,b)=>b.points-a.points);
-  $('students').innerHTML=l.length?l.map(u=>`<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}"><span class="pawn">${av(u,28)}</span><span><strong>${esc(u.username)}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${u.points}</span></button>`).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
+  $('students').innerHTML=l.length?l.map(u=>`<button type="button" class="stu h-${u.house||''}" data-do="openStu" data-id="${u.id}"><span class="pawn">${av(u,28)}</span><span><strong>${esc(u.username)} ${u.is_npc?'<span class="pill" style="font-size:10px;padding:1px 6px">🤖 NPC</span>':''}</strong><small>${u.house?HOUSE(u.house).name:'Sin casa'}${u.role==='prefect'?' · Prefecto':''}</small></span><span class="sp mono">${u.points}</span></button>`).join(''):'<p class="muted">Ningún alumno coincide con la búsqueda.</p>';
 }
 function renderCourses(){
   const n=['Primero','Segundo','Tercero','Cuarto','Quinto','Sexto','Séptimo'];
@@ -1095,7 +1341,7 @@ function renderClock(){
   $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
   const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
 }
-function renderAll(){ensureLooks();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderArcade();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
+function renderAll(){ensureDbIntegrity();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderArcade();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
@@ -1401,27 +1647,53 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
-  openModal(`<h3 style="font-size:20px">Crea tu personaje / Entrar</h3><p class="muted" style="font-size:13px">Si ya tienes cuenta, escribe tu nombre exacto para recuperarla.</p>${creatorHTML()}`,true);
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
+  openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
+}
+function openLoginModal(){
+  const humans=db.users.filter(u=>!u.is_npc);
+  openModal(`<h3 style="font-size:20px">🔑 Iniciar sesión con mi personaje</h3>
+    <p class="muted" style="font-size:13px">Introduce el nombre exacto de tu personaje y tu contraseña para jugar desde este dispositivo.</p>
+    <div style="width:100%;text-align:left;display:grid;gap:10px">
+      <div>
+        <label class="hint" for="loginName">Nombre del personaje</label>
+        <input id="loginName" type="text" list="humanPlayersList" placeholder="Ej: Carla R." autocomplete="username">
+        <datalist id="humanPlayersList">${humans.map(u=>`<option value="${esc(u.username)}">`).join('')}</datalist>
+      </div>
+      <div>
+        <label class="hint" for="loginPass">Contraseña</label>
+        <input id="loginPass" type="password" placeholder="Tu contraseña" autocomplete="current-password">
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button class="btn gold" data-do="doLogin" type="button">🔑 Entrar al Castillo</button>
+      <button class="btn" data-do="openNewChar" type="button">✨ Crear nuevo</button>
+      <button class="btn" data-do="closeModal" type="button">Cancelar</button>
+    </div>`);
+  setTimeout(()=>$('loginName')&&$('loginName').focus(),30);
 }
 function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0};
-  openModal(`<h3 style="font-size:20px">Personalizar personaje</h3>${creatorHTML()}`,true);
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0};
+  openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
   const rank=u.house?db.users.filter(x=>x.house===u.house).sort((a,b)=>b.points-a.points).findIndex(x=>x.id===id)+1:null,q=u.house?API.slot(u.id,u.house):null;
   const loc=roomName(userLoc(u));
-  openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3>${hbadge(u.house)}
+  const cur=me();
+  openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3><div class="row">${hbadge(u.house)}${u.is_npc?'<span class="pill">🤖 Alumno IA (NPC)</span>':'<span class="pill gold">👤 Jugador real</span>'}</div>
    <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Reserva'],['Ubicación actual',loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
-   <div class="row"><button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button><button class="btn" data-do="closeModal" type="button">Cerrar</button></div>`);
+   <div class="row">
+     <button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>
+     ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
+     <button class="btn" data-do="closeModal" type="button">Cerrar</button>
+   </div>`);
 }
-
 
 /* ===== 8.5. CATÁLOGO DE 6 MINIJUEGOS EN HTML5 CANVAS ===== */
 const ARCADE_CD = 12000;
@@ -2234,14 +2506,27 @@ document.addEventListener('click',e=>{
   try{switch(d.do){
     case 'closeModal':closeModal();break;
     case 'openNewChar':newStudent();break;
+    case 'openLogin':openLoginModal();break;
+    case 'loginAsStu':{
+      openLoginModal();
+      setTimeout(()=>{if($('loginName'))$('loginName').value=d.name||'';if($('loginPass'))$('loginPass').focus();},30);
+      break;
+    }
+    case 'doLogin':{
+      const nm=$('loginName')?.value||'',pw=$('loginPass')?.value||'';
+      API.login(nm,pw);closeModal();break;
+    }
+    case 'logoutChar':API.logout();break;
     case 'editChar':openEditChar();break;
     case 'draft':draft[d.k]=Number(d.v);refreshCreator();break;
     case 'draftStyle':draft.style=d.v;refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
     case 'saveChar':{
-      const nm=$('cName');if(nm)draft.name=nm.value;
-      if(draftNew){API.register(draft.name,draft,draft.house);closeModal();}
-      else{API.editChar(draft);closeModal();toast('Apariencia actualizada');}
+      const nm=$('cName'),pw=$('cPass');
+      if(nm)draft.name=nm.value;
+      if(pw)draft.pass=pw.value;
+      if(draftNew){API.register(draft.name,draft.pass,draft,draft.house);closeModal();}
+      else{API.editChar(draft);closeModal();toast('Personaje actualizado');}
       break;
     }
     case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));break;
@@ -2260,6 +2545,10 @@ document.addEventListener('click',e=>{
     case 'evCustom':customEvent();break;
     case 'evGo':API.launch($('evName').value,$('evDesc').value,parseFloat($('evMult').value));closeModal();break;
     case 'evStop':API.stopEvent();toast('Evento detenido');break;
+    case 'toggleNpcAi':must(session.isAdmin,'Solo admin');db.npcAi=!db.npcAi;commit(db.npcAi?'IA de NPCs activada':'IA de NPCs pausada');break;
+    case 'npcNow':API.npcStep(false);break;
+    case 'spawnNpc':API.spawnNpc();break;
+    case 'fillNpcMatch':API.fillMatchWithNpcs(d.m);break;
     case 'mock':API.clock('mock',$('mockTime').value,$('mockDay').value);break;
     case 'real':API.clock('real');break;
     case 'adv':API.advance(parseInt(d.n));break;
@@ -2277,15 +2566,26 @@ document.addEventListener('click',e=>{
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
   }}catch(err){toast(err.message)}
 });
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&$('loginPass')&&(document.activeElement===$('loginName')||document.activeElement===$('loginPass'))){
+    e.preventDefault();
+    try{API.login($('loginName').value,$('loginPass').value);closeModal();}catch(err){toast(err.message);}
+  }
+});
 document.addEventListener('input',e=>{if(e.target.id==='pitch')pitchDraft=e.target.value});
 $('mapSearch').addEventListener('input',e=>{mapTerm=e.target.value;renderMap()});
 $('stuSearch').addEventListener('input',e=>{stuTerm=e.target.value;renderStudents()});
 $('stuSort').addEventListener('change',e=>{stuSort=e.target.value;renderStudents()});
-$('userSwitch').addEventListener('change',e=>{session.uid=Number(e.target.value);localStorage.setItem('castillo_uid',String(session.uid));session.channel='global';toast('Ahora eres '+me().username);renderAll()});
+$('userSwitch').addEventListener('change',e=>{
+  session.uid=Number(e.target.value);
+  const u=me();
+  if(u)toast('Modo Simulador Admin: viendo como '+u.username);
+  renderAll();
+});
 $('newStudentBtn').addEventListener('click',newStudent);
 $('chGlobal').addEventListener('click',()=>{session.channel='global';renderChat()});
-$('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Elige casa para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
-$('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatInput');if(!i.value.trim())return;API.say(i.value);i.value=''});
+$('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Inicia sesión con tu personaje para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
+$('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatInput');if(!i.value.trim())return;try{API.say(i.value);i.value='';}catch(err){toast(err.message);}});
 
 /* Movimiento con flechas del teclado sobre el mapa en tiempo libre */
 $('mapbox').addEventListener('keydown',e=>{
@@ -2307,19 +2607,28 @@ $('mapbox').addEventListener('keydown',e=>{
   if(best){API.goTo(best[0]);toast('Fuiste a '+best[1])}
 });
 
-/* ===== 10. Temporizadores ===== */
+/* ===== 10. Temporizadores e IA Autónoma de NPCs ===== */
 setInterval(renderClock,1000);
 setInterval(()=>{document.querySelectorAll('[id^="timer-"]').forEach(el=>{const m=db.matches.find(x=>x.id===el.id.slice(6));if(m&&m.deadline)el.textContent=Math.max(0,Math.ceil((m.deadline-Date.now())/1000))+' s'})},500);
 setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)continue;
+  m.players.forEach(pl=>{if(pl.is_npc&&!pl.action){const opts=ACTIONS[pl.pos]||[['attack']];pl.action=opts[0][0];}});
   if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
 let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
   if(s!==sig){sig=s;renderPlay();renderArcade();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
+// Ciclo autónomo de NPCs: cada 28 segundos un NPC se mueve de sala, entrena o conversa
+setInterval(()=>{
+  if(db.npcAi && Math.random()<0.45){
+    try{API.npcStep(true);}catch(e){}
+  }
+},28000);
+
 /* ===== LOGIN SECRETO DE ADMIN ===== */
 document.getElementById('adminLoginBtn').addEventListener('click', () => {
   if (session.isAdmin) {
     session.isAdmin = false;
+    validateLocalSession();
     renderAll();
     toast('Modo Administrador cerrado.');
     return;
