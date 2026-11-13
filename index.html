@@ -1,4 +1,13 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+/* ===== HOGSMEADE & ÁLBUM DE CROMOS ===== */
+.cromo-card{background:var(--surface-2);border:2px solid var(--gold);border-radius:12px;padding:12px;text-align:center;position:relative;display:flex;flex-direction:column;gap:6px;align-items:center}
+.cromo-card.bloqueado{border-color:var(--line);opacity:.48;filter:grayscale(100%)}
+.cromo-rareza{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;display:inline-block}
+.rareza-Legendario{background:#b8860b;color:#fff}
+.rareza-Raro{background:#4a3b8c;color:#fff}
+.rareza-Común{background:#2c4a3e;color:#fff}
+.cromo-repetido{position:absolute;top:8px;right:8px;background:var(--gold);color:var(--gold-ink);font-weight:900;font-size:11px;padding:2px 7px;border-radius:8px}
+</style></head><body>
 <audio id="bgMusic" loop volume="0.2">
   <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
 </audio>
@@ -315,7 +324,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
   </div>
   <div class="row">
-    <button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
+    <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span><button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button><button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button><button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
   </div>
 </div></nav>
@@ -668,6 +677,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   personality: personality,
+  galeones:15,inv:{},cromos:{},inmunidadFilchHasta:0,buffDobleGaleon:false,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
@@ -861,6 +871,11 @@ function ensureDbIntegrity(){
     if (typeof u.pride === 'undefined') { u.pride = 50; changed = true; }
     if (typeof u.academic_progress === 'undefined') { u.academic_progress = 0; changed = true; }
     if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
+    if (typeof u.galeones !== 'number') { u.galeones = 15; changed = true; }
+    if (!u.inv || typeof u.inv !== 'object') { u.inv = {}; changed = true; }
+    if (!u.cromos || typeof u.cromos !== 'object') { u.cromos = {}; changed = true; }
+    if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
+    if (typeof u.buffDobleGaleon !== 'boolean') { u.buffDobleGaleon = false; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1049,7 +1064,119 @@ const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
 const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
+
+const TIENDA_HOGSMEADE={
+  bomba_fetida:{id:'bomba_fetida',tienda:'Zonko',nombre:'Bomba Fétida',precio:15,desc:'Distrae a Filch y te da 60s de inmunidad en el toque de queda.'},
+  polvo_oscuridad:{id:'polvo_oscuridad',tienda:'Zonko',nombre:'Polvo de Oscuridad Peruano',precio:25,desc:'Escapa al instante a tu Sala Común durante el toque de queda o recreo.'},
+  rana_chocolate:{id:'rana_chocolate',tienda:'Honeydukes',nombre:'Rana de Chocolate',precio:12,desc:'Otorga +5 pts para tu Casa y revela un cromo aleatorio de mago.'},
+  grageas_bertie:{id:'grageas_bertie',tienda:'Honeydukes',nombre:'Grageas de Todos los Sabores',precio:8,desc:'Efecto sorpresa: gana entre +1 y +3 pts para tu Casa (o un sabor terrible).'},
+  cerveza_mantequilla:{id:'cerveza_mantequilla',tienda:'Honeydukes',nombre:'Cerveza de Mantequilla',precio:18,desc:'Duplica los Galeones que ganes en tu próximo minijuego.'}
+};
+
+const CROMOS_MAGOS=[
+  {id:'dumbledore',nombre:'Albus Dumbledore',rareza:'Legendario',desc:'Director de Hogwarts, descubridor de los 12 usos de la sangre de dragón.'},
+  {id:'merlin',nombre:'Merlín',rareza:'Legendario',desc:'El mago más famoso de todos los tiempos; perteneció a Slytherin.'},
+  {id:'rowena',nombre:'Rowena Ravenclaw',rareza:'Raro',desc:'Cofundadora de Hogwarts, célebre por su ingenio y sabiduría.'},
+  {id:'godric',nombre:'Godric Gryffindor',rareza:'Raro',desc:'Cofundador de Hogwarts, duelista incomparable.'},
+  {id:'helga',nombre:'Helga Hufflepuff',rareza:'Raro',desc:'Cofundadora de Hogwarts, maestra en encantamientos culinarios.'},
+  {id:'salazar',nombre:'Salazar Slytherin',rareza:'Raro',desc:'Cofundador de Hogwarts, hablante de pársel.'},
+  {id:'newt',nombre:'Newt Scamander',rareza:'Común',desc:'Magizoólogo y autor de Animales Fantásticos y Dónde Encontrarlos.'},
+  {id:'morgana',nombre:'Morgana le Fay',rareza:'Común',desc:'Poderosa hechicera medieval y enemiga de Merlín.'},
+  {id:'flamel',nombre:'Nicolas Flamel',rareza:'Común',desc:'Alquimista y único creador conocido de la Piedra Filosofal.'}
+];
+
+const VALOR_CANJE_CROMO={'Común':4,'Raro':8,'Legendario':15};
+
+function sortearCromoRana(){
+  const t=Math.random();
+  let pool=CROMOS_MAGOS.filter(c=>c.rareza==='Común');
+  if(t>0.90) pool=CROMOS_MAGOS.filter(c=>c.rareza==='Legendario');
+  else if(t>0.60) pool=CROMOS_MAGOS.filter(c=>c.rareza==='Raro');
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
 const API={
+  buyItem(itemId){
+    const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+    const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
+    must((u.galeones||0)>=item.precio,`Te faltan Galeones (cuesta ${item.precio} 🪙)`);
+    u.galeones-=item.precio;
+    u.inv=u.inv||{};
+    u.inv[itemId]=(u.inv[itemId]||0)+1;
+    chime();
+    commit(`${u.username} compró ${item.nombre} en ${item.tienda}`);
+    toast(`Compraste ${item.nombre} (-${item.precio} 🪙)`);
+  },
+  useItem(itemId){
+    const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+    const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
+    u.inv=u.inv||{};
+    must((u.inv[itemId]||0)>0,'No tienes este objeto en tu mochila');
+    u.inv[itemId]--;
+    let msg=`Usaste ${item.nombre}.`;
+    if(itemId==='bomba_fetida'){
+      u.inmunidadFilchHasta=Date.now()+60000;
+      msg='💣 ¡Lanzaste una Bomba Fétida! Filch está distraído por 60 segundos.';
+    }else if(itemId==='polvo_oscuridad'){
+      u.loc=u.house;u.locSlot=slotKey();
+      msg='🌫️ ¡Polvo de Oscuridad! Escapaste al instante a tu Sala Común.';
+    }else if(itemId==='rana_chocolate'){
+      u.points+=5;
+      u.cromos=u.cromos||{};
+      const cromo=sortearCromoRana();
+      const esNuevo=!u.cromos[cromo.id];
+      u.cromos[cromo.id]=(u.cromos[cromo.id]||0)+1;
+      db.log.unshift({u:u.username,h:u.house,a:`Rana de Chocolate (${cromo.nombre})`,p:5,x:0});
+      db.log.length=Math.min(db.log.length,15);
+      msg=esNuevo?`🐸 ¡+5 pts y NUEVO CROMO: ${cromo.nombre} (${cromo.rareza})!`:`🐸 ¡+5 pts! Te salió ${cromo.nombre} (repetido).`;
+    }else if(itemId==='cerveza_mantequilla'){
+      u.buffDobleGaleon=true;
+      msg='🍺 ¡Salud! Tu próximo minijuego o clase dará el doble de Galeones.';
+    }else if(itemId==='grageas_bertie'){
+      if(Math.random()>0.3){
+        const pts=Math.floor(Math.random()*3)+1;
+        u.points+=pts;
+        msg=`🍬 ¡Sabor a fresa! Ganaste +${pts} pts para ${HOUSE(u.house).name}.`;
+      }else{
+        msg='🤢 ¡Puaj, sabor a cera de oído! No pasa nada, pero qué asco.';
+      }
+    }
+    chime();
+    commit(`${u.username} usó ${item.nombre}`);
+    toast(msg);
+  },
+  tradeCromo(cromoId){
+    const u=me();must(u,'Inicia sesión primero');
+    const cromo=CROMOS_MAGOS.find(c=>c.id===cromoId);must(cromo,'Cromo no encontrado');
+    u.cromos=u.cromos||{};
+    must((u.cromos[cromoId]||0)>1,'Solo puedes canjear cromos repetidos');
+    const valor=VALOR_CANJE_CROMO[cromo.rareza]||4;
+    u.cromos[cromoId]--;
+    u.galeones=(u.galeones||0)+valor;
+    chime();
+    commit(`${u.username} canjeó un cromo repetido`);
+    toast(`Canjeaste ${cromo.nombre} por +${valor} 🪙 Galeones`);
+  },
+  tradeAllCromos(){
+    const u=me();must(u,'Inicia sesión primero');
+    u.cromos=u.cromos||{};
+    let totalGal=0,totalCromos=0;
+    Object.keys(u.cromos).forEach(id=>{
+      const qty=u.cromos[id]||0;
+      if(qty>1){
+        const c=CROMOS_MAGOS.find(x=>x.id===id);
+        const extras=qty-1;
+        totalGal+=extras*(c?(VALOR_CANJE_CROMO[c.rareza]||4):4);
+        totalCromos+=extras;
+        u.cromos[id]=1;
+      }
+    });
+    must(totalCromos>0,'No tienes cromos repetidos para canjear');
+    u.galeones=(u.galeones||0)+totalGal;
+    fanfare();
+    commit(`${u.username} canjeó ${totalCromos} cromos repetidos`);
+    toast(`Canjeaste ${totalCromos} cromos repetidos por +${totalGal} 🪙 Galeones`);
+  },
   register(name,pass,look,house){
     name=cleanName(name);must(name,'Escribe un nombre para tu personaje');
     pass=String(pass||'').trim();must(pass.length>=3,'Pon una contraseña de al menos 3 caracteres');
@@ -1147,7 +1274,8 @@ const API={
     const u=me();must(u&&u.house,'Inicia sesión primero');
     must(isCurfew()&&!db.free,'Solo puedes escabullirte en el toque de queda');
     
-    const caught = Math.random() < 0.45;
+    const inmune = u.inmunidadFilchHasta && u.inmunidadFilchHasta > Date.now();
+    const caught = inmune ? false : Math.random() < 0.45;
     if(caught){
       u.points = Math.max(0, u.points - 10);
       u.happiness = Math.max(0, u.happiness - 10);
@@ -1193,6 +1321,9 @@ const API={
     const ev=activeEvent(),mult=ev?ev.mult:1;
     const pts=Math.round((cfg.points+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id),fx=(cfg.flightXp||0)+extraFlight;
     
+    const _galAtt = Math.round(2 * mult) * (u.buffDobleGaleon ? 2 : 1);
+    u.buffDobleGaleon = false;
+    u.galeones = (u.galeones || 0) + _galAtt;
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
     u.academic_progress += 1;
@@ -1229,6 +1360,9 @@ const API={
     const ev=activeEvent(),mult=ev?ev.mult:1;
     const base=hit?5:2;
     const pts=Math.round(base*mult)+(u.role==='prefect'?2:0),fx=key==='vuelo'?(hit?4:1):0;
+    const _galTr = Math.round((hit?3:1) * mult) * (u.buffDobleGaleon ? 2 : 1);
+    u.buffDobleGaleon = false;
+    u.galeones = (u.galeones || 0) + _galTr;
     u.points+=pts;if(fx)u.flight_xp+=fx;
     u.academic_progress += hit?1:0;
     db.houses.find(h=>h.id===u.house).points+=pts;
@@ -1852,7 +1986,7 @@ function renderPlay(){
     <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
   </div>`;
 
-  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
+  who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong><div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}<span class="muted mono" style="font-size:13px">🪙 ${u.galeones||0} G · ${u.points} pts · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>${hbar}</div>`;
   
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
@@ -2202,9 +2336,87 @@ function renderAll(){
   renderStudents();
   renderCourses();
   renderClock();
+  const _uHud=me(),_navG=$('navGaleones'),_hudG=$('hudGaleones');
+  if(_navG&&_hudG){
+    if(_uHud){_navG.style.display='inline-flex';_hudG.textContent=_uHud.galeones||0;}
+    else{_navG.style.display='none';}
+  }
 }
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
+
+let shopTab='Zonko';
+function openHogsmeadeModal(tab){
+  if(tab) shopTab=tab;
+  const u=me();
+  if(!u||!u.house){toast('Inicia sesión y elige tu casa para comprar en Hogsmeade');return;}
+  const inv=u.inv||{};
+  let body='';
+  if(shopTab==='Mochila'){
+    const entries=Object.entries(inv).filter(([,q])=>q>0);
+    body=entries.length?`<div class="arcade-grid" style="width:100%;text-align:left">${entries.map(([id,q])=>{
+      const it=TIENDA_HOGSMEADE[id];if(!it)return '';
+      return `<div class="arcade-card"><h4><span>${esc(it.nombre)}</span><span class="pill gold">x${q}</span></h4><p class="muted" style="font-size:12px;flex:1">${esc(it.desc)}</p><button class="btn sm gold" type="button" data-do="useItem" data-id="${id}">✨ Usar</button></div>`;
+    }).join('')}</div>`:'<p class="muted" style="padding:16px 0">Tu mochila está vacía. ¡Juega minijuegos para ganar Galeones!</p>';
+  }else{
+    const items=Object.values(TIENDA_HOGSMEADE).filter(i=>i.tienda===shopTab);
+    body=`<div class="arcade-grid" style="width:100%;text-align:left">${items.map(it=>`
+      <div class="arcade-card">
+        <h4><span>${esc(it.nombre)}</span><span class="pill gold mono">🪙 ${it.precio}</span></h4>
+        <p class="muted" style="font-size:12px;flex:1">${esc(it.desc)}</p>
+        <button class="btn sm gold" type="button" data-do="buyItem" data-id="${it.id}" ${(u.galeones||0)<it.precio?'disabled':''}>🛒 Comprar (${it.precio} 🪙)</button>
+      </div>`).join('')}</div>`;
+  }
+  openModal(`
+    <div class="row" style="justify-content:space-between;width:100%">
+      <h3 style="font-size:21px;color:var(--gold)">🏘️ Pueblo de Hogsmeade</h3>
+      <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
+    </div>
+    <div class="chips" style="width:100%;justify-content:center">
+      <button type="button" class="chip ${shopTab==='Zonko'?'on':''}" data-do="shopTab" data-t="Zonko">🃏 Zonko</button>
+      <button type="button" class="chip ${shopTab==='Honeydukes'?'on':''}" data-do="shopTab" data-t="Honeydukes">🍬 Honeydukes</button>
+      <button type="button" class="chip ${shopTab==='Mochila'?'on':''}" data-do="shopTab" data-t="Mochila">🎒 Mi Mochila</button>
+    </div>
+    ${body}
+    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+  `,true);
+}
+
+function openAlbumModal(){
+  const u=me();
+  if(!u){toast('Inicia sesión para ver tu álbum de cromos');return;}
+  const col=u.cromos||{};
+  const descubiertos=CROMOS_MAGOS.filter(c=>(col[c.id]||0)>0).length;
+  const hayRepetidos=Object.values(col).some(q=>q>1);
+  const gridHtml=CROMOS_MAGOS.map(c=>{
+    const qty=col[c.id]||0;
+    if(qty===0){
+      return `<div class="cromo-card bloqueado"><h4>???</h4><p class="muted" style="font-size:12px">Abre Ranas de Chocolate en Honeydukes para descubrirlo.</p></div>`;
+    }
+    const val=VALOR_CANJE_CROMO[c.rareza]||4;
+    return `<div class="cromo-card">
+      ${qty>1?`<span class="cromo-repetido">x${qty}</span>`:''}
+      <span class="cromo-rareza rareza-${c.rareza}">${c.rareza}</span>
+      <h4 style="color:var(--gold);font-size:15px">${esc(c.nombre)}</h4>
+      <p class="muted" style="font-size:12px;flex:1">${esc(c.desc)}</p>
+      ${qty>1?`<button class="btn sm gold" type="button" data-do="tradeCromo" data-id="${c.id}" style="width:100%;margin-top:4px">🪙 Canjear 1 (+${val})</button>`:''}
+    </div>`;
+  }).join('');
+
+  openModal(`
+    <div class="row" style="justify-content:space-between;width:100%">
+      <h3 style="font-size:21px;color:var(--gold)">🐸 Álbum de Ranas de Chocolate</h3>
+      <span class="pill gold mono">Descubiertos: ${descubiertos} / ${CROMOS_MAGOS.length}</span>
+    </div>
+    <div class="row" style="justify-content:space-between;width:100%;font-size:12px">
+      <span class="muted">Canje de repetidos: Común (4🪙) · Raro (8🪙) · Legendario (15🪙)</span>
+      ${hayRepetidos?`<button class="btn sm gold" type="button" data-do="tradeAllCromos">🪙 Canjear todos los repetidos</button>`:''}
+    </div>
+    <div class="arcade-grid" style="width:100%;grid-template-columns:repeat(auto-fill,minmax(175px,1fr))">${gridHtml}</div>
+    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+  `,true);
+}
+
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
 
 function finishMinigame(k,hit,msgWin,msgLose){
@@ -3028,6 +3240,9 @@ function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', fl
   const ev = activeEvent(), mult = ev ? ev.mult : 1;
   const points = Math.round(basePoints * mult) + (user.role === 'prefect' ? 2 : 0);
 
+  const galeonesGanados = Math.max(2, Math.round(basePoints)) * mult * (user.buffDobleGaleon ? 2 : 1);
+  user.buffDobleGaleon = false;
+  user.galeones = (user.galeones || 0) + galeonesGanados;
   user.points += points;
   if (flightXp) user.flight_xp = (user.flight_xp || 0) + flightXp;
   user.academic_progress += 1;
@@ -3041,7 +3256,7 @@ function awardMinigamePoints(basePoints, gameName = 'Minijuego del Castillo', fl
   fanfare();
   closeMinigame();
   commit(`${user.username} ganó +${points} pts en ${gameName}`);
-  toast(`¡Has ganado +${points} puntos para ${HOUSE(user.house).name}${flightXp ? ` y +${flightXp} XP de vuelo` : ''}!`);
+  toast(`¡Has ganado +${points} puntos, +🪙 ${galeonesGanados} Galeones${flightXp ? ` y +${flightXp} XP de vuelo` : ''}!`);
 }
 
 function houseHex(h) {
@@ -3734,6 +3949,13 @@ document.addEventListener('click',e=>{
   if(d.do==='modalBg'){if(e.target===b)closeModal();return}
   try{switch(d.do){
     case 'closeModal':closeModal();break;
+    case 'openHogsmeade':openHogsmeadeModal();break;
+    case 'shopTab':openHogsmeadeModal(d.t);break;
+    case 'buyItem':API.buyItem(d.id);openHogsmeadeModal();break;
+    case 'useItem':API.useItem(d.id);openHogsmeadeModal();break;
+    case 'openAlbum':openAlbumModal();break;
+    case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
+    case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
     case 'openNewChar':newStudent();break;
     case 'openLogin':openLoginModal();break;
     case 'loginAsStu':{
