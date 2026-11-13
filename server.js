@@ -1,3 +1,6 @@
+// ⬅️ AÑADIDO: carga .env si está instalado (opcional, no rompe si falta)
+try { require('dotenv').config(); } catch (e) { /* dotenv no instalado, se ignora */ }
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -9,6 +12,16 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
+// ⬅️ AÑADIDO: bloquear archivos sensibles ANTES del static
+const BLOCKED_PATHS = new Set([
+  '/db.json', '/server.js', '/package.json',
+  '/package-lock.json', '/.env', '/.gitignore', '/.env.local'
+]);
+app.use((req, res, next) => {
+  if (BLOCKED_PATHS.has(req.path)) return res.status(403).send('Forbidden');
+  next();
+});
+
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
@@ -19,6 +32,17 @@ app.get('/', (req, res) => {
   else if (fs.existsSync(index2Path)) res.sendFile(index2Path);
   else if (fs.existsSync(castilloPath)) res.sendFile(castilloPath);
   else res.status(404).send('No se encontró el archivo del juego.');
+});
+
+// ⬅️ AÑADIDO: health-check para Render/Railway/Fly/UptimeRobot
+app.get('/health', (req, res) => {
+  res.json({
+    ok: true,
+    mongo: !!db,
+    users: memoryState?.users?.length || 0,
+    uptime: Math.round(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
 });
 
 const uri = process.env.MONGODB_URI;
@@ -94,43 +118,46 @@ const SERVER_NPC_LINES = [
   '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?'
 ];
 
-const defaultDb = {
-  users: BASE_NPCS,
-  houses: [
-    { id: 'gryffindor', points: 297 },
-    { id: 'ravenclaw', points: 145 },
-    { id: 'slytherin', points: 193 },
-    { id: 'hufflepuff', points: 200 }
-  ],
-  log: [
-    { u: '🤖 Hermione Granger', h: 'gryffindor', a: 'Transformaciones', p: 10, x: 0 },
-    { u: '🤖 Cho Chang', h: 'ravenclaw', a: 'Cuidado de Criaturas Mágicas', p: 10, x: 0 },
-    { u: '🤖 Draco Malfoy', h: 'slytherin', a: 'Pociones', p: 10, x: 0 },
-    { u: '🤖 Cedric Diggory', h: 'hufflepuff', a: 'Defensa contra las Artes Oscuras', p: 10, x: 0 }
-  ],
-  apps: [],
-  votes: [],
-  events: [
-    { name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }
-  ],
-  period: 'application',
-  schoolYear: 1,
-  clockMode: 'real',
-  mockTime: null,
-  mockDay: null,
-  free: false,
-  npcAi: true,
-  relations: {},
-  profAffinity: {},
-  raidShield: 100,
-  chat: [
-    { id: 1, u: '🤖 Hermione Granger', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!', time: '20:40' },
-    { id: 2, u: '🤖 Cedric Diggory', h: 'hufflepuff', role: 'student', ch: 'global', text: '¡Bienvenidos los de 1.º curso! Los de 3.º los ayudaremos a orientarse por el castillo.', time: '20:42' }
-  ],
-  matches: [],
-  cooldowns: {},
-  missions: {}
-};
+// ⬅️ AÑADIDO: función que devuelve un objeto NUEVO cada vez (evita mutar BASE_NPCS)
+function defaultDb() {
+  return {
+    users: JSON.parse(JSON.stringify(BASE_NPCS)),
+    houses: [
+      { id: 'gryffindor', points: 297 },
+      { id: 'ravenclaw', points: 145 },
+      { id: 'slytherin', points: 193 },
+      { id: 'hufflepuff', points: 200 }
+    ],
+    log: [
+      { u: '🤖 Hermione Granger', h: 'gryffindor', a: 'Transformaciones', p: 10, x: 0 },
+      { u: '🤖 Cho Chang', h: 'ravenclaw', a: 'Cuidado de Criaturas Mágicas', p: 10, x: 0 },
+      { u: '🤖 Draco Malfoy', h: 'slytherin', a: 'Pociones', p: 10, x: 0 },
+      { u: '🤖 Cedric Diggory', h: 'hufflepuff', a: 'Defensa contra las Artes Oscuras', p: 10, x: 0 }
+    ],
+    apps: [],
+    votes: [],
+    events: [
+      { name: 'Copa Inaugural del Trimestre', desc: 'Todas las clases y partidos otorgan puntos dobles.', mult: 2, active: true }
+    ],
+    period: 'application',
+    schoolYear: 1,
+    clockMode: 'real',
+    mockTime: null,
+    mockDay: null,
+    free: false,
+    npcAi: true,
+    relations: {},
+    profAffinity: {},
+    raidShield: 100,
+    chat: [
+      { id: 1, u: '🤖 Hermione Granger', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!', time: '20:40' },
+      { id: 2, u: '🤖 Cedric Diggory', h: 'hufflepuff', role: 'student', ch: 'global', text: '¡Bienvenidos los de 1.º curso! Los de 3.º los ayudaremos a orientarse por el castillo.', time: '20:42' }
+    ],
+    matches: [],
+    cooldowns: {},
+    missions: {}
+  };
+}
 
 function userYear(state, u) {
   const sy = Math.max(1, Math.min(7, Number(state?.schoolYear) || 1));
@@ -166,7 +193,7 @@ function reconcileHousePoints(state) {
 }
 
 function sanitizeState(state) {
-  if (!state || !Array.isArray(state.users)) return { ...defaultDb };
+  if (!state || !Array.isArray(state.users)) return defaultDb();
   if (!state.schoolYear || state.schoolYear < 1 || state.schoolYear > 7) state.schoolYear = 1;
 
   const legacyNames = ['carla r.', 'vicente d.', 'matilde s.', 'joaquín p.', 'antonia v.', 'benjamín l.'];
@@ -178,7 +205,7 @@ function sanitizeState(state) {
   BASE_NPCS.forEach(npc => {
     const existing = state.users.find(u => u.id === npc.id || (u.username || '').toLowerCase() === npc.username.toLowerCase());
     if (!existing) {
-      state.users.push({ ...npc });
+      state.users.push(JSON.parse(JSON.stringify(npc)));
     } else if (existing.is_npc) {
       if (npc.is_canon) existing.is_canon = true;
       existing.yearOffset = npc.yearOffset;
@@ -193,7 +220,7 @@ function sanitizeState(state) {
     if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
     if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
     if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
-    
+
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
       u.npc_quidditch = false;
@@ -225,17 +252,17 @@ function sanitizeState(state) {
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
-  
+
   if (Array.isArray(state.matches)) {
     state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
   }
-  
+
   reconcileHousePoints(state);
   return state;
 }
 
 const DB_FILE = path.join(__dirname, 'db.json');
-let memoryState = sanitizeState(defaultDb);
+let memoryState = sanitizeState(defaultDb());
 if (fs.existsSync(DB_FILE)) {
   try {
     memoryState = sanitizeState(JSON.parse(fs.readFileSync(DB_FILE, 'utf8')));
@@ -249,8 +276,10 @@ async function loadState() {
   const collection = db.collection('gameState');
   let state = await collection.findOne({ _id: 'global' });
   if (!state) {
-    await collection.insertOne({ _id: 'global', ...defaultDb });
-    return { ...defaultDb };
+    const initial = defaultDb();
+    await collection.insertOne({ _id: 'global', ...initial });
+    memoryState = sanitizeState(initial);
+    return memoryState;
   }
   const { _id, ...cleanState } = state;
   const fixedState = sanitizeState(cleanState);
@@ -275,7 +304,14 @@ io.on('connection', async (socket) => {
     const currentState = await loadState();
     socket.emit('init_db', currentState);
 
+    // ⬅️ AÑADIDO: rate-limit por socket (máx. ~20 sync/s)
+    let lastSyncAt = 0;
+
     socket.on('sync_db', async (data) => {
+      const now = Date.now();
+      if (now - lastSyncAt < 50) return;
+      lastSyncAt = now;
+
       if (data && data.db) {
         if (Array.isArray(data.db.users) && data.db.users.length > 200) {
           console.log('⚠️ Intento de creación masiva de usuarios bloqueado.');
@@ -315,10 +351,9 @@ setInterval(async () => {
     const npc = npcs[Math.floor(Math.random() * npcs.length)];
     const npcYr = userYear(state, npc);
     const availableActs = SERVER_ACTS.filter(a => npcYr >= (a.minYear || 1));
-    
-    // Si no hay actos disponibles para su año, omitir
+
     if (!availableActs.length) return;
-    
+
     const act = availableActs[Math.floor(Math.random() * availableActs.length)];
     const pts = act.points;
 
@@ -382,3 +417,7 @@ async function startServer() {
 }
 
 startServer();
+
+// ⬅️ AÑADIDO: manejo de errores del proceso para no morir en silencio
+process.on('unhandledRejection', (e) => console.error('⚠️ UnhandledRejection:', e));
+process.on('uncaughtException', (e) => console.error('⚠️ UncaughtException:', e));
