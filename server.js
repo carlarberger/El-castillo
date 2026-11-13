@@ -13,8 +13,10 @@ app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'index.html');
+  const index2Path = path.join(__dirname, 'index2.html');
   const castilloPath = path.join(__dirname, 'El Castillo.html');
   if (fs.existsSync(indexPath)) res.sendFile(indexPath);
+  else if (fs.existsSync(index2Path)) res.sendFile(index2Path);
   else if (fs.existsSync(castilloPath)) res.sendFile(castilloPath);
   else res.status(404).send('No se encontró el archivo del juego.');
 });
@@ -36,6 +38,12 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_decided: false,
   npc_trials: 0,
   animagus: null,
+  quidditch_approved: false,
+  happiness: 50,
+  pride: 50,
+  academic_progress: 0,
+  animagus_stage: 0,
+  personality: [],
   galeones: 15,
   inv: {},
   cromos: {},
