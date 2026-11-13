@@ -661,39 +661,40 @@ function hashPass(str){
 
 const FEMALES = ['Hermione Granger','Ginny Weasley','Luna Lovegood','Cho Chang','Pansy Parkinson','Hannah Abbott','Nymphadora Tonks','Lyra M.','Seraphina K.'];
 
-const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor',npc_trait='',is_canon=false,yearOffset=0)=>({
+const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor',npc_trait='',is_canon=false,yearOffset=0,personality=[])=>({
   id,username,house,points,flight_xp,role,is_admin,
   is_npc:!!is_npc,is_canon:!!is_canon,pass:pass||'',loc:loc||'comedor',locSlot:'',
   npc_trait:npc_trait||'Alumno del castillo',npc_path:null,npc_quidditch:false,npc_decided:false,npc_trials:0,animagus:null,
   quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
+  personality: personality,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
 
 const BASE_NPCS=[
-  U(201,'Harry Potter','gryffindor',55,0,'student',false,{skin:0,hair:0,style:'corto',eyes:2},true,'','gryffindor','Mismo año que tú · Reflejos innatos para el vuelo y DCAO',true,0),
-  U(202,'Hermione Granger','gryffindor',65,0,'student',false,{skin:0,hair:1,style:'rizado',eyes:0},true,'','biblioteca','Mismo año que tú · La bruja más brillante de su generación',true,0),
-  U(203,'Ron Weasley','gryffindor',45,0,'student',false,{skin:0,hair:4,style:'corto',eyes:1},true,'','comedor','Mismo año que tú · Estratega de ajedrez mágico y amigo leal',true,0),
-  U(204,'Ginny Weasley','gryffindor',0,0,'student',false,{skin:0,hair:4,style:'largo',eyes:0},true,'','gryffindor','1 año menor que Harry · Entra a 1.º curso a partir del Año 2',true,-1),
-  U(205,'Neville Longbottom','gryffindor',42,0,'student',false,{skin:0,hair:1,style:'corto',eyes:0},true,'','invernaderos','Mismo año que tú · Prodigio en Herbología con gran valentía',true,0),
-  U(214,'Fred Weasley','gryffindor',50,0,'student',false,{skin:0,hair:4,style:'corto',eyes:0},true,'','patio','2 años mayor · Ingenioso bromista y potente Golpeador',true,2),
-  U(215,'George Weasley','gryffindor',50,0,'student',false,{skin:0,hair:4,style:'corto',eyes:0},true,'','patio','2 años mayor · Maestro de pasadizos secretos y vuelo',true,2),
-  U(216,'Percy Weasley','gryffindor',54,0,'student',false,{skin:0,hair:4,style:'corto',eyes:1},true,'','biblioteca','4 años mayor · Estricto con el reglamento y aspirante a Prefecto',true,4),
-  U(217,'Oliver Wood','gryffindor',56,0,'student',false,{skin:1,hair:1,style:'corto',eyes:0},true,'','quidditch','4 años mayor · Apasionado estratega de Quidditch',true,4),
-  U(206,'Luna Lovegood','ravenclaw',0,0,'student',false,{skin:0,hair:3,style:'largo',eyes:1},true,'','ravenclaw','1 año menor que Harry · Entra a 1.º curso a partir del Año 2',true,-1),
-  U(207,'Cho Chang','ravenclaw',48,0,'student',false,{skin:1,hair:0,style:'largo',eyes:0},true,'','astronomia','1 año mayor · Ágil en el aire y leal compañera de Ravenclaw',true,1),
-  U(208,'Draco Malfoy','slytherin',58,0,'student',false,{skin:0,hair:3,style:'corto',eyes:3},true,'','mazmorras','Mismo año que tú · Ambicioso y competitivo en Slytherin',true,0),
-  U(209,'Pansy Parkinson','slytherin',44,0,'student',false,{skin:0,hair:0,style:'corto',eyes:0},true,'','slytherin','Mismo año que tú · Influyente en la sala común de Slytherin',true,0),
-  U(210,'Blaise Zabini','slytherin',46,0,'student',false,{skin:3,hair:0,style:'corto',eyes:0},true,'','mazmorras','Mismo año que tú · Calculador y talentoso en Pociones y Duelos',true,0),
-  U(211,'Cedric Diggory','hufflepuff',62,0,'student',false,{skin:0,hair:1,style:'corto',eyes:3},true,'','patio','2 años mayor · Ejemplar, justo y líder natural de Hufflepuff',true,2),
-  U(212,'Hannah Abbott','hufflepuff',44,0,'student',false,{skin:0,hair:3,style:'rizado',eyes:0},true,'','invernaderos','Mismo año que tú · Dedicada en Herbología y leal amiga',true,0),
-  U(218,'Ernie Macmillan','hufflepuff',48,0,'student',false,{skin:0,hair:3,style:'corto',eyes:1},true,'','biblioteca','Mismo año que tú · Pomposo pero sumamente leal y futuro Prefecto de Hufflepuff',true,0),
-  U(213,'Nymphadora Tonks','hufflepuff',0,0,'student',false,{skin:0,hair:5,style:'corto',eyes:4},true,'','defensa','7 años mayor que Harry · Graduada justo antes del Año 1 (Aprendiz de Auror y Metamorfomaga)',true,7),
-  U(101,'Aldebarán V.','gryffindor',40,0,'student',false,{skin:1,hair:0,style:'corto',eyes:0},true,'','gryffindor','Mismo año que tú · Valiente compañero de Gryffindor',false,0),
-  U(104,'Lyra M.','ravenclaw',45,0,'student',false,{skin:0,hair:5,style:'largo',eyes:4},true,'','biblioteca','Mismo año que tú · Mente brillante de Ravenclaw',false,0),
-  U(107,'Seraphina K.','slytherin',45,0,'student',false,{skin:0,hair:0,style:'largo',eyes:2},true,'','mazmorras','1 año mayor · Ambiciosa estratega de Slytherin',false,1),
-  U(110,'Benjamín L.','hufflepuff',40,0,'student',false,{skin:1,hair:2,style:'rizado',eyes:0},true,'','invernaderos','1 año mayor · Leal protector de Hufflepuff',false,1)
+  U(201,'Harry Potter','gryffindor',55,0,'student',false,{skin:0,hair:0,style:'corto',eyes:2},true,'','gryffindor','Mismo año que tú · Reflejos innatos para el vuelo y DCAO',true,0,['valentia', 'lealtad']),
+  U(202,'Hermione Granger','gryffindor',65,0,'student',false,{skin:0,hair:1,style:'rizado',eyes:0},true,'','biblioteca','Mismo año que tú · La bruja más brillante de su generación',true,0,['intelecto', 'sabiduria', 'justicia']),
+  U(203,'Ron Weasley','gryffindor',45,0,'student',false,{skin:0,hair:4,style:'corto',eyes:1},true,'','comedor','Mismo año que tú · Estratega de ajedrez mágico y amigo leal',true,0,['lealtad', 'valentia']),
+  U(204,'Ginny Weasley','gryffindor',0,0,'student',false,{skin:0,hair:4,style:'largo',eyes:0},true,'','gryffindor','1 año menor que Harry · Entra a 1.º curso a partir del Año 2',true,-1,['valentia', 'astucia']),
+  U(205,'Neville Longbottom','gryffindor',42,0,'student',false,{skin:0,hair:1,style:'corto',eyes:0},true,'','invernaderos','Mismo año que tú · Prodigio en Herbología con gran valentía',true,0,['lealtad', 'valentia']),
+  U(214,'Fred Weasley','gryffindor',50,0,'student',false,{skin:0,hair:4,style:'corto',eyes:0},true,'','patio','2 años mayor · Ingenioso bromista y potente Golpeador',true,2,['valentia', 'bromista']),
+  U(215,'George Weasley','gryffindor',50,0,'student',false,{skin:0,hair:4,style:'corto',eyes:0},true,'','patio','2 años mayor · Maestro de pasadizos secretos y vuelo',true,2,['valentia', 'bromista']),
+  U(216,'Percy Weasley','gryffindor',54,0,'student',false,{skin:0,hair:4,style:'corto',eyes:1},true,'','biblioteca','4 años mayor · Estricto con el reglamento y aspirante a Prefecto',true,4,['responsabilidad', 'ambicion']),
+  U(217,'Oliver Wood','gryffindor',56,0,'student',false,{skin:1,hair:1,style:'corto',eyes:0},true,'','quidditch','4 años mayor · Apasionado estratega de Quidditch',true,4,['liderazgo', 'valentia']),
+  U(206,'Luna Lovegood','ravenclaw',0,0,'student',false,{skin:0,hair:3,style:'largo',eyes:1},true,'','ravenclaw','1 año menor que Harry · Entra a 1.º curso a partir del Año 2',true,-1,['sabiduria', 'empatia']),
+  U(207,'Cho Chang','ravenclaw',48,0,'student',false,{skin:1,hair:0,style:'largo',eyes:0},true,'','astronomia','1 año mayor · Ágil en el aire y leal compañera de Ravenclaw',true,1,['lealtad', 'sabiduria']),
+  U(208,'Draco Malfoy','slytherin',58,0,'student',false,{skin:0,hair:3,style:'corto',eyes:3},true,'','mazmorras','Mismo año que tú · Ambicioso y competitivo en Slytherin',true,0,['astucia', 'ambicion']),
+  U(209,'Pansy Parkinson','slytherin',44,0,'student',false,{skin:0,hair:0,style:'corto',eyes:0},true,'','slytherin','Mismo año que tú · Influyente en la sala común de Slytherin',true,0,['astucia', 'ambicion']),
+  U(210,'Blaise Zabini','slytherin',46,0,'student',false,{skin:3,hair:0,style:'corto',eyes:0},true,'','mazmorras','Mismo año que tú · Calculador y talentoso en Pociones y Duelos',true,0,['astucia', 'ambicion']),
+  U(211,'Cedric Diggory','hufflepuff',62,0,'student',false,{skin:0,hair:1,style:'corto',eyes:3},true,'','patio','2 años mayor · Ejemplar, justo y líder natural de Hufflepuff',true,2,['justicia', 'valentia']),
+  U(212,'Hannah Abbott','hufflepuff',44,0,'student',false,{skin:0,hair:3,style:'rizado',eyes:0},true,'','invernaderos','Mismo año que tú · Dedicada en Herbología y leal amiga',true,0,['lealtad', 'empatia']),
+  U(218,'Ernie Macmillan','hufflepuff',48,0,'student',false,{skin:0,hair:3,style:'corto',eyes:1},true,'','biblioteca','Mismo año que tú · Pomposo pero sumamente leal y futuro Prefecto de Hufflepuff',true,0,['responsabilidad', 'lealtad']),
+  U(213,'Nymphadora Tonks','hufflepuff',0,0,'student',false,{skin:0,hair:5,style:'corto',eyes:4},true,'','defensa','7 años mayor que Harry · Graduada justo antes del Año 1 (Aprendiz de Auror y Metamorfomaga)',true,7,['valentia', 'bromista']),
+  U(101,'Aldebarán V.','gryffindor',40,0,'student',false,{skin:1,hair:0,style:'corto',eyes:0},true,'','gryffindor','Mismo año que tú · Valiente compañero de Gryffindor',false,0,['valentia']),
+  U(104,'Lyra M.','ravenclaw',45,0,'student',false,{skin:0,hair:5,style:'largo',eyes:4},true,'','biblioteca','Mismo año que tú · Mente brillante de Ravenclaw',false,0,['sabiduria']),
+  U(107,'Seraphina K.','slytherin',45,0,'student',false,{skin:0,hair:0,style:'largo',eyes:2},true,'','mazmorras','1 año mayor · Ambiciosa estratega de Slytherin',false,1,['astucia', 'ambicion']),
+  U(110,'Benjamín L.','hufflepuff',40,0,'student',false,{skin:1,hair:2,style:'rizado',eyes:0},true,'','invernaderos','1 año mayor · Leal protector de Hufflepuff',false,1,['lealtad'])
 ];
 
 const NPC_CHAT_LINES=[
@@ -706,6 +707,70 @@ const NPC_CHAT_LINES=[
   '¡Practicar nuestro hechizo Patronus y la forma Animaga nos salvará en las incursiones!',
   '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?'
 ];
+
+const PERSONALITY_LINES = {
+  valentia: [
+    '¡Vamos con todo por la Copa de las Casas este mes!',
+    '¿Alguien se apunta a una ronda de duelos? ¡Necesitamos práctica!',
+    '¡No dejemos que el miedo nos detenga!'
+  ],
+  lealtad: [
+    'Siempre estaré aquí para apoyar a mi casa y a mis amigos.',
+    '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?',
+    'Los lazos que forjamos en Hogwarts duran para siempre.'
+  ],
+  sabiduria: [
+    'He estado leyendo un libro fascinante sobre Runas Antiguas.',
+    'El conocimiento es nuestro mayor poder contra las artes oscuras.',
+    '¿Alguien ha entendido la última clase de Transformaciones?'
+  ],
+  astucia: [
+    'Hay que ser inteligente para salir adelante en este castillo.',
+    'No todo es lo que parece, hay que saber mirar más allá.',
+    'La ambición no es mala, si se usa con cabeza.'
+  ],
+  justicia: [
+    'Todos merecen un trato justo, sin importar su casa.',
+    'Las reglas están para cumplirse, pero también para buscar la equidad.',
+    'No permitiré que se cometa una injusticia en mi presencia.'
+  ],
+  empatia: [
+    '¿Estás bien? Si necesitas algo, aquí estoy.',
+    'Siempre es bueno escuchar a los demás antes de juzgar.',
+    'Un poco de amabilidad puede cambiar el día de alguien.'
+  ],
+  intelecto: [
+    'He descubierto un nuevo hechizo en la biblioteca.',
+    'La lógica es la mejor herramienta para resolver problemas.',
+    '¿Estudiaron el capítulo de Transformaciones? Es fascinante.'
+  ],
+  ambicion: [
+    'Quiero llegar a ser alguien importante en el mundo mágico.',
+    'El poder y el reconocimiento son metas nobles si se persiguen con honor.',
+    'No me conformaré con menos de la excelencia.'
+  ],
+  bromista: [
+    '¡Oye, mira lo que he encontrado en Zonko!',
+    'La risa es la mejor medicina, incluso en los pasillos.',
+    '¿Quién quiere probar una de mis bromas nuevas?'
+  ],
+  responsabilidad: [
+    'Debemos seguir las normas para mantener el orden en el castillo.',
+    'Un buen líder predica con el ejemplo.',
+    'El deber y el honor van de la mano.'
+  ]
+};
+
+const TRAIT_MAP = {
+  'Valentía': 'valentia',
+  'Lealtad': 'lealtad',
+  'Astucia': 'astucia',
+  'Sabiduría': 'sabiduria',
+  'Justicia': 'justicia',
+  'Empatía': 'empatia',
+  'Liderazgo': 'liderazgo',
+  'Responsabilidad': 'responsabilidad'
+};
 
 const socket = io();
 let db = {
@@ -796,6 +861,22 @@ function ensureDbIntegrity(){
     if (typeof u.pride === 'undefined') { u.pride = 50; changed = true; }
     if (typeof u.academic_progress === 'undefined') { u.academic_progress = 0; changed = true; }
     if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
+    
+    // Asignar personalidad por defecto a NPCs si no la tienen
+    if(!u.personality || !Array.isArray(u.personality)) {
+        u.personality = [];
+        changed = true;
+    }
+    if(u.is_npc && u.personality.length === 0) {
+        const pByHouse = {
+            gryffindor: ['valentia', 'lealtad'],
+            ravenclaw: ['sabiduria', 'intelecto'],
+            slytherin: ['astucia', 'ambicion'],
+            hufflepuff: ['lealtad', 'empatia']
+        };
+        u.personality = pByHouse[u.house] || ['lealtad'];
+        changed = true;
+    }
 
     if(u.is_npc && !u.npc_decided){
       if(u.flight_xp!==0 || u.npc_quidditch || u.role==='prefect'){
@@ -1208,6 +1289,26 @@ const API={
     db.log.unshift({u:u.username,h:u.house,a:`Castigó a ${t.username}`,p:-5,x:0});
     commit(`${u.username} castigó a ${t.username}`);
   },
+  appointDelegado(id){
+    must(session.isAdmin,'Solo admin');
+    const t=db.users.find(u=>u.id===id);
+    must(t,'Alumno no encontrado');
+    must(userYear(t)===7,'Solo 7mo año');
+    const yrDels = db.users.filter(u=>userYear(u)===7 && u.role==='delegado');
+    if(yrDels.length >= 2) throw new Error('Ya hay 2 Delegados en este año');
+    if(yrDels.some(d=>d.gender===t.gender)) throw new Error('Ya hay un Delegado de este género');
+    t.role='delegado';
+    commit(`${t.username} es ahora Delegado`);
+  },
+  cheer(id, house){
+    const u=me();must(u,'Inicia sesión');
+    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
+    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
+    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
+    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
+    else m.cheerB=(m.cheerB||0)+1;
+    commit(`Animos para ${house}`);
+  },
   npcStep(silent=false){
     if(!db.npcAi && !silent) throw new Error('La IA de NPCs está pausada');
     const npcs=db.users.filter(u=>u.is_npc&&u.house&&isEnrolled(u));
@@ -1234,11 +1335,48 @@ const API={
     db.log.length=Math.min(db.log.length,15);
 
     if(Math.random()<0.35){
-      const line=NPC_CHAT_LINES[Math.floor(Math.random()*NPC_CHAT_LINES.length)];
+      const npcTraits = npc.personality || ['lealtad'];
+      const trait = npcTraits[Math.floor(Math.random() * npcTraits.length)];
+      const lines = PERSONALITY_LINES[trait] || NPC_CHAT_LINES;
+      const line = lines[Math.floor(Math.random()*lines.length)];
       db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:line,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
       if(db.chat.length>60)db.chat.shift();
     }
     commit(silent?null:`🤖 ${npc.username} sumó +${pts} pts en ${cfg.name}`);
+  },
+  npcVote(){
+    if(db.period!=='voting') return;
+    let changed = false;
+    const npcs=db.users.filter(u=>u.is_npc&&u.house&&isEnrolled(u));
+    npcs.forEach(npc=>{
+      if(db.votes.some(v=>v.voter===npc.id))return;
+      const candidates=db.apps.filter(a=>a.house===npc.house&&a.status==='pending');
+      if(!candidates.length)return;
+      
+      let bestCand=null,bestScore=-999;
+      candidates.forEach(a=>{
+        let score=0;
+        const rel=getRel(npc.id,a.user_id);
+        score+=rel.score;
+        if(a.traits){
+          a.traits.forEach(t=>{
+            if((npc.personality||[]).includes(TRAIT_MAP[t]||t.toLowerCase())) score+=20;
+          });
+        }
+        score+=Math.random()*10; // Variación aleatoria
+        if(score>bestScore){bestScore=score;bestCand=a;}
+      });
+      if(bestCand){
+        db.votes.push({app:bestCand.id,voter:npc.id});
+        bestCand.votes++;
+        changed=true;
+        if(Math.random()<0.3){
+          const candName = db.users.find(u=>u.id===bestCand.user_id)?.username || 'mi candidato';
+          db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`He votado por ${candName} para Prefecto.`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+        }
+      }
+    });
+    if(changed) commit('Votación IA de Prefectos');
   },
   resolveNpcTrial(npcId,decision){
     const u=me();must(u&&u.house,'Inicia sesión con tu personaje para guiar a un compañero en su prueba');
@@ -1466,57 +1604,6 @@ const API={
         m.players.filter(p=>p.house===m.winner).forEach(p=>{const u=db.users.find(x=>x.id===p.uid);if(u)u.points+=20});
         m.log.push(`${HOUSE(m.winner).name} gana: +50 pts`);fanfare()}else m.log.push('Empate')}
     commit('Ronda '+(m.round-1)+' resuelta');
-  },
-  cheer(id, house){
-    const u=me();must(u,'Inicia sesión');
-    const m=db.matches.find(x=>x.id===id);must(m&&m.status==='active','Partido no activo');
-    must(!m.players.some(p=>p.uid===u.id),'Los jugadores no pueden animar');
-    if (u.house===house) { u.points+=3; db.houses.find(h=>h.id===u.house).points+=3; }
-    if (house===m.a) m.cheerA=(m.cheerA||0)+1;
-    else m.cheerB=(m.cheerB||0)+1;
-    commit(`Animos para ${house}`);
-  },
-  animagusAdvance(){
-    const u=me();must(u&&u.house,'Inicia sesión');
-    const st = u.animagus_stage || 0;
-    if (st === 0) {
-        must(u.academic_progress >= 50, 'Requiere 50 de Avance Académico para iniciar la poción.');
-        u.animagus_stage = 1;
-        u.academic_progress -= 50;
-        toast('Has iniciado la poción. Ahora debes sostener la hoja de mandrágora un mes (3 días en el juego).');
-    } else if (st === 1) {
-        u.animagus_stage = 2;
-        toast('Has terminado el mes con la hoja en la boca. Ahora espera la tormenta eléctrica.');
-    } else if (st === 2) {
-        must(curDay() === 'jueves' || curDay() === 'viernes', 'Solo hay tormentas mágicas los jueves y viernes.');
-        u.animagus_stage = 3;
-        toast('¡La tormenta ha llegado! La poción está lista para ser tomada.');
-    } else if (st === 3) {
-        must(u.happiness >= 60, 'Requiere 60 de Felicidad para sobrevivir a la transformación.');
-        u.animagus_stage = 4;
-        toast('¡Te has transformado en Animago con éxito!');
-    }
-    commit('Avance en el Ritual Animago');
-  },
-  darkMarkAction(action){
-    const u=me();must(u&&u.house,'Inicia sesión');
-    if (action === 'join') {
-        must(u.pride >= 80 || u.happiness <= 20, 'Necesitas 80 de Orgullo o 20 de Felicidad para unirte a los Mortífagos.');
-        u.points += 50;
-        u.happiness = Math.max(0, u.happiness - 30);
-        u.pride = Math.min(100, u.pride + 10);
-        db.log.unshift({u:u.username,h:u.house,a:'Se unió a los Mortífagos',p:50,x:0});
-        toast('Te has unido a las fuerzas oscuras. +50 pts, -30 Felicidad.');
-    } else if (action === 'fight') {
-        must(u.pride >= 50, 'Necesitas 50 de Orgullo para luchar contra los Mortífagos.');
-        const pts = 20 + Math.floor(u.pride / 10);
-        u.points += pts;
-        u.pride = Math.min(100, u.pride + 5);
-        u.happiness = Math.min(100, u.happiness + 10);
-        db.log.unshift({u:u.username,h:u.house,a:'Luchó contra Mortífagos',p:pts,x:0});
-        toast(`¡Has luchado valientemente! +${pts} pts, +5 Orgullo, +10 Felicidad.`);
-    }
-    commit('Acción Mortífaga');
   }
 };
 
@@ -2026,8 +2113,8 @@ function renderAll(){
   renderPrefects();
   renderPlay();
   renderArcade();
-  renderAnimagusEvent(); // Nuevo
-  renderMortifagosEvent(); // Nuevo
+  renderAnimagusEvent();
+  renderMortifagosEvent();
   renderNpcTrials();
   renderRelations();
   renderTeams();
@@ -2585,7 +2672,8 @@ function renderNpcTrials(){
         ${enrolled?npcPathBadge(npc):''}
       </div>
       <p class="muted" style="font-size:12px;margin-top:4px">${esc(npc.npc_trait||'Compañero de estudio en espera de una prueba.')}</p>
-      <div class="row" style="font-size:12px;color:var(--muted);justify-content:space-between">
+      <div class="row" style="gap:4px;margin-top:2px">${(npc.personality||[]).map(t=>`<span class="pill" style="font-size:10px;padding:1px 6px">${t}</span>`).join('')}</div>
+      <div class="row" style="font-size:12px;color:var(--muted);justify-content:space-between;margin-top:6px">
         <span>${yr===0?'⏳ Aún en casa (menor de 11 años)':yr===8?'🎓 Completó Hogwarts':`🏆 ${npc.points} pts · 🧹 ${npc.flight_xp} XP vuelo`}</span>
         <span>Pruebas: ${npc.npc_trials||0}</span>
       </div>
@@ -2632,8 +2720,9 @@ function studentSheet(id){
   const yr=userYear(u), enrolled=isEnrolled(u);
   openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3><div class="row">${hbadge(u.house)}${yearBadge(u)}${u.is_npc&&enrolled?npcPathBadge(u):(!u.is_npc?'<span class="pill gold">👤 Jugador real</span>':'')}</div>
    ${u.is_npc&&u.npc_trait?`<p class="muted" style="font-size:13px">“${esc(u.npc_trait)}”</p>`:''}
-   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Curso en Hogwarts',yr===0?`Aún no ingresa (entra en Año ${1-(u.yearOffset||0)})`:yr===8?'Graduado':`${yr}.º curso`],['Puntos',enrolled?u.points:'—'],['XP de vuelo',enrolled?u.flight_xp:'—'],['Rango en su casa',(enrolled&&rank)?'#'+rank:'—'],['Quidditch',q?q.pos+' #'+q.rank:'Fuera del equipo'],['Ubicación actual',yr===0?'La Madriguera / Fuera de Hogwarts':yr===8?'Ministerio / Graduado':loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
-   <div class="row">
+   ${u.is_npc&&u.personality&&u.personality.length?`<p style="font-size:12px;margin-top:4px"><span class="muted">Personalidad:</span> ${u.personality.map(t=>`<span class="pill" style="font-size:10px;padding:1px 6px">${t}</span>`).join(' ')}</p>` : ''}
+   <div class="grid g2" style="width:100%;text-align:left;gap:8px;margin-top:8px">${[['Curso en Hogwarts',yr===0?`Aún no ingresa (entra en Año ${1-(u.yearOffset||0)})`:yr===8?'Graduado':`${yr}.º curso`],['Puntos',enrolled?u.points:'—'],['XP de vuelo',enrolled?u.flight_xp:'—'],['Rango en su casa',(enrolled&&rank)?'#'+rank:'—'],['Quidditch',q?q.pos+' #'+q.rank:'Fuera del equipo'],['Ubicación actual',yr===0?'La Madriguera / Fuera de Hogwarts':yr===8?'Ministerio / Graduado':loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
+   <div class="row" style="margin-top:8px">
      ${enrolled?`<button class="btn" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>`:''}
      ${(u.is_npc&&enrolled)?`<button class="btn gold" data-do="openNpcTrial" data-id="${id}" type="button">🌟 Hacer Prueba / Decidir destino</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
@@ -3684,6 +3773,9 @@ setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classSta
 setInterval(()=>{
   if(db.npcAi && Math.random()<0.75){
     try{API.npcStep(true);}catch(e){}
+  }
+  if(db.period === 'voting') {
+    try{API.npcVote();}catch(e){}
   }
 },18000);
 
