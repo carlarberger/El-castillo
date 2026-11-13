@@ -1341,7 +1341,7 @@ function renderClock(){
   $('clockTime').textContent=curTime()+(db.clockMode==='mock'?' sim':'');
   const s=curSlot();$('clockPeriod').textContent=s?slotLabel(s):'Recreo libre';
 }
-function renderAll(){ensureDbIntegrity();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderArcade();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
+function renderAll(){ensureDbIntegrity();renderHero();renderGlasses();renderMap();renderYou();renderSchedule();renderCasas();renderPrefects();renderPlay();renderArcade();renderNpcTrials();renderTeams();renderMatches();renderChat();renderAdmin();renderStudents();renderClock()}
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
@@ -1681,15 +1681,113 @@ function openEditChar(){
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
+let npcFilterMode='myhouse';
+const NPC_SCENARIOS=[
+  {
+    title:'Prueba de la Tormenta en el Campo',
+    desc:'Una ráfaga mágica sacude las escobas de práctica y un manuscrito antiguo vuela hacia las gradas. Tu compañero te mira esperando tu decisión:'
+  },
+  {
+    title:'Prueba del Laberinto de las Mazmorras',
+    desc:'Durante un desafío práctico del profesorado, tres puertas encantadas se abren frente a ustedes. Debes decidir qué habilidad pondrá a prueba tu compañero:'
+  },
+  {
+    title:'Prueba de la Sala de los Menesteres',
+    desc:'La Sala de los Menesteres ha creado un circuito de entrenamiento personalizado. Tu consejo definirá en qué se especializará este curso:'
+  },
+  {
+    title:'Prueba de la Torre de Astronomía',
+    desc:'Bajo el cielo estrellado del castillo, el profesorado evalúa las aptitudes especiales de los alumnos. ¿Hacia qué meta impulsas a tu compañero?'
+  }
+];
+
+function npcPathBadge(u){
+  if(!u.is_npc) return '';
+  const q=u.house?API.slot(u.id,u.house):null;
+  if(u.npc_quidditch && q) return `<span class="pill gold">🧹 ${q.pos} #${q.rank}</span>`;
+  if(u.npc_quidditch) return `<span class="pill gold">🧹 Quidditch (${u.flight_xp} XP)</span>`;
+  if(u.npc_path==='prefect') return `<span class="pill good">🛡️ Candidato a Prefecto</span>`;
+  if(u.npc_path==='duelist') return `<span class="pill warn">⚡ Campeón de Duelos</span>`;
+  return `<span class="pill off">🌱 Aspirante (Sin puesto)</span>`;
+}
+
+function npcTrialCooldown(npcId){
+  const u=me();if(!u)return 0;
+  const last=(db.cooldowns[u.id]||{})['npctrial_'+npcId]||0;
+  return Math.max(0,15000-(Date.now()-last));
+}
+
+function renderNpcTrials(){
+  const box=$('npcTrialsGrid');if(!box)return;
+  const u=me();
+  const btns=document.querySelectorAll('#npcTrialFilterBtns [data-do="npcFilter"]');
+  btns.forEach(b=>b.classList.toggle('on',b.dataset.f===npcFilterMode));
+
+  let npcs=db.users.filter(x=>x.is_npc);
+  if(npcFilterMode==='myhouse' && u && u.house){
+    npcs=npcs.filter(x=>x.house===u.house);
+  }
+  if(!npcs.length) npcs=db.users.filter(x=>x.is_npc);
+
+  box.innerHTML=npcs.map(npc=>{
+    const cd=npcTrialCooldown(npc.id);
+    const q=npc.house?API.slot(npc.id,npc.house):null;
+    return `<div class="arcade-card h-${npc.house}">
+      <div class="row" style="justify-content:space-between">
+        <div class="row"><span class="pawn">${av(npc,32)}</span><div><h4 style="margin:0">${esc(npc.username)}</h4>${hbadge(npc.house)}</div></div>
+        ${npcPathBadge(npc)}
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:4px">${esc(npc.npc_trait||'Compañero de estudio en espera de una prueba.')}</p>
+      <div class="row" style="font-size:12px;color:var(--muted);justify-content:space-between">
+        <span>🏆 ${npc.points} pts · 🧹 ${npc.flight_xp} XP vuelo</span>
+        <span>Pruebas: ${npc.npc_trials||0}</span>
+      </div>
+      <button class="btn sm ${npc.npc_decided?'':'gold'}" type="button" data-do="openNpcTrial" data-id="${npc.id}" ${(!u||!u.house||cd>0)?'disabled':''} style="margin-top:auto">
+        ${!u||!u.house?'Inicia sesión para guiarlo':cd>0?`Espera ${Math.ceil(cd/1000)} s`:(npc.npc_decided?'🌟 Nueva Prueba / Cambiar destino':'🌟 Hacer Prueba y Decidir Destino')}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function openNpcTrialModal(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const npc=db.users.find(x=>x.id===Number(npcId)&&x.is_npc);
+  must(npc,'Compañero NPC no encontrado');
+  const sc=NPC_SCENARIOS[(npc.id+(npc.npc_trials||0))%NPC_SCENARIOS.length];
+  const q=npc.house?API.slot(npc.id,npc.house):null;
+  const ev=activeEvent(),mult=ev?ev.mult:1,myPts=Math.round(8*mult)+(u.role==='prefect'?2:0);
+
+  openModal(`<span class="pawn big">${av(npc,76)}</span>
+    <div class="row">${hbadge(npc.house)}${npcPathBadge(npc)}</div>
+    <h3 style="font-size:21px;color:var(--gold)">🌟 ${esc(sc.title)} con ${esc(npc.username)}</h3>
+    <p class="muted" style="font-size:14px">${esc(sc.desc)}</p>
+    <div class="box" style="width:100%;text-align:left;display:grid;gap:8px">
+      <div style="font-size:12px;color:var(--muted)">Rasgo de ${esc(npc.username)}: <strong style="color:var(--fg)">${esc(npc.npc_trait||'Aprendiz')}</strong> · Tu recompensa por guiarlo: <strong style="color:var(--gold)">+${myPts} pts</strong></div>
+      <button class="btn gold" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="quidditch" style="justify-content:flex-start;text-align:left">
+        🧹 <div><strong>${npc.npc_quidditch?'Entrenar maniobra de élite (+15 XP de vuelo)':'Impulsar al Equipo de Quidditch (+20 XP de vuelo)'}</strong><div style="font-size:12px;opacity:.85">${npc.npc_quidditch?`Asciende de puesto en la alineación (actual: ${q?q.pos+' #'+q.rank:'En equipo'})`:'Supera la prueba aérea y desbloquea su entrada al equipo de Quidditch de su casa.'}</div></div>
+      </button>
+      <button class="btn" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="prefect" style="justify-content:flex-start;text-align:left">
+        🛡️ <div><strong>Guiar hacia Prefectura y Liderazgo (+14 pts a su casa)</strong><div style="font-size:12px;color:var(--muted)">Lo preparas en argumentación y reglas del castillo para que se postule a Prefecto o sume votos.</div></div>
+      </button>
+      <button class="btn" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="duelist" style="justify-content:flex-start;text-align:left">
+        ⚡ <div><strong>Forjar Alianza como Campeón de Duelos (+16 pts)</strong><div style="font-size:12px;color:var(--muted)">Practican contrahechizos juntos en el Aula de Duelos para sumar puntos sin entrar a Quidditch.</div></div>
+      </button>
+      ${npc.npc_quidditch?`<button class="btn sm danger" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="leave_quidditch">📚 Aconsejarle retirarse del equipo de Quidditch (liberar su puesto)</button>`:''}
+    </div>
+    <button class="btn sm" data-do="closeModal" type="button">Volver</button>`,true);
+}
+
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
   const rank=u.house?db.users.filter(x=>x.house===u.house).sort((a,b)=>b.points-a.points).findIndex(x=>x.id===id)+1:null,q=u.house?API.slot(u.id,u.house):null;
   const loc=roomName(userLoc(u));
   const cur=me();
-  openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3><div class="row">${hbadge(u.house)}${u.is_npc?'<span class="pill">🤖 Alumno IA (NPC)</span>':'<span class="pill gold">👤 Jugador real</span>'}</div>
-   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Reserva'],['Ubicación actual',loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
+  openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3><div class="row">${hbadge(u.house)}${u.is_npc?npcPathBadge(u):'<span class="pill gold">👤 Jugador real</span>'}</div>
+   ${u.is_npc&&u.npc_trait?`<p class="muted" style="font-size:13px">“${esc(u.npc_trait)}”</p>`:''}
+   <div class="grid g2" style="width:100%;text-align:left;gap:8px">${[['Puntos',u.points],['XP de vuelo',u.flight_xp],['Rango en su casa',rank?'#'+rank:'—'],['Rol',u.role==='prefect'?'Prefecto':'Estudiante'],['Quidditch',q?q.pos+' #'+q.rank:'Fuera del equipo'],['Ubicación actual',loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
    <div class="row">
-     <button class="btn gold" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>
+     <button class="btn" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>
+     ${u.is_npc?`<button class="btn gold" data-do="openNpcTrial" data-id="${id}" type="button">🌟 Hacer Prueba / Decidir destino</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
      <button class="btn" data-do="closeModal" type="button">Cerrar</button>
    </div>`);
@@ -2536,6 +2634,9 @@ document.addEventListener('click',e=>{
     case 'attend':{const r=API.attend(d.k);toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'practice':practice(d.k);break;
     case 'playArcade':playArcade(d.g);break;
+    case 'npcFilter':npcFilterMode=d.f;renderNpcTrials();break;
+    case 'openNpcTrial':openNpcTrialModal(Number(d.id));break;
+    case 'npcChoice':{const res=API.resolveNpcTrial(Number(d.id),d.c);closeModal();toast(res.summary);break;}
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
       if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
     case 'apply':API.apply(traitsDraft,$('pitch')?.value||'');traitsDraft=[];pitchDraft='';toast('Postulación enviada');break;
@@ -2615,7 +2716,7 @@ setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)
   if((m.players.length>=2&&m.players.every(p=>p.action))||(m.deadline&&Date.now()>m.deadline))API.resolve(m.id)}},1000);
 let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
-  if(s!==sig){sig=s;renderPlay();renderArcade();renderMap();renderYou();renderSchedule();renderClock()}},2000);
+  if(s!==sig){sig=s;renderPlay();renderArcade();renderNpcTrials();renderMap();renderYou();renderSchedule();renderClock()}},2000);
 
 // Ciclo autónomo de NPCs: cada 28 segundos un NPC se mueve de sala, entrena o conversa
 setInterval(()=>{
