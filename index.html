@@ -862,7 +862,6 @@ function ensureDbIntegrity(){
     if (typeof u.academic_progress === 'undefined') { u.academic_progress = 0; changed = true; }
     if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
     
-    // Asignar personalidad por defecto a NPCs si no la tienen
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
         changed = true;
@@ -1339,7 +1338,7 @@ const API={
       const trait = npcTraits[Math.floor(Math.random() * npcTraits.length)];
       const lines = PERSONALITY_LINES[trait] || NPC_CHAT_LINES;
       const line = lines[Math.floor(Math.random()*lines.length)];
-      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:line,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:line,time:curTime()});
       if(db.chat.length>60)db.chat.shift();
     }
     commit(silent?null:`🤖 ${npc.username} sumó +${pts} pts en ${cfg.name}`);
@@ -1363,7 +1362,7 @@ const API={
             if((npc.personality||[]).includes(TRAIT_MAP[t]||t.toLowerCase())) score+=20;
           });
         }
-        score+=Math.random()*10; // Variación aleatoria
+        score+=Math.random()*10;
         if(score>bestScore){bestScore=score;bestCand=a;}
       });
       if(bestCand){
@@ -1372,7 +1371,7 @@ const API={
         changed=true;
         if(Math.random()<0.3){
           const candName = db.users.find(u=>u.id===bestCand.user_id)?.username || 'mi candidato';
-          db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`He votado por ${candName} para Prefecto.`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+          db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`He votado por ${candName} para Prefecto.`,time:curTime()});
         }
       }
     });
@@ -1412,7 +1411,7 @@ const API={
       npc.loc='quidditch';
       const slotInfo=this.slot(npc.id,npc.house);
       summary=`¡Guiaste a ${npc.username} en la Prueba de Vuelo! Ganó +${xpGain} XP de vuelo${slotInfo?` y ahora es ${slotInfo.pos} #${slotInfo.rank}`:' y entró al equipo de Quidditch'}.`;
-      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`¡Gracias al entrenamiento con ${u.username} superé la prueba de vuelo y entré al equipo de Quidditch! 🧹`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`¡Gracias al entrenamiento con ${u.username} superé la prueba de vuelo y entré al equipo de Quidditch! 🧹`,time:curTime()});
     }else if(decision==='prefect'){
       npc.npc_path='prefect';
       npc.points+=14;
@@ -1439,13 +1438,13 @@ const API={
         existingApp.votes++;
         summary=`¡Reforzaste la campaña de ${npc.username}! Sumó +1 voto de respaldo para Prefecto y +14 pts.`;
       }
-      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`Con el apoyo de ${u.username} he decidido postularme a Prefecto de ${HOUSE(npc.house).name}. 🛡️`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`Con el apoyo de ${u.username} he decidido postularme a Prefecto de ${HOUSE(npc.house).name}. 🛡️`,time:curTime()});
     }else if(decision==='duelist'){
       npc.npc_path='duelist';
       npc.points+=16;
       npc.loc='defensa';
       summary=`¡Superaron juntos la Prueba de Duelo! ${npc.username} se consagró como Campeón de Duelos (+16 pts) y tú ganaste +${myBonus} pts.`;
-      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`¡Qué gran duelo de práctica junto a ${u.username}! Estamos listos para defender la Copa. ⚡`,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+      db.chat.push({id:Date.now(),u:'🤖 '+npc.username,h:npc.house,role:npc.role,ch:'global',text:`¡Qué gran duelo de práctica junto a ${u.username}! Estamos listos para defender la Copa. ⚡`,time:curTime()});
     }else if(decision==='leave_quidditch'){
       npc.npc_quidditch=false;
       npc.quidditch_approved=false;
@@ -1542,7 +1541,7 @@ const API={
     db.events.push({name:(name||'Evento mágico').trim(),desc:(desc||'Bonificación activa').trim(),mult:Number(mult)||2,active:true});fanfare();commit('Evento: '+name)},
   stopEvent(){must(session.isAdmin,'Solo admin');db.events.forEach(e=>e.active=false);commit('Evento finalizado')},
   say(text){const u=me(),t=(text||'').trim();must(u,'Inicia sesión con tu personaje para chatear');if(!t)return;
-    db.chat.push({id:Date.now(),u:u.username,h:u.house,role:u.role,ch:session.channel,text:t,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+    db.chat.push({id:Date.now(),u:u.username,h:u.house,role:u.role,ch:session.channel,text:t,time:curTime()});
     if(db.chat.length>60)db.chat.shift();commit()},
   clock(mode,t,d){must(session.isAdmin,'Solo admin');db.clockMode=mode;
     if(mode==='mock'){db.mockTime=t||db.mockTime||'09:00';db.mockDay=d||db.mockDay||realDay()}else{db.mockTime=null;db.mockDay=null}
@@ -1648,6 +1647,7 @@ function avatar(l,house,w=40){
 const av=(u,w)=>avatar(u&&u.look,u&&u.house,w);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
+let relFilterMode='all';
 let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0};
 
 function creatorHTML(){
@@ -2025,28 +2025,24 @@ function renderAnimagusEvent(){
 
   let h = `<div class="grid g2" style="align-items:start">`;
   
-  // Fase 0
   h += `<div class="box" style="opacity:${st>=0?1:0.5}; border-color:${st===0?'var(--gold)':'var(--line)'}">
     <h4 style="color:var(--gold)">1. Preparación de la Poción</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Requiere <b>50 de Avance Académico</b> (actual: ${u.academic_progress}).</p>
     <button class="btn sm ${st===0?'gold':''}" data-do="animagusNext" ${st!==0?'disabled':''}>Iniciar Poción</button>
   </div>`;
 
-  // Fase 1
   h += `<div class="box" style="opacity:${st>=1?1:0.5}; border-color:${st===1?'var(--gold)':'var(--line)'}">
     <h4 style="color:var(--gold)">2. La Hoja de Mandrágora</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Debes mantener la hoja en la boca durante un mes. Haz clic para simular el paso del tiempo.</p>
     <button class="btn sm ${st===1?'gold':''}" data-do="animagusNext" ${st!==1?'disabled':''}>Esperar un Mes</button>
   </div>`;
 
-  // Fase 2
   h += `<div class="box" style="opacity:${st>=2?1:0.5}; border-color:${st===2?'var(--gold)':'var(--line)'}">
     <h4 style="color:var(--gold)">3. La Tormenta</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Solo puedes avanzar si es Jueves o Viernes (día de tormentas mágicas). Hoy es ${DAYL[curDay()]}.</p>
     <button class="btn sm ${st===2?'gold':''}" data-do="animagusNext" ${st!==2?'disabled':''}>Invocar Tormenta</button>
   </div>`;
 
-  // Fase 3
   h += `<div class="box" style="opacity:${st>=3?1:0.5}; border-color:${st===3?'var(--gold)':'var(--line)'}">
     <h4 style="color:var(--gold)">4. La Transformación</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Requiere <b>60 de Felicidad</b> (actual: ${u.happiness}) para sobrevivir al cambio.</p>
@@ -2099,6 +2095,88 @@ function renderMortifagosEvent(){
 
   h += `</div>`;
   box.innerHTML = h;
+}
+
+function renderRelations(){
+  const box=$('relationsBox'),badge=$('relBonusBadge');if(!box)return;
+  const u=me();
+  if(!u){
+    if(badge)badge.textContent='Inicia sesión';
+    box.innerHTML='<p class="muted">Inicia sesión con tu personaje para forjar amistades o rivalidades con los personajes del canon y demás alumnos.</p>';
+    return;
+  }
+  const fBonus=friendBonusFor(u.id);
+  if(badge)badge.textContent=`Bono de amistad: +${fBonus} pts`;
+  
+  const others=db.users.filter(x=>{
+    if(x.id===u.id || !isEnrolled(x)) return false;
+    if(relFilterMode==='canon') return x.is_canon;
+    if(relFilterMode==='players') return !x.is_npc;
+    return true;
+  });
+  
+  const cd=Math.max(0,12000-(Date.now()-((db.cooldowns[u.id]||{})['rel_act']||0)));
+
+  box.innerHTML=`
+    <div class="row" style="margin-bottom:10px; gap:6px">
+       <button class="chip ${relFilterMode==='all'?'on':''}" data-do="relFilter" data-f="all">Todos</button>
+       <button class="chip ${relFilterMode==='canon'?'on':''}" data-do="relFilter" data-f="canon">Canon</button>
+       <button class="chip ${relFilterMode==='players'?'on':''}" data-do="relFilter" data-f="players">Jugadores</button>
+    </div>
+    <div class="arcade-grid">${others.map(o=>{
+    const rel=getRel(u.id,o.id), tier=relTier(rel);
+    return `<div class="arcade-card h-${o.house}">
+      <div class="row" style="justify-content:space-between">
+        <div class="row"><span class="pawn">${av(o,30)}</span><div><h4 style="margin:0">${esc(o.username)}</h4><div class="row" style="gap:4px;margin-top:2px">${hbadge(o.house)}${yearBadge(o)}</div></div></div>
+        <span class="pill ${tier.col}">${tier.label}</span>
+      </div>
+      <div class="bar" style="margin:6px 0"><i style="width:${Math.min(100,rel.score)}%"></i></div>
+      <div class="row" style="gap:6px;margin-top:auto">
+        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
+        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
+        <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
+        <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function interactRelation(targetId,type){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const t=db.users.find(x=>x.id===Number(targetId));must(t,'Alumno no encontrado');
+  const cdKey='rel_act',last=(db.cooldowns[u.id]||{})[cdKey]||0,rem=Math.max(0,12000-(Date.now()-last));
+  must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para otra interacción social`);
+
+  db.relations=db.relations||{};
+  const k=relKey(u.id,t.id);
+  const cur=db.relations[k]||{score:0,rival:false};
+  const fBonus=friendBonusFor(u.id);
+  let pts=4+fBonus, msg='';
+
+  if(type==='rival'){
+    cur.rival=true;
+    cur.score=Math.min(100,cur.score+15);
+    pts=8+fBonus;
+    u.points+=pts;t.points+=4;
+    u.pride = Math.min(100, u.pride + 5);
+    msg=`⚔️ ¡Retaste a ${t.username} a un duelo de rivalidad! Ganaste +${pts} pts para tu casa.`;
+  }else{
+    cur.rival=false;
+    const gain=type==='gift'?22:type==='study'?16:12;
+    cur.score=Math.min(100,cur.score+gain);
+    pts=(type==='gift'?6:5)+fBonus;
+    u.points+=pts;t.points+=4;
+    u.happiness = Math.min(100, u.happiness + 5);
+    const tier=relTier(cur);
+    msg=`🤝 Pasaste tiempo con ${t.username} (${tier.label} · ${cur.score}/100) y sumaste +${pts} pts.`;
+  }
+  db.relations[k]=cur;
+  (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
+  db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:type==='rival'?'Duelo de Rivalidad':'Vínculo de Amistad',p:pts,x:0});
+  db.log.length=Math.min(db.log.length,15);
+  chime();
+  commit(`${u.username} fortaleció su vínculo con ${t.username}`);
+  toast(msg);
 }
 
 function renderAll(){
@@ -2799,10 +2877,23 @@ function renderRelations(){
   }
   const fBonus=friendBonusFor(u.id);
   if(badge)badge.textContent=`Bono de amistad: +${fBonus} pts`;
-  const others=db.users.filter(x=>x.id!==u.id&&isEnrolled(x));
+  
+  const others=db.users.filter(x=>{
+    if(x.id===u.id || !isEnrolled(x)) return false;
+    if(relFilterMode==='canon') return x.is_canon;
+    if(relFilterMode==='players') return !x.is_npc;
+    return true;
+  });
+  
   const cd=Math.max(0,12000-(Date.now()-((db.cooldowns[u.id]||{})['rel_act']||0)));
 
-  box.innerHTML=`<div class="arcade-grid">${others.slice(0,12).map(o=>{
+  box.innerHTML=`
+    <div class="row" style="margin-bottom:10px; gap:6px">
+       <button class="chip ${relFilterMode==='all'?'on':''}" data-do="relFilter" data-f="all">Todos</button>
+       <button class="chip ${relFilterMode==='canon'?'on':''}" data-do="relFilter" data-f="canon">Canon</button>
+       <button class="chip ${relFilterMode==='players'?'on':''}" data-do="relFilter" data-f="players">Jugadores</button>
+    </div>
+    <div class="arcade-grid">${others.map(o=>{
     const rel=getRel(u.id,o.id), tier=relTier(rel);
     return `<div class="arcade-card h-${o.house}">
       <div class="row" style="justify-content:space-between">
@@ -3684,6 +3775,7 @@ document.addEventListener('click',e=>{
     case 'npcChoice':{const res=API.resolveNpcTrial(Number(d.id),d.c);closeModal();toast(res.summary);break;}
     case 'openProf':openProfModal(d.id);break;
     case 'ansProf':answerProfTask(d.id,d.i);break;
+    case 'relFilter':relFilterMode=d.f;renderRelations();break;
     case 'relAct':interactRelation(d.id,d.t);break;
     case 'setSchoolYear':API.setSchoolYear(d.y);renderCourses();break;
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
