@@ -321,7 +321,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
   <div class="links">
-    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
+    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#quidditch-sec">Quidditch</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
   </div>
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span><button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button><button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button><button class="btn sm" onclick="toggleMusic()" id="musicBtn" style="margin-right:10px">🎵 Música</button>
@@ -462,16 +462,29 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       </div>
       <div id="relationsBox"></div>
     </div>
-    <div class="grid g2" style="align-items:start">
-      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos de Quidditch</h3><div id="matches"></div></div>
-      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
-    </div>
+
     <div class="panel" style="margin-top:16px" id="chatPanel">
       <div class="tabs"><button class="chip" id="chGlobal" type="button">Gran Comedor</button><button class="chip" id="chHouse" type="button">Sala Común</button></div>
       <div class="chat" id="chatBox" role="log"></div>
       <form id="chatForm" class="row" style="margin-top:10px;flex-wrap:nowrap"><input id="chatInput" type="text" maxlength="180" placeholder="Escribe un mensaje…" autocomplete="off" aria-label="Mensaje"><button class="btn gold" type="submit">Enviar</button></form>
     </div>
     <div id="adminSlot" style="margin-top:16px"></div>
+  </section>
+
+  <section class="block" id="quidditch-sec">
+    <div class="sec-head">
+      <h2>🧹 Estadio y Copa de Quidditch</h2>
+      <p>Torneo oficial entre las cuatro casas: 6 partidos de eliminatoria (todos contra todos) y una Gran Final entre los 2 mejores, además de partidos amistosos.</p>
+    </div>
+    <div class="panel hl" style="margin-bottom:16px" id="quidditchStandingsBox"></div>
+    <div class="grid g2" style="align-items:start">
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos Activos y Convocatorias</h3><div id="matches"></div></div>
+      <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h3 style="font-size:18px;margin-bottom:12px">📜 Registro de Partidos y Resultados</h3>
+      <div id="quidditchHistory"></div>
+    </div>
   </section>
 
   <section class="block" id="alumnos">
@@ -1807,9 +1820,72 @@ const API={
     commit(t.username+' ahora es '+t.role);
   },
   resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
-  newMatch(a,b){must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
-    db.matches.push({id:'m'+Date.now(),a,b,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
-    commit(`Partido: ${a} vs ${b}`)},
+  newMatch(a,b,type='amistoso'){
+    must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
+    const validType=['amistoso','eliminatoria','final'].includes(type)?type:'amistoso';
+    if(validType==='eliminatoria'){
+      const elimCount=db.matches.filter(m=>m.type==='eliminatoria').length;
+      must(elimCount<6,'Ya existen los 6 partidos de la fase eliminatoria.');
+      const dup=db.matches.some(m=>m.type==='eliminatoria'&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a)));
+      must(!dup,'Estas dos casas ya tienen un partido de eliminatoria registrado.');
+    }
+    db.matches.push({id:'m'+Date.now()+Math.floor(Math.random()*100),a,b,type:validType,sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()});
+    commit(`Partido (${validType}): ${HOUSE(a).name} vs ${HOUSE(b).name}`);
+  },
+  deleteMatch(id){
+    must(session.isAdmin,'Solo admin');
+    const idx=db.matches.findIndex(m=>m.id===id);
+    must(idx!==-1,'Partido no encontrado');
+    const m=db.matches[idx];
+    db.matches.splice(idx,1);
+    commit(`Partido eliminado: ${HOUSE(m.a).name} vs ${HOUSE(m.b).name}`);
+    toast('Partido de Quidditch eliminado.');
+  },
+  generateEliminatorias(){
+    must(session.isAdmin,'Solo admin');
+    const pairs=[['gryffindor','slytherin'],['gryffindor','ravenclaw'],['gryffindor','hufflepuff'],['slytherin','ravenclaw'],['slytherin','hufflepuff'],['ravenclaw','hufflepuff']];
+    let added=0;
+    pairs.forEach(([a,b],i)=>{
+      const exists=db.matches.some(m=>m.type==='eliminatoria'&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a)));
+      if(!exists){
+        db.matches.push({id:'m'+Date.now()+'_'+i,a,b,type:'eliminatoria',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()+i});
+        added++;
+      }
+    });
+    must(added>0,'Los 6 cruces de eliminatoria ya están creados.');
+    commit(`Generados ${added} partidos de eliminatoria`);
+    toast(`Se crearon ${added} partidos de eliminatoria.`);
+  },
+  generateFinal(){
+    must(session.isAdmin,'Solo admin');
+    const elims=db.matches.filter(m=>m.type==='eliminatoria');
+    must(elims.length>=6 && elims.every(m=>m.status==='finished'),'Deben completarse los 6 partidos de eliminatoria primero.');
+    must(!db.matches.some(m=>m.type==='final' && m.status!=='finished'),'Ya hay una Final activa o esperando.');
+    const table=quidditchStandings();
+    const top1=table[0].id, top2=table[1].id;
+    db.matches.push({id:'m'+Date.now()+'_final',a:top1,b:top2,type:'final',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,createdAt:Date.now()});
+    fanfare();
+    commit(`¡Gran Final de Quidditch: ${HOUSE(top1).name} vs ${HOUSE(top2).name}!`);
+  },
+  createCustomNpc(d){
+    must(session.isAdmin,'Solo admin');
+    const name=cleanName(d.name);must(name,'Escribe un nombre para el NPC');
+    must(!db.users.some(u=>u.username.toLowerCase()===name.toLowerCase()),'Ya existe un personaje con ese nombre');
+    must(HOUSE(d.house),'Elige una casa válida');
+    const sy=Math.max(1,Math.min(7,Number(db.schoolYear)||1));
+    const targetYr=Math.max(1,Math.min(7,Number(d.year)||sy));
+    const yearOffset=targetYr-sy;
+    const newId=Math.max(300,...db.users.map(x=>x.id))+1;
+    const npc=U(newId,name,d.house,Number(d.points)||30,d.quidditch?15:0,'student',false,lookOf(d),true,'',d.house,(d.trait||'Alumno del castillo').trim(),false,yearOffset,[d.pers||'lealtad']);
+    npc.quidditch_approved=!!d.quidditch;
+    npc.npc_quidditch=!!d.quidditch;
+    npc.npc_decided=!!d.quidditch;
+    if(d.quidditch) npc.npc_path='quidditch';
+    db.users.push(npc);
+    chime();
+    commit(`Nuevo NPC personalizado: ${name} (${HOUSE(d.house).name})`);
+    toast(`NPC ${name} creado en ${HOUSE(d.house).name}.`);
+  },
   join(id){const u=me();must(u&&u.house,'Necesitas iniciar sesión con tu personaje');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
     must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
     if(m.players.some(p=>p.uid===u.id))return;const n=m.players.filter(p=>p.house===u.house).length;must(n<7,'Equipo lleno');
@@ -2130,53 +2206,108 @@ function renderTeams(){
     ${u&&u.house===h.id&&!u.quidditch_approved?`<button class="btn sm gold" data-do="openTryout" type="button" style="width:100%;margin-top:8px">🧹 Prueba de Selección</button>`:''}</div>`).join('');
 }
 const ACTIONS={Cazador:[['attack','Atacar'],['defend','Defender']],Guardián:[['block','Bloquear'],['idle','Esperar']],Buscador:[['search','Buscar Snitch'],['idle','Esperar']],Golpeador:[['hit','Golpear'],['idle','Esperar']]};
+
+function quidditchStandings(){
+  const map={};
+  HOUSES.forEach(h=>{map[h.id]={id:h.id,name:h.name,pj:0,pg:0,pp:0,pe:0,pf:0,pc:0,pts:0};});
+  db.matches.filter(m=>m.status==='finished' && m.type==='eliminatoria').forEach(m=>{
+    const A=map[m.a],B=map[m.b];
+    if(!A||!B)return;
+    A.pj++;B.pj++;
+    A.pf+=m.sa;A.pc+=m.sb;
+    B.pf+=m.sb;B.pc+=m.sa;
+    if(m.winner===m.a){A.pg++;A.pts+=3;B.pp++;}
+    else if(m.winner===m.b){B.pg++;B.pts+=3;A.pp++;}
+    else{A.pe++;B.pe++;A.pts+=1;B.pts+=1;}
+  });
+  return Object.values(map).sort((a,b)=>b.pts-a.pts||(b.pf-b.pc)-(a.pf-a.pc)||b.pf-a.pf);
+}
+
 function renderMatches(){
   const u=me();
-  let h='';
-  if(session.isAdmin)h+=`<div class="box" style="margin-bottom:12px"><div class="row"><select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select><span class="muted">vs</span><select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select><button class="btn sm gold" data-do="newMatch" type="button">Crear partido</button></div></div>`;
-  const rel=db.matches.filter(m=>session.isAdmin||!u||m.a===u.house||m.b===u.house);
-  h+=rel.length?rel.map(m=>{
+  const typeLabel={amistoso:'🤝 Amistoso',eliminatoria:'⚔️ Eliminatoria',final:'🏆 Gran Final'};
+  const standings=quidditchStandings();
+  const elims=db.matches.filter(m=>m.type==='eliminatoria');
+  const elimsDone=elims.filter(m=>m.status==='finished').length;
+  const finalMatch=db.matches.find(m=>m.type==='final'&&m.status==='finished');
+
+  // 1. Renderizar Tabla de Torneo de Quidditch
+  const stBox=$('quidditchStandingsBox');
+  if(stBox){
+    let stHtml=`<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div><h3 style="font-size:19px;color:var(--gold)">🏆 Tabla del Torneo (Copa de Quidditch)</h3>
+      <p class="muted" style="font-size:12px">Fase eliminatoria: ${elimsDone}/6 partidos jugados · Victoria: +3 pts · Empate: +1 pt</p></div>
+      ${finalMatch&&finalMatch.winner!=='empate'?`<span class="pill gold">👑 Campeón: ${HOUSE(finalMatch.winner).name}</span>`:elimsDone>=6?'<span class="pill good">✨ ¡Listos para la Gran Final!</span>':''}
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>#</th><th>Casa</th><th>PJ</th><th>PG</th><th>PE</th><th>PP</th><th>Tantos</th><th>Pts Torneo</th></tr></thead><tbody>
+      ${standings.map((s,i)=>`<tr>
+        <td class="mono"><b>${i+1}</b>${i<2?' 🌟':''}</td>
+        <td>${hbadge(s.id)}</td>
+        <td class="mono">${s.pj}</td><td class="mono">${s.pg}</td><td class="mono">${s.pe}</td><td class="mono">${s.pp}</td>
+        <td class="mono">${s.pf} : ${s.pc}</td>
+        <td class="mono"><b style="color:var(--gold)">${s.pts}</b></td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+    if(session.isAdmin){
+      stHtml+=`<div class="row" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+        <select id="mType" aria-label="Tipo de partido"><option value="eliminatoria">⚔️ Eliminatoria</option><option value="amistoso">🤝 Amistoso</option><option value="final">🏆 Gran Final</option></select>
+        <select id="maHouse" aria-label="Casa A">${HOUSES.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}</select>
+        <span class="muted">vs</span>
+        <select id="mbHouse" aria-label="Casa B">${HOUSES.map((x,i)=>`<option value="${x.id}" ${i===1?'selected':''}>${x.name}</option>`).join('')}</select>
+        <button class="btn sm gold" data-do="newMatch" type="button">➕ Crear partido</button>
+        <button class="btn sm" data-do="genElims" type="button" ${elims.length>=6?'disabled':''}>⚔️ Generar 6 Eliminatorias</button>
+        <button class="btn sm gold" data-do="genFinal" type="button" ${elimsDone>=6?'':'disabled'}>👑 Crear Final (Top 2)</button>
+      </div>`;
+    }
+    stBox.innerHTML=stHtml;
+  }
+
+  // 2. Renderizar Partidos Activos y en Espera
+  const activeList=db.matches.filter(m=>m.status!=='finished'&&(session.isAdmin||!u||m.a===u.house||m.b===u.house));
+  let h=activeList.length?activeList.map(m=>{
     const my=u?m.players.find(p=>p.uid===u.id):null,A=HOUSE(m.a),B=HOUSE(m.b);
-    const state=m.status==='waiting'?'Esperando jugadores':m.status==='active'?`Ronda ${m.round}/${m.max}`:(m.winner==='empate'?'Empate':HOUSE(m.winner).name+' gana');
+    const state=m.status==='waiting'?'Esperando jugadores':`Ronda ${m.round}/${m.max}`;
     const row=hh=>m.players.filter(p=>p.house===hh).map(p=>`<div class="prow ${p.action?'ready':''} ${u&&p.uid===u.id?'me':''}"><span>${esc(p.username)} <em class="muted">${p.pos}</em></span><span>${p.action?'Listo':''}</span></div>`).join('')||'<p class="muted" style="font-size:12px">Vacío</p>';
-    
     let ctl='';
     if(m.status==='active'&&my&&!my.action)ctl=`<div class="box" style="margin-top:10px"><p style="font-size:13px;margin-bottom:8px">Tu turno como ${my.pos} · <span id="timer-${m.id}" class="mono">--</span></p><div class="row">${(ACTIONS[my.pos]||[]).map(([a,l])=>`<button class="btn sm gold" data-do="act" data-m="${m.id}" data-a="${a}" type="button">${l}</button>`).join('')}</div></div>`;
     else if(my&&my.action)ctl=`<p class="pill good" style="margin-top:10px">Acción enviada. Esperando al resto.</p>`;
-    
-    let stadium = '';
-    if (m.status === 'active' || m.status === 'waiting') {
-        stadium = `<div class="stadium">
-            <div class="stadium-score">${m.sa} - ${m.sb}</div>
-            <div class="hoop left"></div>
-            <div class="hoop right"></div>
-            <div class="snitch"></div>
-            <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.5)">Cabina de Lee Jordan</div>
-        </div>`;
+    const stadium=`<div class="stadium"><div class="stadium-score">${m.sa} - ${m.sb}</div><div class="hoop left"></div><div class="hoop right"></div><div class="snitch"></div><div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,0.5)">Cabina de Lee Jordan</div></div>`;
+    let cheerBtns='';
+    if(m.status==='active'&&u&&!my){
+      cheerBtns=`<div class="row" style="margin-top:8px;justify-content:center"><button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.a}" type="button">📣 Animar ${A.name}</button><button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.b}" type="button">📣 Animar ${B.name}</button></div>`;
     }
-    
-    let cheerBtns = '';
-    if (m.status === 'active' && u && !my) {
-        cheerBtns = `<div class="row" style="margin-top:8px;justify-content:center">
-            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.a}" type="button">📣 Animar ${A.name}</button>
-            <button class="btn sm" data-do="cheer" data-m="${m.id}" data-h="${m.b}" type="button">📣 Animar ${B.name}</button>
-        </div>`;
-    }
-
     let btn='';
     if(m.status==='waiting'){
       if(my)btn+=`<button class="btn sm" data-do="leave" data-m="${m.id}" type="button">Salir</button>`;
       else if(u&&(u.house===m.a||u.house===m.b))btn+=`<button class="btn sm gold" data-do="join" data-m="${m.id}" type="button">Unirme</button>`;
       btn+=` <button class="btn sm" data-do="fillNpcMatch" data-m="${m.id}" type="button">🤖 Rellenar con NPCs</button>`;
-      if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
-    
-    return `<div class="match">
-      ${stadium}
-      <div class="row" style="justify-content:space-between"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
+      if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`;
+    }
+    if(session.isAdmin) btn+=` <button class="btn sm danger" data-do="delMatch" data-m="${m.id}" type="button">🗑️ Eliminar</button>`;
+    return `<div class="match">${stadium}
+      <div class="row" style="justify-content:space-between;margin-bottom:6px"><span class="pill gold">${typeLabel[m.type||'amistoso']||'🤝 Amistoso'}</span><span class="muted" style="font-size:12px">${state}</span></div>
+      <div class="row" style="justify-content:center"><div class="row"><strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div></div>
       <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>
       ${cheerBtns}${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
-      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos activos. ${session.isAdmin?'Crea uno arriba.':'Pide al profesorado que convoque un partido.'}</p>`;
+      ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`;
+  }).join(''):`<p class="muted">No hay partidos activos o en espera. ${session.isAdmin?'Crea uno arriba en la tabla del torneo.':'Pide al profesorado que convoque un partido.'}</p>`;
   $('matches').innerHTML=h;
+
+  // 3. Renderizar Registro de Partidos Ocurridos y Resultados
+  const histBox=$('quidditchHistory');
+  if(histBox){
+    const finished=db.matches.filter(m=>m.status==='finished').slice().reverse();
+    histBox.innerHTML=finished.length?`<div class="tablewrap"><table><thead><tr><th>Tipo</th><th>Enfrentamiento</th><th>Marcador</th><th>Ganador</th><th>Snitch</th>${session.isAdmin?'<th>Acción</th>':''}</tr></thead><tbody>
+      ${finished.map(m=>`<tr>
+        <td><span class="pill">${typeLabel[m.type||'amistoso']||'🤝 Amistoso'}</span></td>
+        <td>${hbadge(m.a)} vs ${hbadge(m.b)}</td>
+        <td class="mono"><b>${m.sa} - ${m.sb}</b></td>
+        <td>${m.winner==='empate'?'Empate':hbadge(m.winner)}</td>
+        <td>${m.caught?`🟡 ${HOUSE(m.caught).name}`:'No'}</td>
+        ${session.isAdmin?`<td><button class="btn sm danger" data-do="delMatch" data-m="${m.id}" type="button">🗑️</button></td>`:''}
+      </tr>`).join('')}
+    </tbody></table></div>`:'<p class="muted">Todavía no se ha completado ningún partido de Quidditch en este curso.</p>';
+  }
 }
 function renderChat(){
   const u=me();
@@ -2205,7 +2336,7 @@ function renderAdmin(){
     <div class="row">
       <button class="btn sm ${db.npcAi?'gold':''}" data-do="toggleNpcAi" type="button">${db.npcAi?'🤖 IA Automática: ACTIVA':'🤖 IA Automática: PAUSADA'}</button>
       <button class="btn sm" data-do="npcNow" type="button">⚡ Simular acción IA ahora</button>
-      <button class="btn sm" data-do="spawnNpc" type="button">➕ Añadir nuevo NPC</button>
+      <button class="btn sm" data-do="spawnNpc" type="button">➕ NPC Aleatorio</button><button class="btn sm gold" data-do="openCustomNpc" type="button">🎨 Crear NPC Personalizado</button>
     </div></div>
    <div class="box" style="grid-column:1/-1"><h4>Reloj y horario</h4>
     <p style="margin-bottom:10px;font-size:14px">${DAYL[curDay()]} · <b class="mono">${curTime()}</b> · modo ${db.clockMode==='mock'?'simulado':'real'}</p>
@@ -2988,6 +3119,26 @@ function mgRunas(){
       }
     }
   };
+}
+
+
+function openCustomNpcModal(){
+  must(session.isAdmin,'Solo admin');
+  const sy=Math.max(1,Math.min(7,Number(db.schoolYear)||1));
+  openModal(`<h3 style="font-size:20px;color:var(--gold)">🎨 Crear NPC Personalizado</h3>
+    <div class="grid g2" style="width:100%;text-align:left;gap:10px">
+      <div><label class="hint">Nombre</label><input id="npcName" type="text" maxlength="18" placeholder="Ej: Astoria Greengrass"></div>
+      <div><label class="hint">Casa</label><select id="npcHouse" style="width:100%">${HOUSES.map(h=>`<option value="${h.id}">${h.name}</option>`).join('')}</select></div>
+      <div><label class="hint">Curso (1.º a 7.º)</label><select id="npcYear" style="width:100%">${[1,2,3,4,5,6,7].map(y=>`<option value="${y}" ${y===sy?'selected':''}>${y}.º curso</option>`).join('')}</select></div>
+      <div><label class="hint">Personalidad</label><select id="npcPers" style="width:100%">${Object.keys(PERSONALITY_LINES).map(k=>`<option value="${k}">${k}</option>`).join('')}</select></div>
+      <div style="grid-column:1/-1"><label class="hint">Rasgo / Descripción</label><input id="npcTrait" type="text" maxlength="80" placeholder="Ej: Duelista silenciosa y experta en Pociones"></div>
+      <div><label class="hint">Piel (0-4)</label><select id="npcSkin" style="width:100%">${SKIN.map((_,i)=>`<option value="${i}">Tono ${i+1}</option>`).join('')}</select></div>
+      <div><label class="hint">Pelo</label><select id="npcHair" style="width:100%">${HAIRN.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></div>
+      <div><label class="hint">Peinado</label><select id="npcStyle" style="width:100%">${STYLES.map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></div>
+      <div><label class="hint">Ojos</label><select id="npcEyes" style="width:100%">${EYEN.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></div>
+      <label style="grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:13px"><input id="npcQuid" type="checkbox"> Aprobado para el equipo de Quidditch</label>
+    </div>
+    <div class="row"><button class="btn gold" type="button" data-do="saveCustomNpc">✨ Crear NPC</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>`,true);
 }
 
 function newStudent(){
@@ -4146,7 +4297,12 @@ document.addEventListener('click',e=>{
     case 'award':API.award(Number(d.id),10);break;
     case 'togglePref':API.togglePrefect(Number(d.id));break; case 'toggleDel':API.toggleDelegado(Number(d.id));break;
     case 'reset':if(!resetArmed){resetArmed=true;renderAdmin();setTimeout(()=>{resetArmed=false;renderAdmin()},4000)}else{resetArmed=false;API.resetPoints()}break;
-    case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value);break;
+    case 'newMatch':API.newMatch($('maHouse').value,$('mbHouse').value,$('mType')?.value||'amistoso');break;
+    case 'delMatch':API.deleteMatch(d.m);break;
+    case 'genElims':API.generateEliminatorias();break;
+    case 'genFinal':API.generateFinal();break;
+    case 'openCustomNpc':openCustomNpcModal();break;
+    case 'saveCustomNpc':API.createCustomNpc({name:$('npcName').value,house:$('npcHouse').value,year:$('npcYear').value,pers:$('npcPers').value,trait:$('npcTrait').value,skin:$('npcSkin').value,hair:$('npcHair').value,style:$('npcStyle').value,eyes:$('npcEyes').value,quidditch:$('npcQuid').checked});closeModal();break;
     case 'join':API.join(d.m);break;
     case 'leave':API.leave(d.m);break;
     case 'start':API.start(d.m);break;
