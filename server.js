@@ -36,6 +36,11 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_decided: false,
   npc_trials: 0,
   animagus: null,
+  galeones: 15,
+  inv: {},
+  cromos: {},
+  inmunidadFilchHasta: 0,
+  buffDobleGaleon: false,
   yearOffset: Number(yearOffset) || 0,
   look,
   created_at: id
@@ -59,7 +64,7 @@ const BASE_NPCS = [
   U(211, 'Cedric Diggory', 'hufflepuff', 62, 0, 'student', false, { skin: 0, hair: 1, style: 'corto', eyes: 3 }, true, '', 'patio', '2 años mayor · Ejemplar, justo y líder natural de Hufflepuff', true, 2),
   U(212, 'Hannah Abbott', 'hufflepuff', 44, 0, 'student', false, { skin: 0, hair: 3, style: 'rizado', eyes: 0 }, true, '', 'invernaderos', 'Mismo año que tú · Dedicada en Herbología y leal amiga', true, 0),
   U(218, 'Ernie Macmillan', 'hufflepuff', 48, 0, 'student', false, { skin: 0, hair: 3, style: 'corto', eyes: 1 }, true, '', 'biblioteca', 'Mismo año que tú · Pomposo pero sumamente leal y futuro Prefecto de Hufflepuff', true, 0),
-  U(213, 'Nymphadora Tonks', 'hufflepuff', 0, 0, 'student', false, { skin: 0, hair: 5, style: 'corto', eyes: 4 }, true, '', 'defensa', '7 años mayor que Harry · Graduada justo antes del Año 1 (Aprendiz de Auror y Metamorfaga)', true, 7),
+  U(213, 'Nymphadora Tonks', 'hufflepuff', 0, 0, 'student', false, { skin: 0, hair: 5, style: 'corto', eyes: 4 }, true, '', 'defensa', '7 años mayor que Harry · Graduada justo antes del Año 1 (Aprendiz de Auror y Metamorfomaga)', true, 7),
   U(101, 'Aldebarán V.', 'gryffindor', 40, 0, 'student', false, { skin: 1, hair: 0, style: 'corto', eyes: 0 }, true, '', 'gryffindor', 'Mismo año que tú · Valiente compañero de Gryffindor', false, 0),
   U(104, 'Lyra M.', 'ravenclaw', 45, 0, 'student', false, { skin: 0, hair: 5, style: 'largo', eyes: 4 }, true, '', 'biblioteca', 'Mismo año que tú · Mente brillante de Ravenclaw', false, 0),
   U(107, 'Seraphina K.', 'slytherin', 45, 0, 'student', false, { skin: 0, hair: 0, style: 'largo', eyes: 2 }, true, '', 'mazmorras', '1 año mayor · Ambiciosa estratega de Slytherin', false, 1),
@@ -92,8 +97,8 @@ const SERVER_NPC_LINES = [
 const defaultDb = {
   users: BASE_NPCS,
   houses: [
-    { id: 'gryffindor', points: 297 },
-    { id: 'ravenclaw', points: 145 },
+    { id: 'gryffindor', points: 457 },
+    { id: 'ravenclaw', points: 93 },
     { id: 'slytherin', points: 193 },
     { id: 'hufflepuff', points: 200 }
   ],
@@ -183,6 +188,11 @@ function sanitizeState(state) {
 
   state.users.forEach(u => {
     if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
+    if (typeof u.galeones !== 'number') u.galeones = 15;
+    if (!u.inv || typeof u.inv !== 'object') u.inv = {};
+    if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
+    if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
+    if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
       u.npc_quidditch = false;
@@ -266,17 +276,6 @@ io.on('connection', async (socket) => {
           return;
         }
 
-        // Anti-cheat básico: bloquear saltos anómalos de puntos en un solo sync
-        const oldUsers = memoryState.users || [];
-        for (const nu of data.db.users) {
-          const ou = oldUsers.find(o => o.id === nu.id);
-          if (ou && (Number(nu.points) - Number(ou.points)) > 500) {
-            console.log(`⚠️ Sync bloqueado: ${nu.username} saltó ${nu.points - ou.points} pts.`);
-            socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Anti-Cheat)' });
-            return;
-          }
-        }
-
         await saveState(data.db);
 
         socket.broadcast.emit('sync_db', {
@@ -290,7 +289,7 @@ io.on('connection', async (socket) => {
   }
 });
 
-// Motor autónomo en el servidor
+// Motor autónomo en el servidor: cada 25 segundos un personaje del canon o NPC matriculado (1.º a 7.º) entrena y suma puntos
 setInterval(async () => {
   try {
     const state = await loadState();
