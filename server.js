@@ -13,8 +13,10 @@ app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'index.html');
+  const index2Path = path.join(__dirname, 'index2.html');
   const castilloPath = path.join(__dirname, 'El Castillo.html');
   if (fs.existsSync(indexPath)) res.sendFile(indexPath);
+  else if (fs.existsSync(index2Path)) res.sendFile(index2Path);
   else if (fs.existsSync(castilloPath)) res.sendFile(castilloPath);
   else res.status(404).send('No se encontró el archivo del juego.');
 });
@@ -37,6 +39,9 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_trials: 0,
   animagus: null,
   yearOffset: Number(yearOffset) || 0,
+  happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
+  galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
+  quidditch_approved: false,
   look,
   created_at: id
 });
@@ -75,7 +80,7 @@ const SERVER_ACTS = [
   { key: 'defensa', name: 'Defensa contra las Artes Oscuras', points: 5, room: 'defensa' },
   { key: 'historia', name: 'Historia de la Magia', points: 4, room: 'historia' },
   { key: 'astronomia', name: 'Astronomía', points: 4, room: 'astronomia' },
-  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca' }
+  { key: 'runas', name: 'Runas Antiguas', points: 4, room: 'biblioteca', minYear: 3 }
 ];
 
 const SERVER_NPC_LINES = [
@@ -92,8 +97,8 @@ const SERVER_NPC_LINES = [
 const defaultDb = {
   users: BASE_NPCS,
   houses: [
-    { id: 'gryffindor', points: 457 },
-    { id: 'ravenclaw', points: 93 },
+    { id: 'gryffindor', points: 297 },
+    { id: 'ravenclaw', points: 145 },
     { id: 'slytherin', points: 193 },
     { id: 'hufflepuff', points: 200 }
   ],
@@ -183,6 +188,12 @@ function sanitizeState(state) {
 
   state.users.forEach(u => {
     if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
+    if (typeof u.galeones !== 'number') u.galeones = 15;
+    if (!u.inv || typeof u.inv !== 'object') u.inv = {};
+    if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
+    if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
+    if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
+    
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
       u.npc_quidditch = false;
@@ -214,6 +225,11 @@ function sanitizeState(state) {
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
+  
+  if (Array.isArray(state.matches)) {
+    state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
+  }
+  
   reconcileHousePoints(state);
   return state;
 }
@@ -266,6 +282,16 @@ io.on('connection', async (socket) => {
           return;
         }
 
+        const oldUsers = memoryState.users || [];
+        for (const nu of data.db.users) {
+          const ou = oldUsers.find(o => o.id === nu.id);
+          if (ou && (Number(nu.points) - Number(ou.points)) > 500) {
+            console.log(`⚠️ Sync bloqueado: ${nu.username} saltó ${nu.points - ou.points} pts.`);
+            socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Anti-Cheat)' });
+            return;
+          }
+        }
+
         await saveState(data.db);
 
         socket.broadcast.emit('sync_db', {
@@ -279,7 +305,6 @@ io.on('connection', async (socket) => {
   }
 });
 
-// Motor autónomo en el servidor: cada 25 segundos un personaje del canon o NPC matriculado (1.º a 7.º) entrena y suma puntos
 setInterval(async () => {
   try {
     const state = await loadState();
@@ -288,7 +313,13 @@ setInterval(async () => {
     if (!npcs.length) return;
 
     const npc = npcs[Math.floor(Math.random() * npcs.length)];
-    const act = SERVER_ACTS[Math.floor(Math.random() * SERVER_ACTS.length)];
+    const npcYr = userYear(state, npc);
+    const availableActs = SERVER_ACTS.filter(a => npcYr >= (a.minYear || 1));
+    
+    // Si no hay actos disponibles para su año, omitir
+    if (!availableActs.length) return;
+    
+    const act = availableActs[Math.floor(Math.random() * availableActs.length)];
     const pts = act.points;
 
     npc.points = (Number(npc.points) || 0) + pts;
