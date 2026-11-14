@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: el-castillo
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Se define en el panel de Render (Environment), nunca en el repositorio.
+      - key: GROQ_API_KEY
+        sync: false
+      # Modelo de Groq usado por el chat de los NPCs.
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      # Opcional: sin esto el progreso vive en db.json y se pierde en cada redeploy.
+      - key: MONGODB_URI
+        sync: false
+      - key: NODE_VERSION
+        value: 22.11.0
