@@ -15,6 +15,46 @@ const AI_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // así que el modelo se puede fijar con GROQ_MODEL. Valor por defecto: uno disponible.
 const AI_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const AI_ENABLED = !!AI_KEY;
+
+/* ===== CLOUDFLARE WORKERS AI (imágenes de cromos) ===== */
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID || '';
+const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN || '';
+const CF_AI_ENABLED = !!CF_ACCOUNT_ID && !!CF_API_TOKEN;
+
+async function generateImageWithAI(prompt) {
+  if (!CF_AI_ENABLED) {
+    throw new Error('Cloudflare AI no está configurado (faltan CLOUDFLARE_ACCOUNT_ID y/o CLOUDFLARE_API_TOKEN).');
+  }
+  const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${CF_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`Cloudflare AI HTTP ${res.status}: ${detail.slice(0, 200)}`);
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = await res.json();
+      const img = json?.result?.image || (Array.isArray(json?.result?.images) ? json.result.images[0] : null) || json?.image;
+      if (!img) throw new Error('Respuesta de Cloudflare sin imagen Base64');
+      return String(img);
+    }
+    const buf = await res.arrayBuffer();
+    return Buffer.from(buf).toString('base64');
+  } finally {
+    clearTimeout(timer);
+  }
+}
 const AI_CACHE_MAX = 400;
 const AI_TIMEOUT_MS = 12000;
 
@@ -58,6 +98,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.json());
 app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
@@ -79,6 +120,23 @@ app.get('/health', (req, res) => {
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString()
   });
+});
+
+app.post('/api/generate-cromo', async (req, res) => {
+  try {
+    const cromoName = String((req.body && req.body.cromoName) || '').trim().slice(0, 80);
+    const style = String((req.body && req.body.style) || 'retrato de fantasía, estilo cartoon').trim().slice(0, 200);
+    if (!cromoName) return res.status(400).json({ ok: false, error: 'Falta el nombre del cromo.' });
+    const prompt = `${cromoName}, ${style}, cromo de rana de chocolate Harry Potter, portrait`;
+    const image = await generateImageWithAI(prompt);
+    res.json({ ok: true, image });
+  } catch (err) {
+    console.error('Error generando cromo (HTTP):', err.message);
+    const msg = /no está configurado|no configurado/i.test(err.message)
+      ? 'La generación de imágenes no está configurada en el servidor.'
+      : 'No se pudo generar el retrato. Intenta de nuevo.';
+    res.status(500).json({ ok: false, error: msg, detail: err.message });
+  }
 });
 
 const uri = process.env.MONGODB_URI;
@@ -255,6 +313,12 @@ function sanitizeState(state) {
     if (typeof u.galeones !== 'number') u.galeones = 15;
     if (!u.inv || typeof u.inv !== 'object') u.inv = {};
     if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
+    Object.keys(u.cromos).forEach(k => {
+      const v = u.cromos[k];
+      if (typeof v === 'number') u.cromos[k] = { count: v };
+      else if (!v || typeof v !== 'object') delete u.cromos[k];
+      else if (typeof v.count !== 'number') v.count = Number(v.count) || 0;
+    });
     if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
     if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
     if (typeof u.pet === 'undefined') u.pet = null;
@@ -477,6 +541,28 @@ io.on('connection', async (socket) => {
         });
       } finally {
         clearTimeout(timer);
+      }
+    });
+
+    // ⬅️ Generación de retratos IA para cromos de ranas de chocolate (Cloudflare Workers AI)
+    socket.on('generate_cromo', async (data) => {
+      const cromoId = data && data.cromoId;
+      const cromoName = String((data && data.cromoName) || '').trim().slice(0, 80);
+      const style = String((data && data.style) || 'retrato de fantasía, estilo cartoon').trim().slice(0, 200);
+      if (!cromoId || !cromoName) {
+        socket.emit('cromo_image_error', { cromoId, message: 'Faltan datos del cromo.' });
+        return;
+      }
+      const prompt = `${cromoName}, ${style}, cromo de rana de chocolate Harry Potter, portrait`;
+      try {
+        const image = await generateImageWithAI(prompt);
+        socket.emit('cromo_image', { cromoId, image });
+      } catch (err) {
+        console.error('Error generando cromo:', err.message);
+        const msg = /no está configurado|no configurado/i.test(err.message)
+          ? 'La generación de imágenes no está configurada en el servidor.'
+          : 'No se pudo generar el retrato. Intenta de nuevo.';
+        socket.emit('cromo_image_error', { cromoId, message: msg });
       }
     });
   } catch (err) {

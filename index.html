@@ -891,6 +891,7 @@ function ensureDbIntegrity(){
     if (typeof u.galeones !== 'number') { u.galeones = 15; changed = true; }
     if (!u.inv || typeof u.inv !== 'object') { u.inv = {}; changed = true; }
     if (!u.cromos || typeof u.cromos !== 'object') { u.cromos = {}; changed = true; }
+    Object.keys(u.cromos).forEach(k=>{const v=u.cromos[k];if(typeof v==='number'){u.cromos[k]={count:v};changed=true;}else if(!v||typeof v!=='object'){delete u.cromos[k];changed=true;}else if(typeof v.count!=='number'){v.count=Number(v.count)||0;changed=true;}});
     if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
     if (typeof u.buffDobleGaleon !== 'boolean') { u.buffDobleGaleon = false; changed = true; }
     if (typeof u.pet === 'undefined') { u.pet = null; changed = true; }
@@ -1863,8 +1864,11 @@ const API={
     else if(itemId==='polvo_oscuridad'){ u.loc=u.house;u.locSlot=slotKey(); msg='🌫️ ¡Polvo de Oscuridad! Escapaste a tu Sala Común.'; }
     else if(itemId==='rana_chocolate'){
       u.points+=5; u.cromos=u.cromos||{};
-      const cromo=sortearCromoRana(), esNuevo=!u.cromos[cromo.id];
-      u.cromos[cromo.id]=(u.cromos[cromo.id]||0)+1;
+      const cromo=sortearCromoRana();
+      const _prevCromo = (typeof u.cromos[cromo.id]==='number')?u.cromos[cromo.id]:(u.cromos[cromo.id]&&u.cromos[cromo.id].count)||0;
+      const esNuevo = _prevCromo===0;
+      const _imgCromo = (u.cromos[cromo.id]&&typeof u.cromos[cromo.id]==='object')?u.cromos[cromo.id].image:undefined;
+      u.cromos[cromo.id]={count:_prevCromo+1,image:_imgCromo};
       db.log.unshift({u:u.username,h:u.house,a:`Rana de Chocolate (${cromo.nombre})`,p:5,x:0});
       msg=esNuevo?`🐸 ¡+5 pts y NUEVO CROMO: ${cromo.nombre} (${cromo.rareza})!`:`🐸 ¡+5 pts! Te salió ${cromo.nombre} (repetido).`;
     }else if(itemId==='cerveza_mantequilla'){ u.buffDobleGaleon=true; msg='🍺 ¡Salud! Tu próximo minijuego dará el doble de Galeones.'; }
@@ -1877,17 +1881,20 @@ const API={
   tradeCromo(cromoId){
     const u=me();must(u,'Inicia sesión primero');
     const cromo=CROMOS_MAGOS.find(c=>c.id===cromoId);must(cromo,'Cromo no encontrado');
-    u.cromos=u.cromos||{};must((u.cromos[cromoId]||0)>1,'Solo puedes canjear cromos repetidos');
+    u.cromos=u.cromos||{};const _tc=(typeof u.cromos[cromoId]==='number')?u.cromos[cromoId]:(u.cromos[cromoId]&&u.cromos[cromoId].count)||0;must(_tc>1,'Solo puedes canjear cromos repetidos');
     const valor=VALOR_CANJE_CROMO[cromo.rareza]||4;
-    u.cromos[cromoId]--;u.galeones=(u.galeones||0)+valor;
+    const _img=u.cromos[cromoId]&&typeof u.cromos[cromoId]==='object'?u.cromos[cromoId].image:undefined;
+    u.cromos[cromoId]={count:_tc-1,image:_img};if(u.cromos[cromoId].count<=0)delete u.cromos[cromoId];
+    u.galeones=(u.galeones||0)+valor;
     chime();commit(`${u.username} canjeó un cromo repetido`);toast(`Canjeaste ${cromo.nombre} por +${valor} 🪙`);
   },
   tradeAllCromos(){
     const u=me();must(u,'Inicia sesión primero');u.cromos=u.cromos||{};
     let totalGal=0,totalCromos=0;
     Object.keys(u.cromos).forEach(id=>{
-      const qty=u.cromos[id]||0;
-      if(qty>1){ const c=CROMOS_MAGOS.find(x=>x.id===id); totalGal+=(qty-1)*(c?(VALOR_CANJE_CROMO[c.rareza]||4):4); totalCromos+=(qty-1); u.cromos[id]=1; }
+      const qty=(typeof u.cromos[id]==='number')?u.cromos[id]:(u.cromos[id]&&u.cromos[id].count)||0;
+      const img=u.cromos[id]&&typeof u.cromos[id]==='object'?u.cromos[id].image:undefined;
+      if(qty>1){ const c=CROMOS_MAGOS.find(x=>x.id===id); totalGal+=(qty-1)*(c?(VALOR_CANJE_CROMO[c.rareza]||4):4); totalCromos+=(qty-1); u.cromos[id]={count:1,image:img}; }
     });
     must(totalCromos>0,'No tienes cromos repetidos');
     u.galeones=(u.galeones||0)+totalGal;
@@ -2649,10 +2656,35 @@ function openBackpackModal() {
   openModal(html, true);
 }
 
+function cromoDataUrl(b64){
+  if(!b64) return '';
+  if(String(b64).startsWith('data:')) return String(b64);
+  const t=String(b64);
+  let mime='image/png';
+  if(t.startsWith('/9j/')) mime='image/jpeg';
+  else if(t.startsWith('iVBOR')) mime='image/png';
+  else if(t.startsWith('R0lGOD')) mime='image/gif';
+  else if(t.startsWith('UklGR')) mime='image/webp';
+  return 'data:'+mime+';base64,'+t;
+}
+
+function generateCromoImage(cromoId){
+  const u=me(); if(!u) return toast('Inicia sesión primero');
+  const c=CROMOS_MAGOS.find(x=>x.id===cromoId); if(!c) return;
+  const entry=(u.cromos||{})[cromoId];
+  const cant=(typeof entry==='number')?entry:((entry&&entry.count)||0);
+  if(cant<=0) return toast('No tienes este cromo');
+  const btn=document.querySelector(`[data-do="generateCromo"][data-id="${cromoId}"]`);
+  const container=document.getElementById('cromo-img-'+cromoId);
+  if(btn){btn.disabled=true;btn.textContent='Invocando magia...';}
+  if(container) container.innerHTML='<p class="muted" style="font-size:12px">Invocando magia...</p>';
+  socket.emit('generate_cromo',{cromoId:cromoId,cromoName:c.nombre,style:'retrato de fantasía, estilo cartoon'});
+}
+
 function openAlbumModal() {
   const u = me();
   if (!u) return toast('Inicia sesión primero');
-  const unlocked = CROMOS_MAGOS.filter(c => ((u.cromos||{})[c.id]||0) > 0).length;
+  const unlocked = CROMOS_MAGOS.filter(c => { const v=(u.cromos||{})[c.id]; const n=(typeof v==='number')?v:(v&&v.count)||0; return n>0; }).length;
   let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:4px">
     <h3 style="font-size:20px;color:var(--gold)">🐸 Álbum de Cromos de Ranas de Chocolate (${unlocked}/${CROMOS_MAGOS.length})</h3>
     <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
@@ -2663,13 +2695,17 @@ function openAlbumModal() {
   </div>
   <div class="grid g3" style="width:100%">`;
   CROMOS_MAGOS.forEach(c => {
-    const cant = (u.cromos||{})[c.id] || 0;
-    html += `<div class="cromo-card ${cant>0?'':'bloqueado'}">
+    const _entry=(u.cromos||{})[c.id];
+    const cant = (typeof _entry==='number')?_entry:((_entry&&_entry.count)||0);
+    const _img = (_entry&&typeof _entry==='object')?_entry.image:null;
+    html += `<div class="cromo-card ${cant>0?'':'bloqueado'}" id="cromo-card-${c.id}">
       ${cant > 1 ? `<span class="cromo-repetido">x${cant}</span>` : ''}
       <span class="cromo-rareza rareza-${c.rareza}">${c.rareza}</span>
       <strong>${c.nombre}</strong>
       <p class="muted" style="font-size:12px">${c.desc}</p>
       ${cant > 0 ? `<span class="pill good">En tu álbum (x${cant})</span>` : '<span class="pill off">No obtenido</span>'}
+      ${cant > 0 ? `<button class="btn sm gold" data-do="generateCromo" data-id="${c.id}" data-name="${c.nombre}">🪄 Generar Retrato IA</button>` : ''}
+      ${_img ? `<img src="${cromoDataUrl(_img)}" alt="${c.nombre}" style="width:100%;border-radius:8px;margin-top:6px">` : (cant>0?`<div id="cromo-img-${c.id}"></div>`:'')}
       ${cant > 1 ? `<button class="btn sm gold" data-do="tradeCromo" data-id="${c.id}">Canjear (+${VALOR_CANJE_CROMO[c.rareza]} 🪙)</button>` : ''}
     </div>`;
   });
@@ -3529,6 +3565,35 @@ socket.on('npc_reply',(data)=>{
     }
     commit(`${u.username} habló con ${target.name}`);
     if(key===npcChatKey)renderNpcChatHistory();
+  }
+});
+
+socket.on('cromo_image',(data)=>{
+  if(!data||!data.cromoId) return;
+  const u=me(); if(!u) return;
+  const img=data.image;
+  u.cromos=u.cromos||{};
+  const prev=u.cromos[data.cromoId];
+  if(typeof prev==='number') u.cromos[data.cromoId]={count:prev,image:img};
+  else if(prev&&typeof prev==='object') prev.image=img;
+  else u.cromos[data.cromoId]={count:1,image:img};
+  commit('Retrato IA generado');
+  const src=cromoDataUrl(img);
+  const container=document.getElementById('cromo-img-'+data.cromoId);
+  if(container) container.innerHTML=`<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-top:6px">`;
+  const btn=document.querySelector(`[data-do="generateCromo"][data-id="${data.cromoId}"]`);
+  if(btn){btn.disabled=false;btn.textContent='🪄 Regenerar Retrato IA';}
+  toast('¡Retrato generado!');
+});
+
+socket.on('cromo_image_error',(data)=>{
+  const msg=(data&&data.message)?data.message:'No se pudo generar el retrato.';
+  toast(msg);
+  if(data&&data.cromoId){
+    const container=document.getElementById('cromo-img-'+data.cromoId);
+    if(container) container.innerHTML=`<p class="muted" style="font-size:12px;color:var(--bad)">${msg}</p>`;
+    const btn=document.querySelector(`[data-do="generateCromo"][data-id="${data.cromoId}"]`);
+    if(btn){btn.disabled=false;btn.textContent='🪄 Generar Retrato IA';}
   }
 });
 
@@ -4726,6 +4791,7 @@ document.addEventListener('click',e=>{
       break;
     case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
     case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
+    case 'generateCromo':generateCromoImage(d.id);break;
     case 'delMatch':API.deleteMatch(d.m);break;
     case 'genElims':API.generateEliminatorias();break;
     case 'genFinal':API.generateFinal();break;
