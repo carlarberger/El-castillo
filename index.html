@@ -694,7 +694,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   personality: personality,
-  pet: null, petLastUse: null, petLastPlay: null,
+  pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
   look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
 });
@@ -896,6 +896,8 @@ function ensureDbIntegrity(){
     if (typeof u.pet === 'undefined') { u.pet = null; changed = true; }
     if (typeof u.petLastUse === 'undefined') { u.petLastUse = null; changed = true; }
     if (typeof u.petLastPlay === 'undefined') { u.petLastPlay = null; changed = true; }
+    if (typeof u.petLove !== 'number' || isNaN(u.petLove)) { u.petLove = 50; changed = true; }
+    else { const _pl = Math.max(0, Math.min(100, u.petLove)); if (_pl !== u.petLove) { u.petLove = _pl; changed = true; } }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1222,9 +1224,11 @@ const PETS = [
   { id: 'rata',    name: 'Rata',    icon: '🐀', desc: '+10% de probabilidad de hallazgos mágicos al moverte.' }
 ];
 function petOf(u){ if(!u||!u.pet) return null; return PETS.find(p=>p.id===u.pet)||null; }
-function petFlightBonus(u){ const p=petOf(u); return p&&p.id==='lechuza'?3:0; }
-function petFreeActBonus(u){ const p=petOf(u); return p&&p.id==='sapo'?2:0; }
-function petFindBonus(u){ const p=petOf(u); return p&&p.id==='rata'?0.10:0; }
+function petLoveOf(u){ if(!u) return 0; const v=typeof u.petLove==='number'&&!isNaN(u.petLove)?u.petLove:50; return Math.max(0,Math.min(100,v)); }
+function petLoveBoosted(u){ return !!petOf(u)&&petLoveOf(u)>=80; }
+function petFlightBonus(u){ const p=petOf(u); return p&&p.id==='lechuza'?(petLoveBoosted(u)?6:3):0; }
+function petFreeActBonus(u){ const p=petOf(u); return p&&p.id==='sapo'?(petLoveBoosted(u)?4:2):0; }
+function petFindBonus(u){ const p=petOf(u); return p&&p.id==='rata'?(petLoveBoosted(u)?0.20:0.10):0; }
 function petPlayCooldown(u){
   if(!u||!u.petLastPlay) return 0;
   const CD=30*60*1000;
@@ -1835,6 +1839,7 @@ const API={
     must(!u.pet, '¡Las mascotas son para siempre! Ya tienes una.');
     const p = PETS.find(x=>x.id===petId); must(p, 'Mascota desconocida');
     u.pet = petId;
+    u.petLove = 50;
     chime();
     commit(`${u.username} adoptó un ${p.name}`);
     toast(`${p.icon} ¡Has adoptado un ${p.name}!`);
@@ -2193,6 +2198,7 @@ function renderPlay(){
     <div class="stat-item">😊 Felicidad <span class="stat-bar"><i style="width:${u.happiness}%; background:var(--warn)"></i></span></div>
     <div class="stat-item">🦁 Orgullo <span class="stat-bar"><i style="width:${u.pride}%; background:var(--bad)"></i></span></div>
     <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
+    ${petOf(u)?`<div class="stat-item" title="Cariño de ${petOf(u).name}: ${petLoveOf(u)}/100${petLoveBoosted(u)?' · bono doble activo':''}">${petOf(u).icon} Cariño ${petLoveOf(u)}${petLoveBoosted(u)?' ⚡':''} <span class="stat-bar"><i style="width:${petLoveOf(u)}%; background:var(--gold)"></i></span></div>`:''}
   </div>`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
@@ -2721,12 +2727,13 @@ function startPetPlayMinigame() {
     u.happiness = Math.min(100, (u.happiness||50) + 3);
     u.flight_xp = (u.flight_xp || 0) + 2;
     u.galeones = (u.galeones || 0) + 1;
+    u.petLove = Math.min(100, petLoveOf(u) + 10);
     u.petLastPlay = Date.now();
     db.log.unshift({u:u.username, h:u.house, a:`Jugó con su ${pet.name}`, p:0, x:2});
     db.log.length = Math.min(db.log.length, 15);
     chime(); closeMinigame();
     commit(`${u.username} jugó con su ${pet.name}`);
-    toast(`${pet.icon} ¡${pet.name} está feliz! +3 Felicidad, +2 XP de vuelo, +1 🪙`);
+    toast(`${pet.icon} ¡${pet.name} está feliz! +3 Felicidad, +2 XP de vuelo, +1 🪙, +10 Cariño (${petLoveOf(u)}/100)`);
   }
 
   mgClickHandler = (mx, my) => {
@@ -3476,7 +3483,8 @@ function sendNpcChatMessage(message){
     playerName:u.username,
     playerHouse:u.house,
     message:text,
-    relationship
+    relationship,
+    petName: petOf(u)?.name || null
   });
   renderNpcChatHistory();
 }
