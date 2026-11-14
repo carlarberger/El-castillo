@@ -147,3 +147,5 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+# Base de datos local del juego
+db.json

@@ -3355,9 +3355,12 @@ function renderNpcTrials(){
         <span>${yr===0?'⏳ Aún en casa (menor de 11 años)':yr===8?'🎓 Completó Hogwarts':`🏆 ${npc.points} pts · 🧹 ${npc.flight_xp} XP vuelo`}</span>
         <span>Pruebas: ${npc.npc_trials||0}</span>
       </div>
-      <button class="btn sm ${(!enrolled||npc.npc_decided)?'':'gold'}" type="button" data-do="openNpcTrial" data-id="${npc.id}" ${(!u||!u.house||!enrolled||cd>0)?'disabled':''} style="margin-top:auto">
-        ${yr===0?`⏳ Ingresa en el Año ${1-(npc.yearOffset||0)} (es menor)`:yr===8?'🎓 Ya graduado de Hogwarts':!u||!u.house?'Inicia sesión para guiarlo':cd>0?`Espera ${Math.ceil(cd/1000)} s`:(npc.npc_decided?'🌟 Nueva Prueba / Cambiar destino':'🌟 Hacer Prueba y Decidir Destino')}
-      </button>
+      <div class="row" style="gap:6px;margin-top:auto">
+        <button class="btn sm ${(!enrolled||npc.npc_decided)?'':'gold'}" type="button" data-do="openNpcTrial" data-id="${npc.id}" ${(!u||!u.house||!enrolled||cd>0)?'disabled':''} style="flex:1">
+          ${yr===0?`⏳ Ingresa en el Año ${1-(npc.yearOffset||0)} (es menor)`:yr===8?'🎓 Ya graduado de Hogwarts':!u||!u.house?'Inicia sesión para guiarlo':cd>0?`Espera ${Math.ceil(cd/1000)} s`:(npc.npc_decided?'🌟 Nueva Prueba / Cambiar destino':'🌟 Hacer Prueba y Decidir Destino')}
+        </button>
+        ${npc.is_canon?`<button class="btn sm" type="button" data-do="openNpcChat" data-id="${npc.id}">💬 Hablar</button>`:''}
+      </div>
     </div>`;
   }).join('');
 }
@@ -3390,6 +3393,137 @@ function openNpcTrialModal(npcId){
     <button class="btn sm" data-do="closeModal" type="button">Volver</button>`,true);
 }
 
+/* ===== CHAT CON IA DE LOS PERSONAJES DEL CANON (GROQ) ===== */
+let npcChatKey=null, npcChatNpcId=null, npcChatNpcName='';
+const npcChatTime=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+function npcChatTarget(npcId){
+  const id=Number(npcId);
+  if(Number.isFinite(id)){
+    const npc=db.users.find(x=>x.id===id);
+    if(npc) return {id:npc.id,name:npc.username,house:npc.house,look:npc.look,prof:false,trait:npc.npc_trait||'Alumno del castillo'};
+  }
+  const p=PROFESSORS.find(x=>x.id===String(npcId));
+  if(p) return {id:p.id,name:p.name,house:p.house,look:p.look,prof:true,trait:p.title};
+  return null;
+}
+
+function renderNpcChatHistory(){
+  const box=$('npcChatHistory');if(!box)return;
+  const affEl=$('npcChatAff');
+  const meNow=me();
+  const tNow=npcChatNpcId!=null?npcChatTarget(npcChatNpcId):null;
+  if(affEl&&meNow&&tNow) affEl.textContent='Afinidad: '+(tNow.prof?(((db.profAffinity||{})[meNow.id]||{})[tNow.id]||0):getRel(meNow.id,tNow.id).score);
+  const msgs=(db.aiChats||{})[npcChatKey]||[];
+  if(!msgs.length){
+    box.innerHTML='<p class="muted" style="font-size:13px;margin:0">Todavía no han hablado. Escribe abajo para iniciar la conversación.</p>';
+    return;
+  }
+  box.innerHTML=msgs.map(m=>{
+    const mine=m.role==='player';
+    return `<div style="align-self:${mine?'flex-end':'flex-start'};max-width:88%;background:${mine?'var(--gold)':'rgba(255,255,255,.09)'};color:${mine?'#1b1b23':'inherit'};padding:6px 9px;border-radius:10px;font-size:13px;line-height:1.35">
+      ${m.error?'⚠️ ':''}${esc(m.text)}
+      <span style="display:block;font-size:10px;opacity:.7;margin-top:2px">${mine?'Tú':esc(npcChatNpcName)}${m.cached?' · ⚡ caché':''} · ${esc(m.time||'')}</span>
+    </div>`;
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+
+function openNpcChatModal(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje para hablar con los personajes del canon');
+  const target=npcChatTarget(npcId);must(target,'Personaje no encontrado');
+  npcChatNpcId=target.id;npcChatNpcName=target.name;npcChatKey=u.id+'_'+target.id;
+  db.aiChats=db.aiChats||{};
+  db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
+  const aff=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):getRel(u.id,target.id).score;
+  openModal(`<div style="width:100%;text-align:left">
+    <div class="row" style="justify-content:space-between">
+      <div class="row"><span class="pawn">${avatar(target.look,target.house,40)}</span><div><h4 style="margin:0">${esc(target.name)}</h4><small class="muted">${esc(target.trait)}</small></div></div>
+      <span class="pill gold" id="npcChatAff">Afinidad: ${aff}</span>
+    </div>
+    <div id="npcChatHistory" class="box" style="margin-top:8px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <form id="npcChatForm" style="display:flex;gap:6px;margin-top:8px">
+      <input id="npcChatInput" type="text" maxlength="400" autocomplete="off" placeholder="Escribe a ${esc(target.name)}…" style="flex:1">
+      <button class="btn gold" type="submit">Enviar</button>
+    </form>
+    <div class="row" style="margin-top:6px;justify-content:space-between">
+      <span class="muted" style="font-size:11px">Cada mensaje tarda al menos 8 s y suma +3 de afinidad.</span>
+      <button class="btn sm" data-do="closeNpcChat" type="button">Cerrar</button>
+    </div>
+  </div>`,true);
+  renderNpcChatHistory();
+  const form=$('npcChatForm');
+  if(form)form.addEventListener('submit',ev=>{
+    ev.preventDefault();
+    const inp=$('npcChatInput');if(!inp)return;
+    const text=inp.value;inp.value='';
+    try{sendNpcChatMessage(text)}catch(err){toast(err.message)}
+  });
+  setTimeout(()=>{const i=$('npcChatInput');if(i)i.focus()},30);
+}
+
+function sendNpcChatMessage(message){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const text=String(message||'').trim();if(!text)return;
+  const target=npcChatTarget(npcChatNpcId);must(target,'Personaje no encontrado');
+  db.aiChats=db.aiChats||{};
+  const hist=db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
+  hist.push({role:'player',text,time:npcChatTime()});
+  const relationship=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):getRel(u.id,target.id).score;
+  socket.emit('npc_chat',{
+    npcId:target.id,
+    npcName:target.name,
+    playerName:u.username,
+    playerHouse:u.house,
+    message:text,
+    relationship
+  });
+  renderNpcChatHistory();
+}
+
+socket.on('npc_reply',(data)=>{
+  if(!data)return;
+  const u=me();
+  const target=data.npcId!=null?npcChatTarget(data.npcId):null;
+  const key=(u&&data.npcId!=null)?(u.id+'_'+(target?target.id:data.npcId)):null;
+
+  if(data.error){
+    if(key){
+      db.aiChats=db.aiChats||{};
+      const hist=db.aiChats[key]=db.aiChats[key]||[];
+      hist.push({role:'npc',text:data.message||'La IA no está disponible.',time:npcChatTime(),error:true});
+      if(key===npcChatKey)renderNpcChatHistory();
+    }
+    toast(data.message||'La IA del castillo no está disponible');
+    return;
+  }
+
+  if(key){
+    db.aiChats=db.aiChats||{};
+    const hist=db.aiChats[key]=db.aiChats[key]||[];
+    hist.push({role:'npc',text:String(data.text||''),time:npcChatTime(),cached:!!data.cached});
+    if(hist.length>40)hist.splice(0,hist.length-40);
+    if(key===npcChatKey)renderNpcChatHistory();
+  }
+
+  // +3 de afinidad por conversación con el personaje
+  if(u&&data.npcId!=null&&target){
+    if(target.prof){
+      db.profAffinity=db.profAffinity||{};
+      db.profAffinity[u.id]=db.profAffinity[u.id]||{};
+      db.profAffinity[u.id][target.id]=(db.profAffinity[u.id][target.id]||0)+3;
+    }else{
+      db.relations=db.relations||{};
+      const k=relKey(u.id,target.id);
+      const cur=db.relations[k]||{score:0,rival:false};
+      cur.score=Math.min(100,cur.score+3);
+      db.relations[k]=cur;
+    }
+    commit(`${u.username} habló con ${target.name}`);
+    if(key===npcChatKey)renderNpcChatHistory();
+  }
+});
+
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
   const rank=u.house?db.users.filter(x=>x.house===u.house).sort((a,b)=>b.points-a.points).findIndex(x=>x.id===id)+1:null,q=u.house?API.slot(u.id,u.house):null;
@@ -3403,6 +3537,7 @@ function studentSheet(id){
    <div class="row" style="margin-top:8px">
      ${enrolled?`<button class="btn" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>`:''}
      ${(u.is_npc&&enrolled)?`<button class="btn gold" data-do="openNpcTrial" data-id="${id}" type="button">🌟 Hacer Prueba / Decidir destino</button>`:''}
+     ${(u.is_npc&&u.is_canon)?`<button class="btn" data-do="openNpcChat" data-id="${id}" type="button">💬 Hablar</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
      <button class="btn" data-do="closeModal" type="button">Cerrar</button>
    </div>`);
@@ -3424,7 +3559,10 @@ function renderProfessors(){
       <p class="muted" style="font-size:12px;font-style:italic;flex:1">${esc(p.quote)}</p>
       <div class="row" style="justify-content:space-between;margin-top:6px">
         <span class="muted" style="font-size:12px">Afinidad: <b style="color:var(--gold)">${aff}</b></span>
-        <button class="btn sm gold" type="button" data-do="openProf" data-id="${p.id}" ${(!u||!u.house)?'disabled':''}>💬 Encargo (+6 pts)</button>
+        <div class="row" style="gap:6px">
+          ${(p.id==='snape'||p.id==='dumbledore')?`<button class="btn sm" type="button" data-do="openNpcChat" data-id="${p.id}" ${(!u||!u.house)?'disabled':''}>💬 Hablar</button>`:''}
+          <button class="btn sm gold" type="button" data-do="openProf" data-id="${p.id}" ${(!u||!u.house)?'disabled':''}>💬 Encargo (+6 pts)</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -4597,6 +4735,8 @@ document.addEventListener('click',e=>{
     case 'act':API.act(d.m,d.a);break;
     case 'cheer':API.cheer(d.m,d.h);break;
     case 'houseFilter':stuHouse=d.id;renderStudents();break;
+    case 'openNpcChat':openNpcChatModal(/^\d+$/.test(String(d.id))?Number(d.id):d.id);break;
+    case 'closeNpcChat':npcChatKey=null;npcChatNpcId=null;npcChatNpcName='';closeModal();break;
     case 'openStu':studentSheet(Number(d.id));break;
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
   }}catch(err){toast(err.message)}

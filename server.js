@@ -8,6 +8,42 @@ const fs = require('fs');
 const path = require('path');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 
+/* ===== IA GENERATIVA DE NPCs (GROQ) ===== */
+const AI_KEY = process.env.GROQ_API_KEY || '';
+const AI_URL = 'https://api.groq.com/openai/v1/chat/completions';
+// 'llama-3.3-70b-versatile' fue retirado por Groq (responde 404 model_not_found),
+// así que el modelo se puede fijar con GROQ_MODEL. Valor por defecto: uno disponible.
+const AI_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+const AI_ENABLED = !!AI_KEY;
+const AI_CACHE_MAX = 400;
+const AI_TIMEOUT_MS = 12000;
+
+// Prompts de sistema: personalidad fiel al canon, español y respuestas de máximo 2 frases.
+const NPC_PERSONAS = {
+  'harry potter': `Eres Harry Potter, el chico que sobrevivió, alumno de Gryffindor en Hogwarts. Eres valiente, leal y modesto, algo impulsivo cuando algo es injusto; desconfías de Draco Malfoy y de Slytherin, y aprecias a Ron, Hermione y a Dumbledore. Te encanta el Quidditch y odias las artes oscuras. Habla SIEMPRE en español, con un tono cercano y adolescente, en máximo 2 frases breves. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; si te preguntan algo ajeno al mundo mágico, responde con naturalidad dentro del personaje.`,
+  'hermione granger': `Eres Hermione Granger, la bruja más brillante de su generación, de Gryffindor. Eres precisa, estudiosa, organizada y algo mandona; citas libros y reglas de Hogwarts, defiendes la justicia y los derechos de los elfos domésticos, y siempre animas a los demás a estudiar. Habla SIEMPRE en español, con vocabulario culto pero cercano, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`,
+  'ron weasley': `Eres Ron Weasley, alumno de Gryffindor, el mejor amigo de Harry. Eres divertido, sarcástico y un poco inseguro, muy leal a tu familia y a tus amigos; te encanta comer, el ajedrez mágico y el Quidditch, y te dan miedo las arañas. Habla SIEMPRE en español, con humor y bromas ligeras, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`,
+  'draco malfoy': `Eres Draco Malfoy, heredero de los Malfoy y alumno de Slytherin. Eres arrogante, sarcástico y despectivo, presumes de tu linaje y de tu padre Lucius, miras por encima del hombro a los Gryffindor y a los nacidos de muggles, aunque en el fondo eres más cobarde de lo que aparentas. Habla SIEMPRE en español, con tono altivo y frases cortantes, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`,
+  'luna lovegood': `Eres Luna Lovegood, alumna de Ravenclaw e hija del director de El Quisquilloso. Eres soñadora, sincera, tranquila y excéntrica; hablas con calma de criaturas improbables como los nargles y los crumple-horned snorkacks, y dices verdades incómodas sin malicia. Habla SIEMPRE en español, con un tono sereno y algo poético, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`,
+  'snape': `Eres Severus Snape, profesor de Pociones y jefe de la casa Slytherin en Hogwarts. Eres frío, sarcástico, severo y misterioso; exiges respeto y disciplina, desprecias la imprudencia de los Gryffindor y proteges tus verdaderos sentimientos tras una fachada hostil. Habla SIEMPRE en español, con frases secas y cortantes, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`,
+  'dumbledore': `Eres Albus Dumbledore, director de Hogwarts y uno de los magos más poderosos de la historia. Eres sereno, sabio, amable y enigmático; hablas con refranes y preguntas que invitan a pensar, crees en las segundas oportunidades y proteges a tus alumnos con firmeza. Habla SIEMPRE en español, con tono tranquilo y reflexivo, en máximo 2 frases. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; mantente siempre dentro del personaje.`
+};
+
+// Caché simple en memoria: pregunta normalizada -> respuesta del NPC.
+const aiCache = new Map();
+
+function npcPersonaKey(npcId, npcName) {
+  if (typeof npcId === 'string' && NPC_PERSONAS[npcId.toLowerCase()]) return npcId.toLowerCase();
+  const provided = String(npcName || '').toLowerCase().trim();
+  if (NPC_PERSONAS[provided]) return provided;
+  const npc = (memoryState?.users || []).find(u => u.id === Number(npcId));
+  if (npc) {
+    const key = String(npc.username || '').toLowerCase().trim();
+    if (NPC_PERSONAS[key]) return key;
+  }
+  return null;
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -338,6 +374,103 @@ io.on('connection', async (socket) => {
           db: memoryState,
           reason: data.reason || null
         });
+      }
+    });
+
+    // ⬅️ AÑADIDO: chat con IA de los NPCs del canon (Groq)
+    socket.on('npc_chat', async (data) => {
+      const now = Date.now();
+      const wait = 8000 - (now - (socket.lastAi || 0));
+      if (wait > 0) {
+        socket.emit('npc_reply', {
+          npcId: data && data.npcId,
+          error: true,
+          message: `Espera ${Math.ceil(wait / 1000)} s antes de volver a hablar.`
+        });
+        return;
+      }
+
+      const npcId = data && data.npcId;
+      const message = String((data && data.message) || '').trim().slice(0, 400);
+      if (!message) {
+        socket.emit('npc_reply', { npcId, error: true, message: 'Escribe un mensaje antes de enviarlo.' });
+        return;
+      }
+
+      socket.lastAi = now;
+
+      const personaKey = npcPersonaKey(npcId, data && data.npcName);
+      const systemPrompt = personaKey ? NPC_PERSONAS[personaKey] : NPC_PERSONAS['harry potter'];
+      const npcName = String((data && data.npcName) || (personaKey ? personaKey.replace(/\b\w/g, c => c.toUpperCase()) : 'Alumno'));
+      const cacheKey = `${personaKey || 'generic'}|${message.toLowerCase()}`;
+
+      const cachedText = aiCache.get(cacheKey);
+      if (cachedText) {
+        socket.emit('npc_reply', { npcId, npcName, text: cachedText, cached: true });
+        return;
+      }
+
+      if (!AI_ENABLED) {
+        socket.emit('npc_reply', {
+          npcId, npcName, error: true,
+          message: 'La IA de los personajes no está configurada en el servidor (falta GROQ_API_KEY).'
+        });
+        return;
+      }
+
+      const playerName = String((data && data.playerName) || 'un alumno');
+      const playerHouse = String((data && data.playerHouse) || 'sin casa');
+      const relationship = data && data.relationship != null ? ` (afinidad con el jugador: ${data.relationship}/100)` : '';
+      const userPrompt = `${playerName}, de la casa ${playerHouse}${relationship}, se te acerca y te dice: "${message}"`;
+
+      const aiBody = {
+        model: AI_MODEL,
+        max_tokens: 120,
+        temperature: 0.8,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      };
+      // Los modelos de razonamiento gastan los 120 tokens pensando y devuelven texto vacío.
+      if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+      try {
+        const res = await fetch(AI_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${AI_KEY}`
+          },
+          body: JSON.stringify(aiBody),
+          signal: controller.signal
+        });
+
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          console.error(`Groq respondió ${res.status}: ${detail.slice(0, 200)}`);
+          throw new Error(`Groq HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+        let text = String(json?.choices?.[0]?.message?.content || '').trim();
+        text = text.replace(/^["“']|["”']$/g, '').trim();
+        if (!text) throw new Error('Respuesta vacía de Groq');
+
+        aiCache.set(cacheKey, text);
+        if (aiCache.size > AI_CACHE_MAX) aiCache.delete(aiCache.keys().next().value);
+
+        socket.emit('npc_reply', { npcId, npcName, text, cached: false });
+      } catch (err) {
+        console.error('Error consultando Groq:', err.message);
+        socket.emit('npc_reply', {
+          npcId, npcName, error: true,
+          message: `${npcName} no puede responderte ahora mismo. La IA del castillo está indispuesta; prueba de nuevo en unos segundos.`
+        });
+      } finally {
+        clearTimeout(timer);
       }
     });
   } catch (err) {
