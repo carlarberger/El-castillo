@@ -98,7 +98,7 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   npc_decided: false,
   npc_trials: 0,
   animagus: null,
-  pet: null, petLastUse: null, petLastPlay: null,
+  pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset: Number(yearOffset) || 0,
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
@@ -260,6 +260,8 @@ function sanitizeState(state) {
     if (typeof u.pet === 'undefined') u.pet = null;
     if (typeof u.petLastUse === 'undefined') u.petLastUse = null;
     if (typeof u.petLastPlay === 'undefined') u.petLastPlay = null;
+    if (typeof u.petLove !== 'number' || Number.isNaN(u.petLove)) u.petLove = 50;
+    else u.petLove = Math.max(0, Math.min(100, u.petLove));
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
@@ -402,7 +404,11 @@ io.on('connection', async (socket) => {
       const personaKey = npcPersonaKey(npcId, data && data.npcName);
       const systemPrompt = personaKey ? NPC_PERSONAS[personaKey] : NPC_PERSONAS['harry potter'];
       const npcName = String((data && data.npcName) || (personaKey ? personaKey.replace(/\b\w/g, c => c.toUpperCase()) : 'Alumno'));
-      const cacheKey = `${personaKey || 'generic'}|${message.toLowerCase()}`;
+      const petName = data && data.petName ? String(data.petName).slice(0, 40) : '';
+      const petPrompt = petName
+        ? `\n\nEl jugador lleva a su ${petName} contigo. Menciónalo de forma natural en tu respuesta si encaja en el contexto.`
+        : '';
+      const cacheKey = `${personaKey || 'generic'}|${petName.toLowerCase()}|${message.toLowerCase()}`;
 
       const cachedText = aiCache.get(cacheKey);
       if (cachedText) {
@@ -428,7 +434,7 @@ io.on('connection', async (socket) => {
         max_tokens: 120,
         temperature: 0.8,
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: systemPrompt + petPrompt },
           { role: 'user', content: userPrompt }
         ]
       };
