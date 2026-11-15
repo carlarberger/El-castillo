@@ -96,7 +96,11 @@ try {
   const lorePath = path.join(__dirname, 'lore.json');
   const rawLore = JSON.parse(fs.readFileSync(lorePath, 'utf8'));
   if (Array.isArray(rawLore)) {
-    LORE = rawLore.filter(e => e && typeof e.info === 'string' && Array.isArray(e.keywords));
+    LORE = rawLore
+      .filter(e => e && typeof e.info === 'string' && Array.isArray(e.keywords))
+      // Cada entrada declara el año escolar mínimo para conocerla (minYear).
+      // Si no lo declara, se asume que es conocimiento básico (Año 1).
+      .map(e => ({ ...e, minYear: Math.max(1, Math.min(7, Number(e.minYear) || 1)) }));
     console.log(`📚 Cerebro de Hogwarts cargado: ${LORE.length} entradas canónicas.`);
   }
 } catch (err) {
@@ -118,13 +122,27 @@ const LORE_INDEX = LORE.map(entry => ({
   keywords: entry.keywords.map(normalizeLoreText).filter(Boolean)
 }));
 
+// Normaliza un año escolar a un entero entre 1 y 7.
+function clampSchoolYear(value) {
+  const year = Number(value);
+  if (!Number.isFinite(year)) return 1;
+  return Math.max(1, Math.min(7, Math.round(year)));
+}
+
 // Devuelve como máximo 3 entradas relevantes para no saturar el prompt de Groq.
-function getCanonContext(message) {
+// Solo se consideran las entradas cuyo minYear es <= al año actual del castillo:
+// así un alumno del Año 1 nunca recibe datos sobre los Horrocruces, la Varita
+// de Saúco o cualquier otro hecho posterior.
+function getCanonContext(message, currentYear) {
   const text = normalizeLoreText(message);
   if (!text || !LORE_INDEX.length) return '';
 
+  const year = clampSchoolYear(currentYear);
+
   const matches = [];
   for (const item of LORE_INDEX) {
+    // Filtro temporal: los hechos del futuro no existen todavía en el mundo del juego.
+    if ((Number(item.entry.minYear) || 1) > year) continue;
     let score = 0;
     for (const keyword of item.keywords) {
       if (!text.includes(keyword)) continue;
@@ -142,8 +160,11 @@ function getCanonContext(message) {
 }
 
 // Tres entradas aleatorias sin repetir para el generador de eventos canónicos.
-function pickRandomLore(count) {
-  const pool = LORE.slice();
+// También respeta la línea temporal: solo usa hechos conocidos en el año actual.
+function pickRandomLore(count, currentYear) {
+  const year = clampSchoolYear(currentYear);
+  const pool = LORE.filter(e => (Number(e.minYear) || 1) <= year);
+  if (!pool.length) return [];
   const picks = [];
   while (pool.length && picks.length < count) {
     picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
@@ -153,6 +174,12 @@ function pickRandomLore(count) {
 
 function buildCanonPrompt(context) {
   return `\n\nInformación histórica oficial que DEBES usar: ${context}. Responde basándote en esto.`;
+}
+
+// Instrucción de línea temporal que se añade al final del prompt de sistema.
+function buildTimelinePrompt(currentYear) {
+  const year = clampSchoolYear(currentYear);
+  return `\n\nIMPORTANTE: Currently están en el Año ${year} de Hogwarts. No menciones ni des por sabidos eventos que ocurran en años posteriores del canon. Actúa como si el futuro no estuviera escrito.`;
 }
 
 // Respaldo local si no hay GROQ_API_KEY: el aviso sigue siendo canónico y visible.
@@ -588,14 +615,22 @@ io.on('connection', async (socket) => {
 
       const personaKey = npcPersonaKey(npcId, data && data.npcName);
       const basePrompt = personaKey ? NPC_PERSONAS[personaKey] : NPC_PERSONAS['harry potter'];
-      const canonContext = getCanonContext(message);
-      const systemPrompt = canonContext ? basePrompt + buildCanonPrompt(canonContext) : basePrompt;
+      // Año actual del castillo: lo envía el frontend y, si no llega, se usa el del servidor.
+      const currentYear = clampSchoolYear(
+        (data && data.year != null && data.year !== '')
+          ? data.year
+          : (memoryState && memoryState.schoolYear)
+      );
+      const canonContext = getCanonContext(message, currentYear);
+      const systemPrompt = (canonContext ? basePrompt + buildCanonPrompt(canonContext) : basePrompt)
+        + buildTimelinePrompt(currentYear);
       const npcName = String((data && data.npcName) || (personaKey ? personaKey.replace(/\b\w/g, c => c.toUpperCase()) : 'Alumno'));
       const petName = data && data.petName ? String(data.petName).slice(0, 40) : '';
       const petPrompt = petName
         ? `\n\nEl jugador lleva a su ${petName} contigo. Menciónalo de forma natural en tu respuesta si encaja en el contexto.`
         : '';
-      const cacheKey = `${personaKey || 'generic'}|${petName.toLowerCase()}|${message.toLowerCase()}`;
+      // El año forma parte de la clave de caché: la respuesta depende de la línea temporal.
+      const cacheKey = `${personaKey || 'generic'}|${petName.toLowerCase()}|Y${currentYear}|${message.toLowerCase()}`;
 
       const cachedText = aiCache.get(cacheKey);
       if (cachedText) {
@@ -688,9 +723,17 @@ io.on('connection', async (socket) => {
       }
 
       socket.lastCanonEvent = now;
-      const picks = pickRandomLore(3);
+      const currentYear = clampSchoolYear(memoryState && memoryState.schoolYear);
+      const picks = pickRandomLore(3, currentYear);
+      if (!picks.length) {
+        io.emit('canon_event_generated', {
+          error: true,
+          message: 'El archivo histórico no tiene presagios conocidos para este año.'
+        });
+        return;
+      }
       const loreText = picks.map(e => `- [${e.categoria}] ${e.info}`).join('\n');
-      const prompt = `Eres el Director de Hogwarts. Basándote estrictamente en estos datos históricos: ${loreText}, genera un evento corto y misterioso que esté ocurriendo ahora mismo en el castillo. Máximo 2 frases.`;
+      const prompt = `Eres el Director de Hogwarts. Basándote estrictamente en estos datos históricos: ${loreText}, genera un evento corto y misterioso que esté ocurriendo ahora mismo en el castillo. Máximo 2 frases. IMPORTANTE: Actualmente están en el Año ${currentYear} de Hogwarts. No menciones ni des por sabidos eventos que ocurran en años posteriores del canon. Actúa como si el futuro no estuviera escrito.`;
 
       const payloadBase = {
         entries: picks.map(e => ({ categoria: e.categoria, info: e.info })),

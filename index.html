@@ -3648,7 +3648,10 @@ function sendNpcChatMessage(message){
     playerHouse:u.house,
     message:text,
     relationship,
-    petName: petOf(u)?.name || null
+    petName: petOf(u)?.name || null,
+    // Año actual del castillo: el servidor lo usa para filtrar el lore canónico
+    // y evitar que la IA revele eventos de años posteriores.
+    year: Number(db.schoolYear)||1
   });
   renderNpcChatHistory();
 }
