@@ -1999,23 +1999,19 @@ const crest=(id,lg)=>{const h=HOUSE(id);return h?`<span class="crest ${lg?'lg':'
 const hbadge=id=>{const h=HOUSE(id);return h?`<span class="hbadge h-${id}">${h.name}</span>`:'<span class="pill off">Sin casa</span>'};
 const slotLabel=s=>s.type==='class'?`${ACTS[s.key].name} · ${s.location}`:s.label;
 
-function avatar(l,house,w=40){
-  l=l||{};const sk=SKIN[l.skin]??SKIN[1],hr=HAIR[l.hair]??HAIR[1],ey=EYES[l.eyes]??EYES[0],sty=l.style||'corto';
-  const back=sty==='largo'?`<path d="M10 16C8.5 27 10.5 33 14 33L15 20ZM30 16C31.5 27 29.5 33 26 33L25 20Z" fill="${hr}"/>`:'';
-  const top=sty==='rizado'
-    ?`<g fill="${hr}"><circle cx="12.5" cy="12" r="4.5"/><circle cx="20" cy="8.5" r="5"/><circle cx="27.5" cy="12" r="4.5"/><circle cx="10.5" cy="18" r="3"/><circle cx="29.5" cy="18" r="3"/></g>`
-    :`<path d="M10.5 17C9.5 9.5 14 6 20 6S30.5 9.5 29.5 17C27 13 24 11.5 20 11.5S13 13 10.5 17Z" fill="${hr}"/>`;
-  return `<svg class="av h-${house||''}" viewBox="0 0 40 56" width="${w}" height="${Math.round(w*1.4)}" aria-hidden="true">${back}
-   <rect x="17" y="24" width="6" height="6" fill="${sk}"/>
-   <path d="M8 56V39C8 32 13 28.5 20 28.5S32 32 32 39V56Z" fill="${house?'var(--hc)':'var(--muted)'}"/>
-   <path d="M15.5 28.8L20 37L24.5 28.8" fill="none" stroke="${house?'var(--hi)':'var(--bg)'}" stroke-width="1.6" stroke-linejoin="round"/>
-   <circle cx="8.5" cy="47" r="2.6" fill="${sk}"/><circle cx="31.5" cy="47" r="2.6" fill="${sk}"/>
-   <circle cx="20" cy="17" r="9" fill="${sk}"/>${top}
-   <ellipse cx="16.3" cy="17.5" rx="2.3" ry="2.6" fill="#fff"/><ellipse cx="23.7" cy="17.5" rx="2.3" ry="2.6" fill="#fff"/>
-   <circle cx="16.3" cy="17.8" r="1.4" fill="${ey}"/><circle cx="23.7" cy="17.8" r="1.4" fill="${ey}"/>
-   <path d="M17.5 22.2Q20 24 22.5 22.2" fill="none" stroke="#7a3d2e" stroke-width="1" stroke-linecap="round"/></svg>`;
+function avatar(l,house,w=40,seed=null){
+  l=l||{};
+  const sk=SKIN[l.skin]??SKIN[1],hr=HAIR[l.hair]??HAIR[1],ey=l.eyes??0,sty=l.style||'corto';
+  const seedName=seed||l.name||l.username||l.id||'Harry';
+  const skinHex=String(sk).replace('#','');
+  const hairHex=String(hr).replace('#','');
+  const hairVariant=sty==='largo'?'long01':sty==='rizado'?'curly':'short01';
+  const eyesVariant='variant'+String(ey+1).padStart(2,'0');
+  const url='https://api.dicebear.com/9.x/adventurer/svg?seed='+encodeURIComponent(seedName)+'&backgroundColor=transparent&skinColor='+skinHex+'&hairColor='+hairHex+'&hair='+hairVariant+'&eyes='+eyesVariant;
+  const border=house?'var(--hc)':'var(--muted)';
+  return `<div class="avwrap h-${house||''}" style="display:inline-block;border-radius:50%;overflow:hidden;border:2px solid ${border};width:${w}px;height:${Math.round(w*1.4)}px;background:transparent;line-height:0"><img class="av" src="${url}" width="${w}" height="${Math.round(w*1.4)}" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"/></div>`;
 }
-const av=(u,w)=>avatar(u&&u.look,u&&u.house,w);
+const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
