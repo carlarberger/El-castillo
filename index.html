@@ -2016,6 +2016,15 @@ const API={
 /* ===== 6. Utilidades y Generador de Avatares SVG ===== */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* Mezcla un array con el algoritmo Fisher-Yates (no muta el original) */
+function shuffleArray(array){
+  const a=[...array];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;$('toasts').appendChild(el);
   setTimeout(()=>{el.style.transition='.25s';el.style.opacity='0';setTimeout(()=>el.remove(),260)},2800)}
 let mgClean=null;
@@ -3065,27 +3074,38 @@ function mgCriaturas(){
 /* 10. HISTORIA DE LA MAGIA: Crónicas de Binns */
 function mgHistoria(){
   const QS=[
-    {q:'¿Quiénes fueron los cuatro fundadores de Hogwarts?',o:['Godric Gryffindor, Helga Hufflepuff, Rowena Ravenclaw y Salazar Slytherin','Merlín, Morgana, Dumbledore y Grindelwald','Flamel, Peverell, Ollivander y Bagshot'],a:0},
-    {q:'¿En qué año se celebró la famosa Convención Internacional de Brujos que cita Binns?',o:['1289','1991','1692'],a:0},
-    {q:'¿Quién presidió el pesaje de varitas del Torneo de los Tres Magos en 1994?',o:['Garrick Ollivander','Gilderoy Lockhart','Cornelius Fudge'],a:0}
+    {q:'¿Quiénes fueron los cuatro fundadores de Hogwarts?',o:['Godric Gryffindor, Helga Hufflepuff, Rowena Ravenclaw y Salazar Slytherin','Merlín, Morgana, Dumbledore y Grindelwald','Flamel, Peverell, Ollivander y Bagshot'],respuestaCorrecta:'Godric Gryffindor, Helga Hufflepuff, Rowena Ravenclaw y Salazar Slytherin'},
+    {q:'¿En qué año se celebró la famosa Convención Internacional de Brujos que cita Binns?',o:['1289','1991','1692'],respuestaCorrecta:'1289'},
+    {q:'¿Quién presidió el pesaje de varitas del Torneo de los Tres Magos en 1994?',o:['Garrick Ollivander','Gilderoy Lockhart','Cornelius Fudge'],respuestaCorrecta:'Garrick Ollivander'},
+    {q:'¿Por qué abandonó Hogwarts Salazar Slytherin según la leyenda?',o:['Por desacuerdos sobre admitir hijos de muggles','Porque quiso fundar Durmstrang','Porque fue expulsado por duendes'],respuestaCorrecta:'Por desacuerdos sobre admitir hijos de muggles'},
+    {q:'¿Quién escribió el libro "Historia de la Magia"?',o:['Bathilda Bagshot','Miranda Goshawk','Newton Scamander'],respuestaCorrecta:'Bathilda Bagshot'},
+    {q:'¿Qué alquimista creó la Piedra Filosofal?',o:['Nicolás Flamel','Paracelso','Cornelius Agrippa'],respuestaCorrecta:'Nicolás Flamel'},
+    {q:'¿Qué edad tenía Nicolás Flamel cuando Harry llegó a Hogwarts?',o:['665 años','300 años','999 años'],respuestaCorrecta:'665 años'},
+    {q:'¿En qué año se firmó el Estatuto Internacional del Secreto Mágico?',o:['1689','1289','1832'],respuestaCorrecta:'1689'},
+    {q:'¿A qué mago oscuro derrotó Dumbledore en un legendario duelo en 1945?',o:['Gellert Grindelwald','Lord Voldemort','Ekrizdis'],respuestaCorrecta:'Gellert Grindelwald'},
+    {q:'¿En qué año tuvo lugar la Batalla de Hogwarts?',o:['1998','1995','2001'],respuestaCorrecta:'1998'},
+    {q:'¿Quién fue el primer Ministro de Magia?',o:['Ulick Gamp','Pius Thicknesse','Rufus Scrimgeour'],respuestaCorrecta:'Ulick Gamp'},
+    {q:'¿En qué corte medieval sirvió Merlín según la Historia de la Magia?',o:['En la corte del Rey Arturo','En la corte del Rey Arturo el Negro','En la corte de Helga Hufflepuff'],respuestaCorrecta:'En la corte del Rey Arturo'}
   ];
+  const picked=shuffleArray(QS).slice(0,3);
   let step=0;
   const renderQ=()=>{
-    const cur=QS[step];
+    const cur=picked[step];
+    const opts=shuffleArray(cur.o);
     openModal(`<h3 style="font-size:20px">👻 Crónicas del Profesor Binns (${step+1}/3)</h3>
       <p class="muted">Responde correctamente sin quedarte dormido en el pupitre:</p>
       <div class="mg-stage" style="text-align:left">
         <p style="font-weight:700;margin-bottom:10px">${esc(cur.q)}</p>
         <div class="grid" style="gap:8px" id="mgHistOpts">
-          ${cur.o.map((txt,i)=>`<button type="button" class="btn" data-i="${i}" style="justify-content:flex-start;text-align:left">${esc(txt)}</button>`).join('')}
+          ${opts.map(txt=>`<button type="button" class="btn" style="justify-content:flex-start;text-align:left">${esc(txt)}</button>`).join('')}
         </div>
       </div>
       <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
     $('mgHistOpts').onclick=e=>{
-      const b=e.target.closest('[data-i]');if(!b)return;
-      if(Number(b.dataset.i)===cur.a){
+      const b=e.target.closest('button');if(!b)return;
+      if(b.textContent===cur.respuestaCorrecta){
         step++;tone([523.25,783.99],'sine',.04,.16,.11);
-        if(step>=QS.length)finishMinigame('historia',true,'¡Dominaste la clase de Historia de la Magia!');
+        if(step>=picked.length)finishMinigame('historia',true,'¡Dominaste la clase de Historia de la Magia!');
         else renderQ();
       }else{
         buzzSnd();
@@ -3215,12 +3235,13 @@ function mgDefensa(){
     {q:'🪄 ¡Tu rival alza su varita para atacar!',a:'Expelliarmus',ic:'⚡'}
   ];
   let round=0,timeLeft=8,cur=null,iv=null;
+  const spellBtns=shuffleArray(THREATS);
   openModal(`<h3 style="font-size:20px">🛡️ Duelo contra las Artes Oscuras</h3>
     <p class="muted">Elige el contrahechizo correcto en <strong>3 asaltos</strong> antes de que se agote el tiempo.</p>
     <div class="mg-stage">
       <div class="mg-hud"><span class="pill gold" id="mgDefRd">Asalto 1/3</span><span class="mono" id="mgDefTime">8 s</span></div>
       <div class="box" id="mgDefPrompt" style="margin-bottom:12px;font-weight:700;font-size:16px"></div>
-      <div class="grid g2" id="mgDefBtns">${THREATS.map(t=>`<button type="button" class="btn" data-spell="${t.a}">${t.ic} ${t.a}</button>`).join('')}</div>
+      <div class="grid g2" id="mgDefBtns">${spellBtns.map(t=>`<button type="button" class="btn" data-spell="${t.a}">${t.ic} ${t.a}</button>`).join('')}</div>
     </div>
     <button class="btn sm" data-do="closeModal" type="button">Cancelar</button>`);
   const nextRound=()=>{
@@ -3290,7 +3311,7 @@ function mgVuelo(){
 
 /* 6. ASTRONOMÍA: Mapa Celeste (Conecta la Constelación) */
 function mgAstronomia(){
-  const pts=[[18,72],[34,28],[52,62],[70,24],[84,58]];
+  const pts=[[18,72],[34,28],[52,62],[70,24],[84,58]].map(([x,y])=>[x+Math.random()*10-5,y+Math.random()*10-5]);
   let next=1,timeLeft=10,iv=null;
   openModal(`<h3 style="font-size:20px">✨ Mapa Celeste</h3>
     <p class="muted">Conecta las <strong>5 estrellas</strong> de la constelación en orden numérico (1 → 5).</p>
