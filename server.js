@@ -192,7 +192,7 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
   quidditch_approved: false,
-  look,
+  look: { facialHair: 'none', ...(look || {}) },
   created_at: id
 });
 
@@ -364,6 +364,9 @@ function sanitizeState(state) {
       u.role = 'student';
       u.npc_path = null;
     }
+    if (u.is_npc && u.role === 'prefect' && (userYear(state, u) < 4 || userYear(state, u) > 7)) {
+      u.role = 'student';
+    }
     if (u.is_npc && (userYear(state, u) === 0 || (u.yearOffset || 0) >= 7)) {
       u.points = 0;
       u.flight_xp = 0;
@@ -382,6 +385,7 @@ function sanitizeState(state) {
       const usr = state.users.find(x => x.id === a.user_id);
       if (!usr || !isEnrolled(state, usr)) return false;
       if (usr && usr.is_npc && !usr.npc_decided) return false;
+      if (usr && usr.is_npc && (userYear(state, usr) < 4 || userYear(state, usr) > 7)) return false;
       return true;
     });
   }

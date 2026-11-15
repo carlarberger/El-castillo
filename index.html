@@ -646,6 +646,8 @@ const FEATURES=['none','freckles','blush','birthmark'];
 const FEATUREN=['Ninguno','Pecas','Rubor','Marca'];
 const CLOTHING=['checkered','rounded','small','squared'];
 const CLOTHINGN=['Cuadros','Redondeado','Pequeño','Cuadrado'];
+const FACIAL_HAIRS=[['none','Ninguna'],['walrus','Bigote'],['shadow','Corta'],['goatee','Perilla']];
+const FACIAL_HAIR_IDS=FACIAL_HAIRS.map(f=>f[0]);
 const STYLES=[['corto','Corto'],['largo','Largo'],['rizado','Rizado']];
 const DEFAULT_LOOKS=[
  {skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0},
@@ -721,7 +723,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
-  look:look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length],created_at:id
+  look:{facialHair:'none',...(look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length])},created_at:id
 });
 
 const BASE_NPCS=[
@@ -903,7 +905,7 @@ function ensureDbIntegrity(){
   });
 
   db.users.forEach((u,i)=>{
-    if(!u.look) u.look = {...DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length]};
+    if(!u.look) u.look = {facialHair:'none',...DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length]};
     const lk=u.look;
     if(typeof lk.skin!=='number') lk.skin=0;
     if(typeof lk.hair!=='number') lk.hair=0;
@@ -1121,7 +1123,7 @@ const me=()=>{
 };
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
-const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
+const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0,facialHair:FACIAL_HAIR_IDS.includes(d.facialHair)?d.facialHair:'none'});
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
 const CURRICULUM = {
@@ -1629,7 +1631,11 @@ const API={
     const npcs=db.users.filter(u=>u.is_npc&&u.house&&isEnrolled(u));
     npcs.forEach(npc=>{
       if(db.votes.some(v=>v.voter===npc.id))return;
-      const candidates=db.apps.filter(a=>a.house===npc.house&&a.status==='pending');
+      const candidates=db.apps.filter(a=>a.house===npc.house&&a.status==='pending').filter(a=>{
+        const cand=db.users.find(x=>x.id===a.user_id);
+        const cy=cand?userYear(cand):0;
+        return cy>=4&&cy<=7;
+      });
       if(!candidates.length)return;
       
       let bestCand=null,bestScore=-999;
@@ -1667,6 +1673,11 @@ const API={
     const last=(db.cooldowns[u.id]||{})[cdKey]||0;
     const rem=Math.max(0,15000-(Date.now()-last));
     must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para realizar otra prueba con ${npc.username}`);
+
+    const npcYear = userYear(npc);
+    if(decision==='prefect'){
+      must(npcYear >= 4 && npcYear <= 7, 'Solo los alumnos de 4.º a 7.º curso pueden postularse a Prefecto.');
+    }
 
     const ev=activeEvent(),mult=ev?ev.mult:1;
     const myBonus=Math.round(8*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id);
@@ -1797,7 +1808,8 @@ const API={
         const electedThisHouse = [];
         for (const a of houseApps) {
            const stu = db.users.find(x => x.id === a.user_id);
-           if (stu && stu.gender) {
+           const stuYear = stu ? userYear(stu) : 0;
+           if (stu && stu.gender && stuYear >= 4 && stuYear <= 7) {
               if (electedThisHouse.length < 2 && !electedThisHouse.includes(stu.gender)) {
                  const alreadyElectedYear = db.users.filter(x => x.house === h.id && x.role === 'prefect' && userYear(x) === userYear(stu) && x.gender === stu.gender);
                  if (alreadyElectedYear.length === 0) {
@@ -2033,10 +2045,12 @@ function avatar(l,house,w=40,seed=null){
   const eyeIdx = (typeof l.eyes==='number') ? l.eyes : 0;
   const eyesVariant = EYE_VARIANTS[eyeIdx] ?? EYE_VARIANTS[0];
   const clothing = CLOTHING[l.clothing ?? 0] ?? CLOTHING[0];
+  const facialHair = FACIAL_HAIR_IDS.includes(l.facialHair) ? l.facialHair : 'none';
   const seedName = seed || l.name || l.username || l.id || 'Harry';
   const houseColors = {gryffindor:'c43b34',slytherin:'2f9a5d',ravenclaw:'4a6ee0',hufflepuff:'e8b930'};
   const clothingColor = houseColors[house] || '6b7280';
-  const params = ['seed='+encodeURIComponent(seedName),'backgroundColor=transparent','skinColor='+skinHex,'hairColor='+hairColorHex,'hair='+hairStyle,'eyes='+eyesVariant,'clothing='+clothing,'clothingColor='+clothingColor];
+  const params = ['seed='+encodeURIComponent(seedName),'backgroundColor=transparent','skinColor='+skinHex,'hairColor='+hairColorHex,'hair='+hairStyle,'eyes='+eyesVariant,'clothing='+clothing,'clothingColor='+clothingColor,'facialHairProbability='+(facialHair==='none'?'0':'100')];
+  if(facialHair!=='none')params.push('facialHair='+facialHair);
   const url = 'https://api.dicebear.com/9.x/personas/svg?'+params.join('&');
   const border = house ? 'var(--hc)' : 'var(--muted)';
   return `<div class="avwrap h-${house||''}" style="display:inline-block;border-radius:50%;overflow:hidden;border:2px solid ${border};width:${w}px;height:${Math.round(w*1.4)}px;background:transparent;line-height:0"><img class="av" src="${url}" width="${w}" height="${Math.round(w*1.4)}" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"/></div>`;
@@ -2045,7 +2059,7 @@ const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none'};
 
 function creatorHTML(){
   const d=draft;
@@ -2060,6 +2074,7 @@ function creatorHTML(){
     <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="draftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="draftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="draftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="draftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
     ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
   <div class="chips" style="margin-top:6px">
     <button type="button" class="chip ${!d.pet?'on':''}" data-do="draftPet" data-id="">Sin mascota</button>
@@ -3359,7 +3374,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none'};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -3389,7 +3404,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none'};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -3474,6 +3489,8 @@ function openNpcTrialModal(npcId){
   const sc=NPC_SCENARIOS[(npc.id+(npc.npc_trials||0))%NPC_SCENARIOS.length];
   const q=npc.house?API.slot(npc.id,npc.house):null;
   const ev=activeEvent(),mult=ev?ev.mult:1,myPts=Math.round(8*mult)+(u.role==='prefect'?2:0);
+  const npcYearVal = userYear(npc);
+  const prefectBlocked = npcYearVal < 4 || npcYearVal > 7;
 
   openModal(`<span class="pawn big">${av(npc,76)}</span>
     <div class="row">${hbadge(npc.house)}${npcPathBadge(npc)}</div>
@@ -3484,8 +3501,8 @@ function openNpcTrialModal(npcId){
       <button class="btn gold" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="quidditch" style="justify-content:flex-start;text-align:left">
         🧹 <div><strong>${npc.npc_quidditch?'Entrenar maniobra de élite (+15 XP de vuelo)':'Impulsar al Equipo de Quidditch (+20 XP de vuelo)'}</strong><div style="font-size:12px;opacity:.85">${npc.npc_quidditch?`Asciende de puesto en la alineación (actual: ${q?q.pos+' #'+q.rank:'En equipo'})`:'Supera la prueba aérea y desbloquea su entrada al equipo de Quidditch de su casa.'}</div></div>
       </button>
-      <button class="btn" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="prefect" style="justify-content:flex-start;text-align:left">
-        🛡️ <div><strong>Guiar hacia Prefectura y Liderazgo (+14 pts a su casa)</strong><div style="font-size:12px;color:var(--muted)">Lo preparas en argumentación y reglas del castillo para que se postule a Prefecto o sume votos.</div></div>
+      <button class="btn" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="prefect" style="justify-content:flex-start;text-align:left" ${prefectBlocked?'disabled':''}>
+        🛡️ <div><strong>${prefectBlocked?`Requiere 4.º curso (${npc.username} está en ${npcYearVal===0?'1.º (sin ingresar)':npcYearVal+'.º'})`:'Guiar hacia Prefectura y Liderazgo (+14 pts a su casa)'}</strong><div style="font-size:12px;color:var(--muted)">${prefectBlocked?'Solo los alumnos de 4.º a 7.º curso pueden postularse a Prefecto.':'Lo preparas en argumentación y reglas del castillo para que se postule a Prefecto o sume votos.'}</div></div>
       </button>
       <button class="btn" type="button" data-do="npcChoice" data-id="${npc.id}" data-c="duelist" style="justify-content:flex-start;text-align:left">
         ⚡ <div><strong>Forjar Alianza como Campeón de Duelos (+16 pts)</strong><div style="font-size:12px;color:var(--muted)">Practican contrahechizos juntos en el Aula de Duelos para sumar puntos sin entrar a Quidditch.</div></div>
@@ -4788,6 +4805,7 @@ document.addEventListener('click',e=>{
     case 'draftEyes':draft.eyes=Number(d.v);refreshCreator();break;
     case 'draftFeature':draft.features=Number(d.v);refreshCreator();break;
     case 'draftClothing':draft.clothing=Number(d.v);refreshCreator();break;
+    case 'draftFacialHair':draft.facialHair=d.id||'none';refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
     case 'draftPet': draft.pet = d.id || null; refreshCreator(); break;
     case 'adoptPet': openPetAdoptModal(); break;
