@@ -136,8 +136,8 @@ section.block{padding:44px 0}
 .maptools input{flex:1;min-width:200px}
 input[type=text],input[type=search],input[type=password],input[type=time],select,textarea{width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg)}
 select{width:auto}
-.mapbox{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--surface-2)}
-.map{display:grid;grid-template-columns:repeat(6,minmax(110px,1fr));grid-auto-rows:98px;gap:6px;padding:10px;min-width:700px}
+.mapbox{overflow-x:auto;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);min-height:420px}
+.map{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));grid-auto-rows:108px;gap:8px;padding:12px;min-width:720px}
 .room{position:relative;border-radius:10px;border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);padding:8px;background:color-mix(in srgb,var(--rc,#556) 55%,var(--surface));display:flex;flex-direction:column;justify-content:space-between;min-width:0;overflow:hidden}
 .room .rn{font:700 10px var(--display);letter-spacing:.08em;text-transform:uppercase;line-height:1.25}
 .room .rc{font-size:11px;color:var(--muted)}
@@ -149,6 +149,16 @@ select{width:auto}
 .dot.me{box-shadow:0 0 0 3px var(--gold)}
 .dot.find{transform:scale(2);z-index:3}
 .room.filch{outline:2px solid var(--bad); background:repeating-linear-gradient(45deg, #2a1418, #2a1418 10px, #1c0d10 10px, #1c0d10 20px);}
+.room-furn{position:absolute;bottom:4px;right:6px;font-size:28px;opacity:.18;pointer-events:none;z-index:0;line-height:1}
+.room .rn,.room .dots,.room .rc{position:relative;z-index:1}
+.tex-grass{background:radial-gradient(circle at 20% 30%, #2d6a3f 0%, transparent 40%), radial-gradient(circle at 70% 60%, #3f8a4f 0%, transparent 35%), linear-gradient(180deg,#1f4a2a,#2d6a3f);background-size:100% 100%}
+.tex-grass::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.04) 18px 19px);pointer-events:none}
+.tex-wood{background:linear-gradient(180deg,#5a3a1a 0%,#7a5a3a 50%,#5a3a1a 100%)}
+.tex-wood::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(0,0,0,.25) 0 2px,transparent 2px 22px);pointer-events:none}
+.tex-stone{background:linear-gradient(180deg,#2a2a30 0%,#3a3a42 50%,#2a2a30 100%)}
+.tex-stone::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,rgba(255,255,255,.05) 0 2px,transparent 3px),radial-gradient(circle at 70% 70%,rgba(255,255,255,.04) 0 1.5px,transparent 2.5px);pointer-events:none}
+.tex-beds{background:linear-gradient(160deg,var(--hc,#556),color-mix(in srgb,var(--hc,#556) 50%,#111));}
+.tex-beds::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(255,255,255,.12) 0 12px,transparent 13px),radial-gradient(ellipse at 70% 65%,rgba(255,255,255,.1) 0 10px,transparent 11px);pointer-events:none}
 
 /* schedule */
 .slots{display:grid;gap:6px}
@@ -358,7 +368,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <section class="block" id="directo">
     <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y tiempo libre: mira los personajes en cada sala o muévete por el mapa durante el recreo.</p></div>
     <div class="panel">
-      <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p></div><span class="pill" id="nowCount"></span></div>
+      <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p><p id="skipWarn" style="color:var(--bad);font-weight:700;font-size:13px;margin:4px 0 0;display:none">⚠️ Saltándote la clase</p></div><span class="pill" id="nowCount"></span></div>
       <div class="youbar" id="youBar"></div>
       <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"></div>
       <div class="mapbox" id="mapbox" tabindex="0" aria-label="Mapa del castillo. En tiempo libre puedes tocar cualquier sala o usar las flechas para mover tu personaje."><div class="map" id="map"></div></div>
@@ -633,14 +643,14 @@ const DEFAULT_LOOKS=[
  {skin:0,hair:0,style:'largo',eyes:3},{skin:1,hair:3,style:'rizado',eyes:0},{skin:1,hair:5,style:'largo',eyes:4},{skin:3,hair:0,style:'rizado',eyes:0}];
 
 const ROOMS=[
- ['gryffindor','Gryffindor',1,1,1,1],['slytherin','Slytherin',2,1,1,1],['ravenclaw','Ravenclaw',3,1,1,1],['hufflepuff','Hufflepuff',4,1,1,1],
- ['astronomia','Torre de Astronomía',5,1,1,1,'#3a3a8a'],['lechuceria','Lechucería',6,1,1,1,'#6b5b3a'],
- ['mazmorras','Mazmorras',1,2,1,1,'#2f6b4e'],['comedor','Gran Comedor',2,2,2,2,'#9a6b3a'],['transformaciones','Transformaciones',4,2,1,1,'#3f6a96'],
- ['enfermeria','Enfermería',5,2,1,2,'#8a93a3'],['historia','Historia de la Magia',6,2,1,1,'#8a7a4a'],
- ['encantamientos','Encantamientos',1,3,1,1,'#7a4fa6'],['defensa','Defensa',4,3,1,1,'#7a3a3a'],['menesteres','Sala de los Menesteres',6,3,1,1,'#4f4aa0'],
- ['biblioteca','Biblioteca',1,4,1,1,'#7a4030'],['profesores','Sala de Profesores',2,4,1,1,'#5a4a78'],['quidditch','Campo de Quidditch',3,4,2,1,'#3f8a4f'],
- ['escalera','Gran Escalera',5,4,1,1,'#78808a'],['invernaderos','Invernaderos',6,4,1,1,'#5f9a3f'],
- ['patio','Patio',1,5,1,1,'#8a8a96'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a']];
+ ['gryffindor','Gryffindor',1,1,1,1,'#740001','beds','🛏️'],['slytherin','Slytherin',2,1,1,1,'#1a472a','beds','🐍'],['ravenclaw','Ravenclaw',3,1,1,1,'#0e1a40','beds','🦅'],['hufflepuff','Hufflepuff',4,1,1,1,'#ecb939','beds','🦡'],
+ ['astronomia','Torre de Astronomía',5,1,1,1,'#3a3a8a','stone','🔭'],['lechuceria','Lechucería',6,1,1,1,'#6b5b3a','wood','🦉'],
+ ['mazmorras','Mazmorras',1,2,1,1,'#2f6b4e','stone','🧪'],['comedor','Gran Comedor',2,2,2,2,'#9a6b3a','wood','🍽️'],['transformaciones','Transformaciones',4,2,1,1,'#3f6a96','stone','✨'],
+ ['enfermeria','Enfermería',5,2,1,2,'#8a93a3','stone','💊'],['historia','Historia de la Magia',6,2,1,1,'#8a7a4a','stone','📜'],
+ ['encantamientos','Encantamientos',1,3,1,1,'#7a4fa6','stone','✨'],['defensa','Defensa',4,3,1,1,'#7a3a3a','stone','🛡️'],['menesteres','Sala de los Menesteres',6,3,1,1,'#4f4aa0','stone','🚪'],
+ ['biblioteca','Biblioteca',1,4,1,1,'#7a4030','wood','📚'],['profesores','Sala de Profesores',2,4,1,1,'#5a4a78','stone','📋'],['quidditch','Campo de Quidditch',3,4,2,1,'#3f8a4f','grass','🏏'],
+ ['escalera','Gran Escalera',5,4,1,1,'#78808a','stone','🪜'],['invernaderos','Invernaderos',6,4,1,1,'#5f9a3f','grass','🌿'],
+ ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠']];
 const PREFECT_TRAITS=['Liderazgo','Responsabilidad','Justicia','Valentía','Astucia','Lealtad','Sabiduría','Empatía'];
 const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador','Guardián'];
 const COOLDOWN=20000,ROUND_MS=15000;
@@ -1339,8 +1349,23 @@ const API={
   cooldown(key){const u=me();if(!u)return 0;const last=(db.cooldowns[u.id]||{})[key]||0;return Math.max(0,COOLDOWN-(Date.now()-last))},
   goTo(roomId){
     const u=me();must(u&&u.house,'Elige tu casa primero');
-    must(canRoam(),'Solo puedes moverte libremente en recreo o modo libre');
     must(ROOMS.some(r=>r[0]===roomId),'Sala desconocida');
+    const s=curSlot();
+    const inClass = !db.free && s && s.type==='class';
+    const classRoom = inClass ? s.room : null;
+    const skipping = inClass && classRoom && classRoom !== roomId;
+    if(skipping){
+      u.academic_progress = Math.max(0, (u.academic_progress||0) - 5);
+      toast(`🤫 Te has escapado de ${esc(slotLabel(s))}. -5 Académico`);
+      if(Math.random() < 0.30){
+        const profs = db.users.filter(x=>x.is_npc && (x.role==='professor'||x.role==='prefect'));
+        const prof = profs.length ? profs[Math.floor(Math.random()*profs.length)] : null;
+        const profName = prof ? prof.username : 'un profesor';
+        u.points = (u.points||0) - 10;
+        u.happiness = Math.max(0, (u.happiness||50) - 5);
+        toast(`¡El profesor ${profName} te ha pillado en los pasillos! -10 pts`);
+      }
+    }
     u.loc=roomId;u.locSlot=slotKey();
     
     if(Math.random() < 0.48 + petFindBonus(u)) {
@@ -2049,7 +2074,7 @@ function renderGlasses(){
   $('copaTotal').textContent=`${db.houses.reduce((a,h)=>a+h.points,0).toLocaleString('es-ES')} puntos repartidos entre las cuatro casas en este curso.`;
 }
 function renderMap(){
-  const slot=curSlot(),u=me(),myLoc=userLoc(u),roam=!!(u&&u.house)&&canRoam();
+  const slot=curSlot(),u=me(),myLoc=userLoc(u),roam=!!(u&&u.house);
   const term=mapTerm.trim().toLowerCase();
   const byRoom={};
   db.users.filter(x=>x.house&&isEnrolled(x)).forEach(x=>{const r=userLoc(x);(byRoom[r]=byRoom[r]||[]).push(x)});
@@ -2061,20 +2086,25 @@ function renderMap(){
       filchRoom = db.filchLoc;
   }
 
-  $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col])=>{
+  $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col,tex,emoji])=>{
     const isHouse=!!HOUSE(id),hereUsers=byRoom[id]||[],isMyRoom=u&&id===myLoc;
     const hasFilch = (filchRoom === id);
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
     const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)} (${userYear(x)}.º curso)${x.is_npc?' · NPC':''}">${av(x,22)}</span>`).join('');
     const filchHtml = hasFilch ? `<span class="pawn" title="Argus Filch">${avatar({skin:1,hair:3,style:'corto',eyes:0},'',22)}</span>` : '';
     const foot=hereUsers.length||hasFilch?`${hereUsers.length?hereUsers.length+' alumnos':''}${hasFilch?' ⚠️ Filch':''}`:(isHouse?pts+' pts':'');
-    return `<div class="room ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''} ${hasFilch?'filch':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
-      <div class="rn">${name}</div><div class="dots">${pawns}${filchHtml}</div>
+    const texClass = tex ? 'tex-'+tex : '';
+    const furn = emoji ? `<span class="room-furn">${emoji}</span>` : '';
+    return `<div class="room ${texClass} ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''} ${hasFilch?'filch':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
+      ${furn}<div class="rn">${name}</div><div class="dots">${pawns}${filchHtml}</div>
       <div class="rc">${foot}</div></div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
   const enrolled=db.users.filter(isEnrolled), npcCount=enrolled.filter(x=>x.is_npc).length, humCount=enrolled.length-npcCount;
   $('nowCount').textContent=`Año ${db.schoolYear||1} · ${humCount} jugadores y ${npcCount} alumnos canon/NPC en el castillo`;
+  const inClass = !db.free && slot && slot.type==='class';
+  const skipping = !!(u && u.house && inClass && u.loc && slot.room && u.loc !== slot.room);
+  const sw=$('skipWarn'); if(sw) sw.style.display = skipping ? 'block' : 'none';
 }
 function renderYou(){
   const u=me(),box=$('youBar'),s=curSlot();
