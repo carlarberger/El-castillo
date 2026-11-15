@@ -633,14 +633,27 @@ const FREE_ACTS={
  patio:{name:'Charlar con amigos',pts:2,xp:0}};
 const DEST=['quidditch','cabana','biblioteca','terrenos','patio','comedor'];
 const SKIN=['#f6d7bd','#e8b98f','#c98e63','#9a6440','#6b4128'];
-const HAIR=['#1d1a22','#5a3820','#a8622a','#e0b552','#c4472d','#7a5ec4'];
-const HAIRN=['Negro','Castaño','Cobrizo','Rubio','Pelirrojo','Violeta'];
-const EYES=['#3a2a1d','#2f6bd0','#2f9a5d','#7a8a96','#9a5ec4'];
-const EYEN=['Marrón','Azul','Verde','Gris','Violeta'];
+const SKINN=['Piel clara','Piel media','Piel morena','Piel oscura','Piel profunda'];
+const HAIR_COLORS=['#1d1a22','#5a3820','#e0b552','#c4472d','#ffffff','#c0c0c0','#ff69b4','#4a6ee0','#2f9a5d','#9a5ec4'];
+const HAIR_COLORN=['Negro','Castaño','Rubio','Pelirrojo','Blanco','Plata','Rosa','Azul','Verde','Violeta'];
+const EYE_COLORS=['#3a2a1d','#2f6bd0','#2f9a5d','#7a8a96','#e8b930','#c43b34','#9a5ec4'];
+const EYE_COLORN=['Marrón','Azul','Verde','Gris','Ámbar','Rojo','Violeta'];
+const HAIR_STYLES=['short01','short04','short12','long01','long05','long12','variant01','variant02','variant03','variant04'];
+const HAIR_STYLEN=['Corto 1','Corto 2','Corto 3','Largo 1','Largo 2','Largo 3','Rizado 1','Rizado 2','Rizado 3','Rizado 4'];
+const FEATURES=['none','freckles','blush','birthmark'];
+const FEATUREN=['Ninguno','Pecas','Rubor','Marca'];
+const CLOTHING=['variant01','variant03','variant05','variant07','variant09'];
+const CLOTHINGN=['Túnica 1','Túnica 2','Túnica 3','Túnica 4','Túnica 5'];
 const STYLES=[['corto','Corto'],['largo','Largo'],['rizado','Rizado']];
 const DEFAULT_LOOKS=[
- {skin:0,hair:4,style:'corto',eyes:0},{skin:1,hair:0,style:'corto',eyes:0},{skin:0,hair:2,style:'largo',eyes:2},{skin:2,hair:1,style:'corto',eyes:1},
- {skin:0,hair:0,style:'largo',eyes:3},{skin:1,hair:3,style:'rizado',eyes:0},{skin:1,hair:5,style:'largo',eyes:4},{skin:3,hair:0,style:'rizado',eyes:0}];
+ {skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0},
+ {skin:1,hair:3,hairColor:1,eyeColor:1,features:1,clothing:1,style:'corto',eyes:1},
+ {skin:0,hair:5,hairColor:2,eyeColor:2,features:0,clothing:2,style:'largo',eyes:2},
+ {skin:2,hair:2,hairColor:3,eyeColor:3,features:2,clothing:3,style:'corto',eyes:1},
+ {skin:0,hair:7,hairColor:4,eyeColor:4,features:0,clothing:4,style:'largo',eyes:3},
+ {skin:1,hair:8,hairColor:5,eyeColor:0,features:3,clothing:0,style:'rizado',eyes:0},
+ {skin:1,hair:9,hairColor:6,eyeColor:4,features:1,clothing:1,style:'largo',eyes:4},
+ {skin:3,hair:1,hairColor:7,eyeColor:0,features:0,clothing:2,style:'rizado',eyes:0}];
 
 const ROOMS=[
  ['gryffindor','Gryffindor',1,1,1,1,'#740001','beds','🛏️'],['slytherin','Slytherin',2,1,1,1,'#1a472a','beds','🐍'],['ravenclaw','Ravenclaw',3,1,1,1,'#0e1a40','beds','🦅'],['hufflepuff','Hufflepuff',4,1,1,1,'#ecb939','beds','🦡'],
@@ -888,7 +901,16 @@ function ensureDbIntegrity(){
   });
 
   db.users.forEach((u,i)=>{
-    if(!u.look) u.look = DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length];
+    if(!u.look) u.look = {...DEFAULT_LOOKS[(u.id ? Math.abs(u.id-1) : i) % DEFAULT_LOOKS.length]};
+    const lk=u.look;
+    if(typeof lk.skin!=='number') lk.skin=0;
+    if(typeof lk.hair!=='number') lk.hair=0;
+    if(typeof lk.hairColor!=='number') lk.hairColor=0;
+    if(typeof lk.eyeColor!=='number') lk.eyeColor = (typeof lk.eyes==='number' ? lk.eyes : 0);
+    if(typeof lk.features!=='number') lk.features=0;
+    if(typeof lk.clothing!=='number') lk.clothing=0;
+    if(!lk.style) lk.style='corto';
+    if(typeof lk.eyes!=='number') lk.eyes=0;
     if(typeof u.yearOffset!=='number') u.yearOffset=0;
     if(!u.gender) u.gender = FEMALES.includes(u.username) ? 'f' : 'm';
     if(typeof u.quidditch_approved === 'undefined') {
@@ -1097,7 +1119,7 @@ const me=()=>{
 };
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
-const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
+const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0});
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
 const CURRICULUM = {
@@ -1728,7 +1750,7 @@ const API={
     const used=new Set(db.users.map(u=>u.username.toLowerCase()));
     let baseName=NAMES.find(n=>!used.has(n.toLowerCase()))||('Mago IA #'+(db.users.length+1));
     const newId=Math.max(112,...db.users.map(x=>x.id))+1;
-    const look={skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length)};
+    const look={skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0};
     const npc=U(newId,baseName,targetHouse,30+Math.floor(Math.random()*40),10+Math.floor(Math.random()*20),'student',false,look,true,'',targetHouse);
     db.users.push(npc);
     commit(`Nuevo alumno IA: ${baseName} (${HOUSE(targetHouse).name})`);
@@ -2001,21 +2023,30 @@ const slotLabel=s=>s.type==='class'?`${ACTS[s.key].name} · ${s.location}`:s.lab
 
 function avatar(l,house,w=40,seed=null){
   l=l||{};
-  const sk=SKIN[l.skin]??SKIN[1],hr=HAIR[l.hair]??HAIR[1],ey=l.eyes??0,sty=l.style||'corto';
-  const seedName=seed||l.name||l.username||l.id||'Harry';
-  const skinHex=String(sk).replace('#','');
-  const hairHex=String(hr).replace('#','');
-  const hairVariant=sty==='largo'?'long01':sty==='rizado'?'curly':'short01';
-  const eyesVariant='variant'+String(ey+1).padStart(2,'0');
-  const url='https://api.dicebear.com/9.x/adventurer/svg?seed='+encodeURIComponent(seedName)+'&backgroundColor=transparent&skinColor='+skinHex+'&hairColor='+hairHex+'&hair='+hairVariant+'&eyes='+eyesVariant;
-  const border=house?'var(--hc)':'var(--muted)';
+  const skinIdx = (typeof l.skin==='number') ? l.skin : 0;
+  const skinHex = String(SKIN[skinIdx]??SKIN[1]).replace('#','');
+  const hairStyle = HAIR_STYLES[l.hair ?? 0] ?? HAIR_STYLES[0];
+  const hairColorIdx = (typeof l.hairColor==='number') ? l.hairColor : (typeof l.eyes==='number' ? 0 : 0);
+  const hairColorHex = String(HAIR_COLORS[hairColorIdx]??HAIR_COLORS[0]).replace('#','');
+  const eyeColorIdx = (typeof l.eyeColor==='number') ? l.eyeColor : (typeof l.eyes==='number' ? l.eyes : 0);
+  const eyeColorHex = String(EYE_COLORS[eyeColorIdx]??EYE_COLORS[0]).replace('#','');
+  const features = FEATURES[l.features ?? 0] ?? 'none';
+  const clothing = CLOTHING[l.clothing ?? 0] ?? CLOTHING[0];
+  const seedName = seed || l.name || l.username || l.id || 'Harry';
+  const houseColors = {gryffindor:'c43b34',slytherin:'2f9a5d',ravenclaw:'4a6ee0',hufflepuff:'e8b930'};
+  const clothingColor = houseColors[house] || '6b7280';
+  const params = ['seed='+encodeURIComponent(seedName),'backgroundColor=transparent','skinColor='+skinHex,'hair='+hairStyle,'hairColor='+hairColorHex];
+  if (features && features !== 'none') params.push('features='+features);
+  params.push('eyes=variant01','eyeColor='+eyeColorHex,'clothing='+clothing,'clothingColor='+clothingColor);
+  const url = 'https://api.dicebear.com/9.x/adventurer/svg?'+params.join('&');
+  const border = house ? 'var(--hc)' : 'var(--muted)';
   return `<div class="avwrap h-${house||''}" style="display:inline-block;border-radius:50%;overflow:hidden;border:2px solid ${border};width:${w}px;height:${Math.round(w*1.4)}px;background:transparent;line-height:0"><img class="av" src="${url}" width="${w}" height="${Math.round(w*1.4)}" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"/></div>`;
 }
 const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:4,style:'corto',eyes:0,pet:null};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null};
 
 function creatorHTML(){
   const d=draft;
@@ -2025,8 +2056,12 @@ function creatorHTML(){
     <div><label class="hint" for="cName">Nombre de tu mago</label><input id="cName" type="text" maxlength="18" value="${esc(d.name)}" placeholder="Ej: Carla R." autocomplete="off"></div>
     <div><label class="hint" for="cPass">${draftNew?'Contraseña (para entrar desde otro dispositivo)':'Nueva contraseña (dejar vacío para no cambiar)'}</label><input id="cPass" type="password" maxlength="32" value="${esc(d.pass||'')}" placeholder="${draftNew?'Mínimo 3 caracteres':'Solo si deseas cambiarla'}" autocomplete="new-password"></div>
     ${(draftNew||!me()?.house)?`<div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="draftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>`:''}
-    ${sw('Piel',SKIN,'skin')}${sw('Pelo',HAIR,'hair',HAIRN)}${sw('Ojos',EYES,'eyes',EYEN)}
-    <div class="swrow"><span>Peinado</span>${STYLES.map(([k,n])=>`<button type="button" class="chip ${d.style===k?'on':''}" data-do="draftStyle" data-v="${k}">${n}</button>`).join('')}</div>
+    ${sw('Piel',SKIN,'skin',SKINN)}
+    ${sw('Pelo',HAIR_COLORS,'hairColor',HAIR_COLORN)}
+    ${sw('Ojos',EYE_COLORS,'eyeColor',EYE_COLORN)}
+    <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="draftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Rasgos</span>${FEATURES.map((v,i)=>`<button type="button" class="chip ${d.features===i?'on':''}" data-do="draftFeature" data-v="${i}">${FEATUREN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="draftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
     ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
   <div class="chips" style="margin-top:6px">
     <button type="button" class="chip ${!d.pet?'on':''}" data-do="draftPet" data-id="">Sin mascota</button>
@@ -3326,7 +3361,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR.length),style:STYLES[Math.floor(Math.random()*STYLES.length)][0],eyes:Math.floor(Math.random()*EYES.length),pet:null};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -3356,7 +3391,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -4751,6 +4786,9 @@ document.addEventListener('click',e=>{
     case 'editChar':openEditChar();break;
     case 'draft':draft[d.k]=Number(d.v);refreshCreator();break;
     case 'draftStyle':draft.style=d.v;refreshCreator();break;
+    case 'draftHair':draft.hair=Number(d.v);refreshCreator();break;
+    case 'draftFeature':draft.features=Number(d.v);refreshCreator();break;
+    case 'draftClothing':draft.clothing=Number(d.v);refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
     case 'draftPet': draft.pet = d.id || null; refreshCreator(); break;
     case 'adoptPet': openPetAdoptModal(); break;
