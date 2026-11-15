@@ -248,6 +248,12 @@ th{color:var(--gold)}
 .modal .panel.wide{max-width:760px}
 .toasts{position:fixed;top:calc(72px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:120;display:grid;gap:8px;pointer-events:none;max-width:340px}
 .toast{background:var(--surface);border:1px solid var(--gold);padding:10px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:14px;animation:tin .25s ease}
+.canon-banner{position:fixed;top:calc(78px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:121;width:min(580px,calc(100vw - 32px));pointer-events:none}
+.canon-banner[hidden]{display:none}
+.canon-banner-in{display:flex;align-items:flex-start;gap:12px;background:linear-gradient(135deg,var(--surface),color-mix(in srgb,var(--gold) 14%,var(--surface)));border:1px solid var(--gold);border-radius:14px;padding:12px 14px;box-shadow:0 14px 44px rgba(0,0,0,.58);pointer-events:auto;animation:tin .25s ease}
+.canon-banner-icon{font-size:22px;line-height:1.1}
+.canon-banner-title{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.canon-banner-text{margin:3px 0 0;font-size:14px;line-height:1.45}
 @keyframes tin{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
 footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;display:grid;gap:8px}
 
@@ -335,6 +341,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </div>
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
+    <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button> <!-- ⬅️ AÑADIR ESTA LÍNEA -->
     <button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button>
     <button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button>
@@ -533,6 +540,16 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 </main>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div id="canonEventBanner" class="canon-banner" hidden role="status" aria-live="polite">
+  <div class="canon-banner-in">
+    <span class="canon-banner-icon" aria-hidden="true">🕯️</span>
+    <div style="flex:1">
+      <div class="canon-banner-title">Presagio del Castillo</div>
+      <p class="canon-banner-text" id="canonEventText"></p>
+    </div>
+    <button class="btn sm" type="button" data-do="dismissCanonEvent" aria-label="Cerrar aviso">✕</button>
+  </div>
+</div>
 <div id="modalRoot" hidden></div>
 <div id="minigameModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(6,5,18,0.92); backdrop-filter:blur(6px); z-index:1000; display:none; flex-direction:column; align-items:center; justify-content:center; padding:16px;">
   <div class="row" style="justify-content:space-between; width:800px; max-width:95%; margin-bottom:10px;">
@@ -2027,6 +2044,20 @@ function shuffleArray(array){
 }
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;$('toasts').appendChild(el);
   setTimeout(()=>{el.style.transition='.25s';el.style.opacity='0';setTimeout(()=>el.remove(),260)},2800)}
+let canonEventTimer=null;
+function showCanonEventBanner(text){
+  const banner=$('canonEventBanner'),body=$('canonEventText');
+  if(!banner||!body)return;
+  body.textContent=String(text||'');
+  banner.hidden=false;
+  clearTimeout(canonEventTimer);
+  canonEventTimer=setTimeout(hideCanonEventBanner,18000);
+}
+function hideCanonEventBanner(){
+  const banner=$('canonEventBanner');
+  if(banner)banner.hidden=true;
+  clearTimeout(canonEventTimer);
+}
 let mgClean=null;
 function openModal(html,wide){
   if(mgClean){mgClean();mgClean=null}
@@ -2432,7 +2463,7 @@ function renderAdmin(){
    <div class="box" style="grid-column:1/-1"><h4>🎓 Año Escolar del Castillo (Curso de la generación de Harry y jugadores: ${db.schoolYear||1}.º)</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">En el Año 1, Harry y tú están en 1.º curso, Cedric, Fred y George en 3.º, Cho en 2.º, y Ginny y Luna aún no ingresan (entran a 1.º en el Año 2).</p>
     <div class="row">${[1,2,3,4,5,6,7].map(yr=>`<button class="btn sm ${(db.schoolYear||1)===yr?'gold':''}" data-do="setSchoolYear" data-y="${yr}" type="button">Año ${yr} (${yr}.º curso)</button>`).join('')}</div></div>
-   <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
+   <div class="box"><h4>Eventos globales</h4><div class="row"><button class="btn sm gold" data-do="evQuick" type="button">Torneo x2</button><button class="btn sm" data-do="evCustom" type="button">Personalizado</button><button class="btn sm" data-do="generateCanonEvent" type="button">🔮 Presagio canónico</button><button class="btn sm" data-do="evStop" type="button" ${ev?'':'disabled'}>Detener</button></div></div>
    <div class="box" style="grid-column:1/-1"><h4>🤖 Alumnos IA / NPCs (${npcCount} activos)</h4>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Los NPCs exploran salas, entrenan en clases, participan en Quidditch y conversan en el Gran Comedor automáticamente.</p>
     <div class="row">
@@ -3665,6 +3696,18 @@ socket.on('npc_reply',(data)=>{
   }
 });
 
+socket.on('canon_event_generated',(data)=>{
+  if(!data)return;
+  if(data.error){
+    toast(data.message||'El archivo histórico del castillo no responde.');
+    return;
+  }
+  const text=String(data.text||'').trim();
+  if(!text)return;
+  showCanonEventBanner(text);
+  toast('🕯️ Un presagio recorre el castillo');
+});
+
 socket.on('cromo_image',(data)=>{
   if(!data||!data.cromoId) return;
   const u=me(); if(!u) return;
@@ -4870,6 +4913,8 @@ document.addEventListener('click',e=>{
     case 'evCustom':customEvent();break;
     case 'evGo':API.launch($('evName').value,$('evDesc').value,parseFloat($('evMult').value));closeModal();break;
     case 'evStop':API.stopEvent();toast('Evento detenido');break;
+    case 'generateCanonEvent':socket.emit('generate_canon_event');toast('El Director consulta el archivo histórico…');break;
+    case 'dismissCanonEvent':hideCanonEventBanner();break;
     case 'toggleNpcAi':must(session.isAdmin,'Solo admin');db.npcAi=!db.npcAi;commit(db.npcAi?'IA de NPCs activada':'IA de NPCs pausada');break;
     case 'npcNow':API.npcStep(false);break;
     case 'spawnNpc':API.spawnNpc();break;

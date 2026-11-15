@@ -1,0 +1,402 @@
+[
+  {
+    "categoria": "historia",
+    "keywords": ["fundación de hogwarts", "fundacion de hogwarts", "cuatro fundadores", "godric", "salazar", "rowena", "helga", "origen de hogwarts"],
+    "info": "Hogwarts fue fundada hace más de mil años, hacia el siglo X, por los cuatro grandes magos de la época: Godric Gryffindor, Salazar Slytherin, Rowena Ravenclaw y Helga Hufflepuff. Levantaron el castillo junto al lago Negro para proteger y educar a jóvenes magos y brujas de toda Gran Bretaña, y repartieron a los alumnos entre cuatro casas con el Sombrero Seleccionador, encantado por los propios fundadores. La escuela es considerada uno de los lugares más seguros del mundo mágico y su lema es «Draco Dormiens Nunquam Titillandus»."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["cámara de los secretos", "camara de los secretos", "basilisco", "heredero de slytherin", "tom riddle", "diario de riddle"],
+    "info": "Salazar Slytherin defendía que solo los nacidos de familias mágicas debían estudiar en Hogwarts; al no convencer a los demás fundadores, abandonó el castillo y construyó en secreto la Cámara de los Secretos. Allí ocultó a un basilisco y dejó un mecanismo para que su «verdadero heredero» pudiera liberarlo y purgar la escuela de los nacidos de muggles. La Cámara no se abrió hasta 1943, cuando Tom Riddle la encontró, y de nuevo en 1992-1993, cuando fue abierta por Ginny Weasley bajo la influencia del diario de Riddle."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["rebeliones de los duendes", "rebelión de los duendes", "rebelion de los duendes", "duendes", "gringotts", "1612"],
+    "info": "Los duendes protagonizaron numerosas rebeliones contra el Ministerio de Magia y los magos a lo largo de los siglos, especialmente en los siglos XVII y XVIII. La rebelión de 1612 en Hogsmeade fue una de las más recordadas y dejó una profunda desconfianza entre duendes y magos. Las causas incluían la discriminación, las restricciones al uso de varitas y la negativa mágica a reconocer derechos sobre objetos fabricados por duendes, como la espada de Gryffindor. El profesor Binns las enseña como un tema central de Historia de la Magia."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["guerras mágicas", "guerras magicas", "primera guerra mágica", "segunda guerra mágica", "guerra contra voldemort", "mortífagos"],
+    "info": "Se conoce como Guerras Mágicas a los dos conflictos entre el Ministerio, la Orden del Fénix y los Mortífagos de Lord Voldemort. La Primera Guerra Mágica (aproximadamente 1970-1981) causó numerosas muertes y terminó cuando el hechizo asesino de Voldemort rebotó sobre él al atacar a Harry Potter. La Segunda Guerra Mágica (1995-1998) comenzó con el regreso de Voldemort y culminó en la Batalla de Hogwarts, donde fue derrotado definitivamente."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["torneo de los tres magos", "torneo tres magos", "cáliz de fuego", "caliz de fuego", "beauxbatons", "durmstrang", "prueba del torneo"],
+    "info": "El Torneo de los Tres Magos es una competición entre Hogwarts, Beauxbatons y Durmstrang que se celebró por primera vez en el siglo XIII. Los campeones son elegidos por el Cáliz de Fuego y deben superar tres pruebas de magia, valor e ingenio. Se suspendió tras el torneo de 1792, cuando una cocatriz causó estragos e hirió a los campeones, y se revivió en 1994 con un campeón por escuela. En esa edición, el Cáliz eligió a Harry Potter como cuarto campeón, lo que resultó en el asesinato de Cedric Diggory y el regreso de Voldemort."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["batalla de hogwarts", "asedio de hogwarts", "2 de mayo de 1998", "última batalla", "ultima batalla", "nagini"],
+    "info": "La Batalla de Hogwarts tuvo lugar el 2 de mayo de 1998. Voldemort atacó el castillo con su ejército de Mortífagos, gigantes, acromántulas y licántropos; alumnos, profesores y miembros de la Orden del Fénix defendieron la escuela. Murieron cincuenta personas, entre ellas Fred Weasley, Remus Lupin, Nymphadora Tonks, Colin Creevey y Severus Snape. Harry descubrió que era un horrocrux accidental, se dejó matar en el Bosque Prohibido y, tras la destrucción de Nagini, derrotó a Voldemort con Expelliarmus."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["primera guerra mágica", "primera guerra magica", "orden del fénix", "orden del fenix", "años setenta", "1970", "1981"],
+    "info": "La Primera Guerra Mágica fue el reinado de terror de Voldemort desde finales de los años sesenta hasta el 31 de octubre de 1981. Los Mortífagos asesinaron a magos y muggles, infiltraron el Ministerio y obligaron a muchas familias a esconderse. La Orden del Fénix, fundada por Albus Dumbledore, combatió la insurgencia. La guerra terminó cuando Voldemort intentó matar a Harry Potter y su propia maldición rebotó, destruyendo su cuerpo."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["segunda guerra mágica", "segunda guerra magica", "resurrección de voldemort", "resurreccion de voldemort", "1995", "1998", "caída del ministerio"],
+    "info": "La Segunda Guerra Mágica se libró entre 1995 y 1998. Tras la resurrección de Voldemort en el cementerio de Little Hangleton, el Ministerio negó su regreso y la Orden del Fénix volvió a movilizarse. La guerra incluyó la caída del Ministerio en 1997, el régimen de los Mortífagos, la fuga de Azkaban y la Batalla de Hogwarts. Terminó con la muerte definitiva de Voldemort el 2 de mayo de 1998."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["estatuto internacional del secreto", "estatuto del secreto", "secreto de la magia", "1692", "encantadores de olvido", "confidencialidad mágica"],
+    "info": "El Estatuto Internacional del Secreto de la Magia fue firmado en 1692 para ocultar el mundo mágico de los muggles. Tras siglos de persecución, las comunidades mágicas acordaron vivir en secreto y castigar la exposición deliberada de la magia. El Ministerio de Magia británico se encarga de aplicar el Estatuto mediante la Oficina de Uso Incorrecto de la Magia y los Encantadores de Olvido. Existen excepciones controladas, como los estadios de Quidditch y las sedes del Ministerio."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["hogsmeade", "aldea mágica", "aldea magica", "honeydukes", "tres escobas", "cabeza de jabalí", "cabeza de jabali"],
+    "info": "Hogsmeade es la única población de Gran Bretaña habitada exclusivamente por magos y brujas. Fue fundada en la Edad Media por Hengist de Woodcroft y está situada cerca de Hogwarts, junto a las montañas. Sus locales más conocidos son Honeydukes, las Tres Escobas, la taberna de la Cabeza de Jabalí y la tienda de bromas de Zonko. Los alumnos de tercer curso en adelante pueden visitarla en determinados fines de semana con permiso firmado."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["cacería de brujas", "caceria de brujas", "persecución de brujas", "persecucion de brujas", "wendelin", "quema de brujas", "inquisición"],
+    "info": "Durante los siglos XIV al XVII, muchos muggles persiguieron y quemaron a personas acusadas de brujería. Algunos magos y brujas se dejaron capturar a propósito para disfrutar del fuego con encantamientos protectores, como Wendelin la Extraña, que fue quemada cuarenta y siete veces. La persecución fue una de las razones principales del Estatuto Internacional del Secreto. Las brujas y magos reales solían escapar con Aparición o magia de fuego."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["comisión de registro de sangre", "comision de registro de sangre", "registro de muggles", "nacidos de muggles", "dolores umbridge", "purga de sangre"],
+    "info": "En 1997, tras la caída del Ministerio, Voldemort impuso la Comisión de Registro de Sangre de Muggles, dirigida por Dolores Umbridge. Los nacidos de muggles fueron acusados de robar la magia a «auténticos» magos, citados a juicio y encerrados en Azkaban. La propaganda del régimen pretendía legitimar la pureza de sangre. Tras la Batalla de Hogwarts, la comisión fue desmantelada y sus miembros juzgados."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["ministerio de magia", "ministro de magia", "gobierno mágico", "gobierno magico", "departamento de misterios", "azkaban"],
+    "info": "El Ministerio de Magia es el gobierno del mundo mágico británico. Se divide en departamentos como Asuntos Mágicos, Aplicación de la Ley Mágica, Misterios, Transporte Mágico y Regulación de Criaturas Mágicas. Su sede está en Whitehall, oculta bajo el edificio de los muggles, y se accede por una cabina telefónica. Ha sufrido infiltraciones, corrupción y caídas, especialmente durante las guerras contra Voldemort."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["31 de octubre de 1981", "caída de voldemort", "caida de voldemort", "godric's hollow", "godrics hollow", "niño que sobrevivió", "nino que sobrevivio"],
+    "info": "El 31 de octubre de 1981, Voldemort llegó a Godric's Hollow decidido a matar a Harry Potter, después de que Peter Pettigrew revelara el escondite de los Potter. Lily Potter murió protegiendo a su hijo con un sacrificio de amor antiguo; la maldición asesina rebotó y destruyó el cuerpo de Voldemort. Harry sobrevivió con una cicatriz en forma de rayo y fue conocido como «el niño que sobrevivió». Ese acontecimiento puso fin a la Primera Guerra Mágica."
+  },
+  {
+    "categoria": "historia",
+    "keywords": ["copa de las casas", "copa de la casa", "puntos de las casas", "trofeo de hogwarts", "gryffindor ganó la copa"],
+    "info": "La Copa de las Casas es el trofeo anual que gana la casa con más puntos en Hogwarts. Los alumnos obtienen puntos por méritos académicos, deportivos y de conducta, y los pierden por infracciones. Al final del curso, el Gran Comedor se decora con los colores de la casa ganadora. En el canon, Gryffindor ganó la Copa en 1992 gracias a los puntos otorgados a Harry, Ron, Hermione y Neville por salvar la Piedra Filosofal."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["piedra filosofal", "nicolas flamel", "perenelle", "elixir de la vida", "piedra del alquimista"],
+    "info": "La Piedra Filosofal es un objeto legendario creado por el alquimista Nicolas Flamel y su esposa Perenelle. Produce el Elixir de la Vida, que prolonga la vida indefinidamente, y puede transformar metales en oro. En 1991-1992, Dumbledore la escondió en Hogwarts, protegida por el Espejo de Oesed, y Harry, Ron y Hermione impidieron que Voldemort la robara. Flamel y su esposa decidieron destruirla para que no cayera en malas manos."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["varita de saúco", "varita de sauco", "varita de la muerte", "reliquias de la muerte", "saúco", "sauco", "antioch peverell"],
+    "info": "La Varita de Saúco es la más poderosa de las Varitas de la Muerte y una de las Reliquias de la Muerte. Según la leyenda, la creó la Muerte con la rama de un saúco y la entregó a Antioch Peverell. Su portador no puede ser derrotado en un duelo justo. Pasó por manos como las de Emeric el Malo, Gregorovitch, Gellert Grindelwald y Albus Dumbledore, quien derrotó a Grindelwald en 1945. Draco Malfoy desarmó a Dumbledore y Harry se convirtió en su dueño legítimo al vencer a Draco; al final, Harry la devolvió a la tumba de Dumbledore."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["capa de invisibilidad", "capa de invisibilidad de harry", "ignotus peverell", "tercera reliquia", "capa mágica"],
+    "info": "La Capa de Invisibilidad de Harry Potter es la tercera Reliquia de la Muerte. Pertenecía a Ignotus Peverell y se transmitió de generación en generación hasta llegar a James Potter y luego a Harry. A diferencia de otras capas, su invisibilidad es perfecta y no se desgasta con los años. Dumbledore se la prestó a Harry en su primer año y más tarde le reveló su relación con las Reliquias. Harry la conservó tras la guerra."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["mapa del merodeador", "merodeadores", "lunático", "canuto", "colagusano", "cornamenta", "juro solemnemente"],
+    "info": "El Mapa del Merodeador es un pergamino encantado que muestra todo el castillo de Hogwarts, sus pasadizos secretos y la posición de cada persona. Fue creado por los Merodeadores —Remus Lupin (Lunático), Peter Pettigrew (Colagusano), Sirius Black (Canuto) y James Potter (Cornamenta)— durante sus años escolares. Se activa con la frase «Juro solemnemente que mis intenciones no son buenas» y los personajes del mapa insultan a quien lo usa. Los gemelos Weasley se lo dieron a Harry, y el profesor Lupin se lo confiscó en su tercer año."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["horrocrux", "horrocruxes", "fragmento de alma", "alma de voldemort", "destruir un horrocrux"],
+    "info": "Un horrocrux es un objeto en el que un mago oculta un fragmento de su alma mediante el asesinato, la magia más oscura conocida. Voldemort creó seis horrocruxes intencionados —el diario de Tom Riddle, el anillo de los Gaunt, el guardapelo de Slytherin, la copa de Hufflepuff, la diadema de Ravenclaw y Nagini— y un séptimo accidental: Harry Potter. Para destruirlos era necesario un daño irreparable, como el veneno de basilisco o el Fuego Maldito. Todos fueron destruidos antes de la caída de Voldemort."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["espada de gryffindor", "espada de godric", "ragnuk", "espada del sombrero", "neville y nagini"],
+    "info": "La espada de Godric Gryffindor fue forjada por el duende Ragnuk el Primero y es uno de los objetos más valiosos de Hogwarts. Está hecha de plata y tiene incrustaciones de rubíes; absorbe aquello que la fortalece, como el veneno de basilisco. Harry la usó para matar al basilisco en la Cámara de los Secretos y para destruir el guardapelo de Slytherin. Neville Longbottom la sacó del Sombrero Seleccionador y decapitó a Nagini durante la Batalla de Hogwarts."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["espejo de oesed", "espejo de erised", "espejo de oesed", "deseo más profundo", "deseo mas profundo", "espejo de dumbledore"],
+    "info": "El Espejo de Oesed muestra el deseo más profundo de quien lo mira. Su nombre proviene de la inscripción «Erised stra ehru oyt ube cafru oyt on wohsi», que leída al revés significa «I show not your face but your heart's desire». Dumbledore lo usó para proteger la Piedra Filosofal, sabiendo que solo quien deseara encontrarla sin usarla podría obtenerla. Harry vio en él a su familia; Ron, a sí mismo como ganador; Dumbledore confesó que veía a su familia reunida."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["sombrero seleccionador", "sombrero parlante", "ceremonia de selección", "ceremonia de seleccion", "casa de hogwarts"],
+    "info": "El Sombrero Seleccionador es un sombrero parlante encantado por los cuatro fundadores de Hogwarts para repartir a los alumnos entre las casas. Lee la mente del estudiante y tiene en cuenta sus valores, ambiciones y elecciones, no solo sus rasgos. Canta una canción diferente cada curso y puede advertir del peligro, como hizo en 1995. En situaciones extremas puede sacar objetos, como la espada de Gryffindor, y es uno de los símbolos más queridos de la escuela."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["cáliz de fuego", "caliz de fuego", "copa de fuego", "contrato mágico", "contrato magico", "nombre en el cáliz"],
+    "info": "El Cáliz de Fuego es una copa de madera tallada que arde con llamas azules y blancas durante el Torneo de los Tres Magos. Los aspirantes depositan su nombre en él y el Cáliz elige a los campeones, creando un contrato mágico vinculante que no puede romperse. En 1994 eligió a Cedric Diggory, Fleur Delacour, Viktor Krum y, de forma irregular, a Harry Potter. Barty Crouch Jr. confundió el Cáliz con un Encantamiento Confundus para que aceptara el nombre de Harry."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["snitch dorada", "snitch", "pelota dorada", "quidditch", "piedra de la resurrección en la snitch", "memoria de carne"],
+    "info": "La Snitch Dorada es la bola más pequeña y veloz del Quidditch; atraparla otorga 150 puntos y termina el partido. Está hecha de oro y tiene memoria de carne: recuerda la primera mano que la tocó. La Snitch que Dumbledore dejó a Harry en su testamento contenía la Piedra de la Resurrección y solo se abrió cuando Harry pronunció que estaba a punto de morir. Las Snitch se fabrican en la tienda de Boll y se prueban con guantes especiales."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["guardapelo de slytherin", "medallón de slytherin", "medallon de slytherin", "hepzibah smith", "kreacher", "regulus black"],
+    "info": "El guardapelo de Salazar Slytherin era un medallón de oro con una serpiente esmeralda en forma de S. Perteneció a la familia Gaunt y luego a Hepzibah Smith, de quien Tom Riddle lo robó tras asesinarla. Voldemort lo convirtió en horrocrux y lo escondió en una cueva junto al mar, protegido por un brebaje y un ejército de Inferi. Regulus Black lo sustituyó por un guardapelo falso; Kreacher lo recuperó y Mundungus Fletcher lo robó. Dolores Umbridge lo llevó hasta que Harry lo recuperó, y Ron lo destruyó con la espada de Gryffindor."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["diadema de ravenclaw", "diadema de rowena", "dama gris", "helena ravenclaw", "sala de los menesteres"],
+    "info": "La diadema de Rowena Ravenclaw otorgaba sabiduría a quien la llevaba. Su hija Helena la robó y huyó a Albania, donde la escondió en un árbol hueco; Rowena murió sin reconciliarse con ella. Tom Riddle encontró siglos después a Helena y la obligó a revelarle el escondite, convirtió la diadema en horrocrux y la ocultó en la Sala de los Menesteres de Hogwarts. Harry la reconoció en 1998 gracias al fantasma de la Dama Gris. Crabbe la destruyó con Fuego Maldito en la Sala de los Menesteres."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["anillo de los gaunt", "anillo de marvolo", "piedra de la resurrección", "piedra de la resurreccion", "segunda reliquia", "anillo de dumbledore"],
+    "info": "El anillo de Marvolo Gaunt era un anillo de oro con la Piedra de la Resurrección engarzada, una de las Reliquias de la Muerte. Voldemort lo robó, lo convirtió en horrocrux y lo escondió en la cabaña de los Gaunt. Dumbledore lo encontró y lo destruyó con la espada de Gryffindor, pero la piedra le causó una maldición en la mano que le costó la vida a medio plazo. La piedra pasó a Harry, quien la usó para ver a sus seres queridos antes de la batalla final."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["copa de hufflepuff", "copa de helga", "bóveda de lestrange", "boveda de lestrange", "colmillo de basilisco", "cáliz dorado"],
+    "info": "La copa de Helga Hufflepuff era un cáliz dorado con un tejón grabado, símbolo de su casa. Hepzibah Smith la poseía hasta que Tom Riddle la asesinó y la robó. Voldemort la convirtió en horrocrux y la entregó a Bellatrix Lestrange, quien la guardó en la bóveda de los Lestrange en Gringotts. Harry, Ron, Hermione y Griphook la robaron durante la fuga del banco, y Hermione la destruyó con un colmillo de basilisco."
+  },
+  {
+    "categoria": "artefactos",
+    "keywords": ["varita de harry", "varita de acebo", "pluma de fénix", "pluma de fenix", "varitas hermanas", "priori incantatem"],
+    "info": "La varita de Harry Potter está hecha de madera de acebo y tiene una pluma de fénix en su núcleo; mide once pulgadas y es flexible. Su núcleo proviene del mismo fénix que la varita de Voldemort, Fawkes, lo que las convierte en «hermanas». Esa conexión provocó el efecto Priori Incantatem en el cementerio de Little Hangleton. Harry la usó hasta la batalla final y luego la reparó con la Varita de Saúco antes de devolver esta última a la tumba de Dumbledore."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["imperdonables", "imperius", "cruciatus", "avada kedavra", "maldiciones imperdonables", "maldición imperdonable"],
+    "info": "Los Tres Imperdonables son las maldiciones más graves del mundo mágico: Imperius (controla la voluntad de la víctima), Cruciatus (inflige dolor insoportable) y Avada Kedavra (mata al instante). Su uso contra otro ser humano está castigado con cadena perpetua en Azkaban. Voldemort y sus Mortífagos las emplearon sin escrúpulos; Harry resistió el Imperius y usó el Cruciatus y el Imperius en contadas ocasiones. Barty Crouch Jr. enseñó a Harry las tres en su cuarto año."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["expecto patronum", "patronus", "encantamiento patronus", "dementores", "recuerdo feliz", "ciervo de plata"],
+    "info": "El Encantamiento Patronus invoca un guardián de plata con forma de animal que protege de los dementores y de los lethifolds. Requiere un recuerdo de felicidad muy poderoso y una concentración extraordinaria; por eso se considera magia avanzada, propia de magos de nivel superior. El Patronus de Harry es un ciervo, el de Hermione una nutria, el de Ron un perro y el de Dumbledore un fénix. La Orden del Fénix usa Patronus para comunicarse y enviar mensajes."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["fidelius", "encantamiento fidelius", "guardián del secreto", "guardian del secreto", "grimmauld place", "casa de los potter"],
+    "info": "El Encantamiento Fidelius oculta un secreto dentro de una persona, el Guardián del Secreto, de modo que solo él puede revelarlo. Mientras el secreto esté protegido, nadie más puede encontrar el lugar, aunque lo busque directamente. Los Potter usaron a Peter Pettigrew como Guardián, pero este los traicionó. La Orden protegió después el 12 de Grimmauld Place con Dumbledore como Guardián y la cabaña de los Weasley con Bill. La muerte del Guardián libera a todos los que conocían el secreto."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["avada kedavra", "maldición asesina", "maldicion asesina", "maldición verde", "maldicion verde", "muerte instantánea"],
+    "info": "Avada Kedavra es la maldición asesina, una de las tres maldiciones imperdonables. No tiene contramaldición ni escudo conocido: la víctima cae muerta sin heridas visibles. Solo Harry Potter ha sobrevivido, gracias al sacrificio de Lily y, más tarde, al vínculo de sangre y a su condición de horrocrux. Voldemort la usó para matar a los Potter, a Cedric Diggory, a Snape y a muchos otros. En la batalla final, la maldición rebotó contra su propio portador."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["expelliarmus", "encantamiento desarmador", "desarmar", "hechizo favorito de harry", "duelo final"],
+    "info": "Expelliarmus es el Encantamiento Desarmador: expulsa la varita o el objeto que sostiene el oponente. Es un hechizo defensivo básico, pero Harry lo convirtió en su seña de identidad y en un símbolo de su estilo de duelo. Lo usó contra Draco, Snape, Voldemort en el cementerio y en la batalla final. En la última confrontación, el Expelliarmus de Harry venció a la Avada Kedavra de Voldemort porque la Varita de Saúco reconocía a Harry como su verdadero dueño."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["sectumsempra", "príncipe mestizo", "principe mestizo", "libro de pociones", "cortes profundos", "maldición de snape"],
+    "info": "Sectumsempra es una maldición inventada por Severus Snape y anotada en su libro de Pociones como «para enemigos». Produce cortes profundos como espadazos invisibles y puede matar desangrando. Harry la usó sin conocer sus efectos contra Draco Malfoy en 1997, hiriéndolo gravemente; Snape lo curó con un contrahechizo. Es una muestra de la magia oscura que Snape dominaba y de la imprudencia de Harry al confiar en el libro del Príncipe Mestizo."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["fuego maldito", "fiendfyre", "fuego maldito", "sala de los menesteres", "destruir horrocruxes con fuego"],
+    "info": "El Fuego Maldito es una llama mágica maldita que adopta formas de bestias y se propaga sin control, consumiendo todo lo que encuentra. Es una de las pocas cosas capaces de destruir un horrocrux, junto con el veneno de basilisco. Crabbe lo lanzó en la Sala de los Menesteres en 1998; el fuego destruyó la diadema de Ravenclaw y mató a su propio invocador. Harry, Ron y Hermione escaparon en las escobas y salvaron a Draco y a Goyle."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["legilimencia", "oclumencia", "leer la mente", "bloquear la mente", "clases de snape", "conexión mental"],
+    "info": "La Legilimencia es la habilidad de leer la mente y las emociones de otra persona; la Oclumencia es su defensa, la capacidad de bloquear esos pensamientos. Voldemort es un legilimente extraordinario y Snape también dominaba ambas artes. Harry recibió clases de Oclumencia con Snape en su quinto año, aunque le costó dominarla. La conexión mental entre Harry y Voldemort fue un efecto secundario del horrocrux que llevaba dentro."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["aparición", "aparicion", "desaparecer", "reaparecer", "splinch", "transporte mágico", "licencia de aparición"],
+    "info": "La Aparición es el método de transporte mágico instantáneo que permite al mago desaparecer de un lugar y reaparecer en otro. Requiere una licencia oficial y es peligrosa: una mala ejecución provoca «splinch», la separación de partes del cuerpo. Los alumnos de Hogwarts pueden aprenderla a partir de sexto curso. La Aparición conjunta permite llevar a otra persona, como hizo Harry con Dumbledore. Hogwarts tiene protecciones que impiden aparecer dentro del castillo."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["obliviate", "encantamiento de memoria", "borrar recuerdos", "encantadores de olvido", "gilderoy lockhart", "modificar memoria"],
+    "info": "Obliviate es el Encantamiento de Memoria, que borra o modifica recuerdos. Es la herramienta principal de los Encantadores de Olvido del Ministerio para mantener el Estatuto del Secreto. Gilderoy Lockhart lo usó para borrar la memoria de sus víctimas y luego lo intentó con Harry y Ron, pero el hechizo rebotó y le borró la suya. Hermione lo usó con sus padres para protegerlos y con los Mortífagos en la batalla. Un uso excesivo puede causar daños permanentes."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["wingardium leviosa", "levitación", "levitacion", "flitwick", "troll de montaña", "troll de montana", "encantamientos de primer curso"],
+    "info": "Wingardium Leviosa es el encantamiento de levitación que hace flotar objetos. Se enseña en primer curso de Encantamientos con la profesora Flitwick, y la pronunciación correcta es «win-GAR-dium levi-O-sa». Hermione lo dominó antes que Ron, y con él los tres amigos derribaron al troll de montaña en 1991. Es un ejemplo clásico de que la precisión y la dicción importan tanto como la varita en la magia."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["riddikulus", "boggart", "vencer el miedo", "clase de lupin", "risa contra el miedo"],
+    "info": "Riddikulus es el encantamiento que vence a un boggart, una criatura que adopta la forma de los miedos de quien la mira. El hechizo obliga al boggart a transformarse en algo ridículo y provoca risa, lo que lo debilita. Remus Lupin lo enseñó a los alumnos de tercer curso en 1993; Neville lo usó contra el boggart de Snape, transformándolo en una anciana con un sombrero de buitre. La risa es, en esencia, la mejor defensa contra el miedo."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["accio", "encantamiento convocador", "convocar objeto", "atraer objeto", "escoba de harry", "torneo de los tres magos"],
+    "info": "Accio es el Encantamiento Convocador: atrae hacia el mago un objeto determinado. Su eficacia depende de la claridad mental, la distancia y la familiaridad con el objeto. Harry lo usó para convocar su escoba en el Torneo de los Tres Magos, para recuperar la Snitch en el partido contra Slytherin y para atraer la Copa de los Tres Magos en el cementerio de Little Hangleton. Es un hechizo muy versátil y uno de los favoritos de los magos prácticos."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["morsmordre", "marca tenebrosa", "marca de los mortífagos", "calavera verde", "cielo de hogwarts", "mundial de quidditch"],
+    "info": "Morsmordre es el conjuro que crea la Marca Tenebrosa: una calavera verde con una serpiente en la boca que se proyecta en el cielo. Es la firma de los Mortífagos y sirve para intimidar y señalar que han cometido un asesinato. Barty Crouch Jr. la lanzó en el Mundial de Quidditch en 1994 y los Mortífagos la usaron durante la Segunda Guerra Mágica. El conjuro está prohibido y su uso es motivo de detención."
+  },
+  {
+    "categoria": "hechizos",
+    "keywords": ["protego", "encantamiento escudo", "escudo mágico", "escudo magico", "defensa contra las artes oscuras", "bloquear hechizos"],
+    "info": "Protego es el encantamiento de escudo básico que bloquea hechizos menores y proyectiles físicos. Existen variantes más potentes que crean barreras protectoras más amplias y duraderas, y el escudo se enseña en Defensa contra las Artes Oscuras. Harry lo usó con frecuencia en duelos y en la batalla final. En Hogwarts, los profesores levantaron barreras protectoras para defender el castillo antes del asedio de 1998."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["dementores", "dementor", "beso del dementor", "azkaban", "guardianes de azkaban", "felicidad robada"],
+    "info": "Los dementores son criaturas oscuras que se alimentan de la felicidad y de los recuerdos alegres de los humanos. Su presencia provoca frío, desesperación y el recuerdo de los peores momentos; su arma más temida es el «beso», que arranca el alma. El Ministerio los usó como guardianes de Azkaban durante siglos. Dumbledore desconfiaba de ellos y los consideraba peligrosos e incontrolables. Se combaten con el Encantamiento Patronus y fueron expulsados de Azkaban tras la Segunda Guerra Mágica."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["fénix", "fenix", "fawkes", "lágrimas de fénix", "lagrimas de fenix", "renacer de las cenizas", "ave inmortal"],
+    "info": "El fénix es un ave mágica inmortal que renace de sus cenizas cuando muere. Sus lágrimas curan heridas y venenos, su canto infunde valor a los puros de corazón y aterroriza a los oscuros, y puede transportar cargas enormes. Fawkes, el fénix de Dumbledore, ayudó a Harry en la Cámara de los Secretos, curó su herida, le dio la espada de Gryffindor y lo salvó de la muerte. Los fénix son extremadamente leales a su dueño y viven cientos de años."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["hipogrifo", "hipogrifos", "buckbeak", "hagrid", "reverencia al hipogrifo", "ala de águila"],
+    "info": "Un hipogrifo tiene cuerpo de caballo, alas y cabeza de águila; es una criatura orgullosa que exige respeto. Para acercarse hay que hacer una reverencia, mantener contacto visual y esperar a que responda con otra reverencia. Buckbeak fue condenado a muerte en 1993 por atacar a Draco Malfoy, pero Harry y Hermione lo salvaron con el Giratiempo. Los hipogrifos pueden ser montados y son capaces de volar grandes distancias; están clasificados como criaturas XXX por el Ministerio."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["elfos domésticos", "elfos domesticos", "dobby", "kreacher", "winky", "ropa de la libertad", "peddo"],
+    "info": "Los elfos domésticos son criaturas mágicas serviciales vinculadas a una casa o familia. Obedecen órdenes, no pueden desobedecer a sus amos y solo obtienen la libertad si se les entrega ropa. Tienen magia propia muy poderosa, como Aparición y encantamientos sin varita. Dobby fue liberado por Harry y luchó por los derechos de los elfos; Kreacher sirvió a los Black y luego a Harry; Winky fue despedida de Hogwarts. Hermione fundó S.P.E.W. (P.E.D.D.O.) para defenderlos."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["gigantes", "gigante", "grawp", "fridwulfa", "karkus", "golgomath", "medio gigante"],
+    "info": "Los gigantes son criaturas enormes y muy resistentes a la magia, con una sociedad tribal y violenta. Durante las guerras mágicas, tanto Voldemort como la Orden del Fénix intentaron reclutarlos. Hagrid, hijo de madre gigante, fue enviado como emisario en 1995 y regresó con su medio hermano Grawp. Los gigantes supervivientes se refugiaron en las montañas y participaron en la Batalla de Hogwarts del lado de Voldemort. Su piel repele la mayoría de los hechizos."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["dragones", "dragón", "dragon", "colacuerno húngaro", "colacuerno hungaro", "ridgeback noruego", "norberto", "gringotts"],
+    "info": "Los dragones son las criaturas mágicas más peligrosas y están regulados por el Ministerio. En Gran Bretaña existen especies como el Ridgeback noruego, el colacuerno húngaro, el galés verde y el opaleye de las Hébridas. Hagrid crio ilegalmente a Norberto, un ridgeback noruego, en 1991. En el Torneo de los Tres Magos, los campeones se enfrentaron a un dragón para recuperar un huevo dorado, y Harry voló contra un colacuerno húngaro. Gringotts usa dragones ciegos para custodiar sus bóvedas."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["licántropos", "licantropos", "hombre lobo", "lupin", "fenrir greyback", "luna llena", "poción matatránsigo"],
+    "info": "Los licántropos son personas mordidas por un hombre lobo que se transforman cada noche de luna llena. No eligen su condición y sufren discriminación legal y social. Remus Lupin fue mordido de niño por Fenrir Greyback y estudió en Hogwarts gracias a Dumbledore, que plantó el Sauce Boxeador y lo llevó a la Casa de los Gritos. La Poción Matatránsigo permite conservar la mente humana durante la transformación, pero debe tomarse cada noche. Greyback reunió una manada al servicio de Voldemort."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["centauros", "centauro", "firenze", "bane", "magorian", "bosque prohibido", "astronomía de los centauros"],
+    "info": "Los centauros son criaturas mitad humanas y mitad caballo que viven en el Bosque Prohibido. Son orgullosos, sabios y expertos en astronomía y adivinación; consideran la magia humana una forma de esclavitud y rechazan ser clasificados como «seres» por el Ministerio. Firenze, expulsado de su manada por ayudar a Harry, se convirtió en profesor de Adivinación en Hogwarts. Bane, Magorian y Ronan lideran la manada y desprecian a los humanos, aunque lucharon en la Batalla de Hogwarts contra los Mortífagos."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["sirenas", "sirena", "tritones", "lago negro", "mermish", "segunda prueba del torneo", "ciudad sumergida"],
+    "info": "Las sirenas y tritones del lago Negro son criaturas acuáticas inteligentes con su propia lengua, el Mermish. Viven en ciudades bajo el agua y custodian a los rehenes de la segunda prueba del Torneo de los Tres Magos. Son desconfiadas con los magos y pueden ser peligrosas si se las provoca. En Hogwarts, sus cantos se oyen a veces desde los dormitorios de Ravenclaw. Su existencia está reconocida por el Ministerio, aunque su estatus de «ser» es discutido."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["thestrals", "thestral", "caballos alados", "carruajes de hogwarts", "muerte presenciada", "luna lovegood"],
+    "info": "Los thestrals son caballos alados esqueléticos que solo pueden ver quienes han presenciado la muerte de otra persona y la han aceptado. Son dóciles y muy leales, y tiran de los carruajes de Hogwarts. Harry los vio por primera vez tras presenciar la muerte de Cedric Diggory; Luna ya los veía por la muerte de su madre. Aunque parecen siniestros, son criaturas tranquilas y excelentes voladores, y participaron en la Batalla de Hogwarts."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["basilisco", "rey de las serpientes", "veneno de basilisco", "mirada petrificante", "cámara de los secretos", "colmillo de basilisco"],
+    "info": "El basilisco es una serpiente gigante creada por magia oscura a partir de un huevo de gallina empollado por un sapo. Su mirada mata al instante a quien la recibe directamente y petrifica a quien la ve a través de un reflejo; su veneno es uno de los pocos venenos capaces de destruir horrocruxes. Salazar Slytherin ocultó uno en la Cámara de los Secretos. Harry lo mató con la espada de Gryffindor y el fénix Fawkes le curó la herida con sus lágrimas."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["acromántulas", "acromantulas", "aragog", "arañas gigantes", "aranas gigantes", "bosque prohibido", "colonia de arañas"],
+    "info": "Las acromántulas son arañas gigantes parlantes originarias de Borneo, clasificadas como criaturas XXXXX. Tienen ocho ojos, pinzas y un veneno paralizante; viven en colonias y devoran cualquier presa. Aragog fue criado por Hagrid en Hogwarts y fundó una colonia en el Bosque Prohibido. Aunque respetaba a Hagrid, no dudó en ordenar a sus hijos atacar a Harry y Ron. La colonia participó en la Batalla de Hogwarts, aunque no del lado de los magos."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["duendes", "duende", "griphook", "gobbledegook", "gringotts", "metalurgia mágica", "rebelión de los duendes"],
+    "info": "Los duendes son seres inteligentes y expertos en metalurgia que controlan Gringotts, el banco de los magos. Tienen su propia lengua, el gobbledegook, y consideran que los objetos que fabrican les pertenecen siempre, lo que choca con la ley mágica. No pueden usar varitas y han protagonizado numerosas rebeliones. Griphook ayudó a Harry, Ron y Hermione a entrar en la bóveda de los Lestrange a cambio de la espada de Gryffindor, pero los traicionó. Su relación con los magos está marcada por la desconfianza."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["veela", "veelas", "fleur delacour", "beauxbatons", "allure", "arpías de fuego", "criatura búlgara"],
+    "info": "Las veela son criaturas mágicas de gran belleza que pueden hechizar a los hombres con su allure y, cuando se enfadan, transformarse en arpías de fuego. Son originarias de Bulgaria y forman parte de la selección de Quidditch de ese país. Fleur Delacour es parcialmente veela por parte de su abuela y estudió en Beauxbatons. Su poder de seducción no afecta a las mujeres ni a quienes están protegidos por magia, y su naturaleza ha alimentado muchos prejuicios."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["niffler", "nifflers", "teddy", "criatura de newt", "oro y objetos brillantes", "bolsa abdominal"],
+    "info": "El niffler es un pequeño mamífero mágico con pelaje negro y un hocico largo que detecta el oro y los objetos brillantes. Es dócil pero muy travieso, y guarda sus tesoros en una bolsa abdominal. Los nifflers se usan para buscar oro y fueron parte de las clases de Hagrid; en 1994, un niffler fue soltado en el despacho de Umbridge y destrozó la sala. Newt Scamander viajaba con un niffler escondido en su maleta mágica."
+  },
+  {
+    "categoria": "criaturas",
+    "keywords": ["bowtruckle", "bowtruckles", "pickett", "guardián de árboles", "guardian de arboles", "criatura de newt", "varitas"],
+    "info": "El bowtruckle es un pequeño guardián de árboles con aspecto de ramita y dedos largos. Protege los árboles de varita y puede ser muy feroz si se siente amenazado; se calma con bichos de madera. Newt Scamander tenía varios, entre ellos Pickett, que lo acompañaba en el bolsillo. Son criaturas tímidas y difíciles de ver, clasificadas como XX por el Ministerio."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["merlín", "merlin", "orden de merlín", "orden de merlin", "mago medieval", "slytherin merlín"],
+    "info": "Merlín fue un legendario mago británico de la Edad Media, considerado uno de los magos más poderosos de la historia. Estudió en Hogwarts y perteneció a Slytherin, según la tradición revelada por J.K. Rowling. Su nombre da nombre a la Orden de Merlín, una condecoración que el Ministerio concede por servicios extraordinarios a la comunidad mágica. Su figura aparece en libros de Historia de la Magia, en la cultura popular muggle y en la política mágica, y su nombre se invoca en la expresión «barba de Merlín»."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["godric gryffindor", "godric", "gryffindor", "espada de gryffindor", "fundador de gryffindor", "valentía"],
+    "info": "Godric Gryffindor fue uno de los cuatro fundadores de Hogwarts y el primer dueño de la espada que lleva su nombre. Valoraba el coraje, la osadía y la caballerosidad, y se dice que era un duelista excepcional. Encantó el Sombrero Seleccionador junto a los demás fundadores para que eligiera a los alumnos en su nombre. Su espada, forjada por duendes, está hecha de plata con rubíes y fue usada por Harry y Neville en momentos decisivos."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["salazar slytherin", "salazar", "slytherin", "fundador de slytherin", "lengua pársel", "lengua parsel", "heredero"],
+    "info": "Salazar Slytherin fue uno de los cuatro fundadores de Hogwarts y el más poderoso de los magos de su época en artes oscuras y en la lengua pársel. Desconfiaba de los nacidos de muggles y abandonó la escuela tras discutir con Gryffindor, construyendo la Cámara de los Secretos y ocultando en ella un basilisco. Su heredero, Tom Riddle, abrió la Cámara en 1943. El símbolo de Slytherin es la serpiente y su casa valora la ambición, la astucia y la determinación."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["rowena ravenclaw", "rowena", "ravenclaw", "fundadora de ravenclaw", "diadema de ravenclaw", "dama gris"],
+    "info": "Rowena Ravenclaw fue una de las cuatro fundadoras de Hogwarts y la mente más brillante de su época. Valoraba la inteligencia, el ingenio y el amor por el aprendizaje, y su casa lleva el águila como símbolo. Creó una diadema que otorgaba sabiduría, pero su hija Helena la robó y huyó; Rowena murió sin reconciliarse con ella. Su fantasma, la Dama Gris, vaga por Hogwarts y una estatua suya preside la sala común de Ravenclaw."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["helga hufflepuff", "helga", "hufflepuff", "fundadora de hufflepuff", "copa de hufflepuff", "tejón"],
+    "info": "Helga Hufflepuff fue una de las cuatro fundadoras de Hogwarts y la más hospitalaria y justa de ellas. Aceptaba a alumnos de todas las procedencias y valoraba la lealtad, el trabajo duro y la paciencia; su símbolo es el tejón. Su copa dorada se convirtió en uno de los horrocruxes de Voldemort. Su casa es conocida por su calidez, su cocina y su cercanía a las cocinas del castillo, donde viven los elfos domésticos."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["albus dumbledore", "dumbledore", "director de hogwarts", "orden del fénix", "orden del fenix", "varita de saúco", "1945"],
+    "info": "Albus Percival Wulfric Brian Dumbledore (1881-1997) fue director de Hogwarts y uno de los magos más poderosos de la historia. Derrotó a Gellert Grindelwald en 1945 y obtuvo la Varita de Saúco. Fundó la Orden del Fénix, protegió la Piedra Filosofal y guió a Harry en la lucha contra Voldemort. Planeó su propia muerte con Snape para proteger la varita y el plan de Harry. Fue enterrado en el lago de Hogwarts con su varita."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["voldemort", "lord voldemort", "tom riddle", "tom marvolo riddle", "mortífagos", "mortifagos", "señor tenebroso", "senor tenebroso"],
+    "info": "Lord Voldemort, nacido Tom Marvolo Riddle (1926-1998), fue el mago oscuro más peligroso de la era moderna. Hijo de un muggle y de Merope Gaunt, creció en el orfanato de Wool's y estudió en Slytherin. Creó seis horrocruxes intencionados y uno accidental, desató dos guerras mágicas y dominó temporalmente el Ministerio. Fue derrotado por Harry Potter en la Batalla de Hogwarts, cuando su propia maldición rebotó y su alma quedó destruida."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["newt scamander", "newt", "scamander", "magizoólogo", "magizoologo", "animales fantásticos", "maleta de newt", "hufflepuff newt"],
+    "info": "Newton Artemis Fido Scamander (1897-1990) fue un magizoólogo británico, autor de «Animales fantásticos y dónde encontrarlos» y héroe de la comunidad mágica. Estudió en Hufflepuff y fue expulsado de Hogwarts por un incidente con una criatura, aunque Dumbledore lo defendió. Viajó por el mundo documentando criaturas y vivió en su maleta mágica. Su trabajo influyó en la enseñanza de Cuidado de Criaturas Mágicas y en la percepción de los seres mágicos."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["grindelwald", "gellert grindelwald", "nurmengard", "magia oscura europea", "duelo de 1945", "reliquias de la muerte"],
+    "info": "Gellert Grindelwald fue un mago oscuro centroeuropeo que aterrorizó Europa en los años veinte y treinta. Amigo y colaborador de un joven Albus Dumbledore, compartía con él la idea de dominar a los muggles «para su propio bien». Robó la Varita de Saúco a Gregorovitch y fue derrotado por Dumbledore en 1945. Pasó el resto de su vida en la prisión de Nurmengard, donde Voldemort lo visitó buscando la varita y lo mató."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["severus snape", "snape", "príncipe mestizo", "principe mestizo", "profesor de pociones", "espía doble", "lily evans"],
+    "info": "Severus Snape (1960-1998) fue profesor de Pociones, jefe de Slytherin y espía doble al servicio de Dumbledore. De niño fue amigo de Lily Evans, a quien amó toda su vida; su odio hacia James Potter marcó su relación con Harry. Fingió servir a Voldemort mientras protegía a los alumnos y a la Orden. Murió asesinado por Nagini en la Batalla de Hogwarts, no sin antes entregar a Harry sus recuerdos y revelar la verdad."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["harry potter", "harry", "el niño que sobrevivió", "el nino que sobrevivio", "gryffindor", "buscador de gryffindor", "horrocrux accidental"],
+    "info": "Harry James Potter nació el 31 de julio de 1980, hijo de James y Lily Potter. Sobrevivió a la maldición asesina de Voldemort siendo un bebé y se convirtió en «el niño que sobrevivió». Estudió en Gryffindor, fue buscador de su equipo de Quidditch y protagonizó la lucha contra Voldemort junto a Ron y Hermione. Fue un horrocrux accidental, se sacrificó en el Bosque Prohibido y derrotó a Voldemort en 1998. Es considerado el héroe de la Segunda Guerra Mágica."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["hermione granger", "hermione", "la bruja más brillante", "la bruja mas brillante", "peddo", "s.p.e.w.", "ministra de magia"],
+    "info": "Hermione Jean Granger nació en 1979 en una familia muggle. Fue la alumna más brillante de su generación en Hogwarts, de la casa Gryffindor, y la mente estratégica del trío. Fundó S.P.E.W. para defender a los elfos domésticos y destacó en Pociones, Encantamientos y Runas Antiguas. Acompañó a Harry en la búsqueda de los horrocruxes y destruyó la copa de Hufflepuff. Tras la guerra trabajó en el Ministerio y llegó a ser Ministra de Magia."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["ron weasley", "ron", "weasley", "mejor amigo de harry", "ajedrez mágico", "ajedrez magico", "guardapelo de slytherin"],
+    "info": "Ronald Bilius Weasley nació el 1 de marzo de 1980, el sexto hijo de Arthur y Molly Weasley. Fue el mejor amigo de Harry en Gryffindor, estratega del ajedrez mágico y guardián del equipo de Quidditch. Aunque inseguro por vivir a la sombra de sus hermanos, demostró un valor enorme en la búsqueda de los horrocruxes, donde destruyó el guardapelo de Slytherin. Se casó con Hermione y trabajó con George en Sortilegios Weasley antes de unirse a los Aurores."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["draco malfoy", "draco", "malfoy", "slytherin", "marca tenebrosa", "varita de saúco", "scorpius"],
+    "info": "Draco Lucius Malfoy nació en 1980, hijo de Lucius y Narcissa Malfoy. Estudió en Slytherin y fue rival de Harry desde el primer curso. En su sexto año recibió la marca tenebrosa y la orden de matar a Dumbledore, tarea que no pudo completar. Desarmó a Dumbledore en la Torre de Astronomía, lo que convirtió a Harry en dueño de la Varita de Saúco. Tras la guerra, se casó con Astoria Greengrass y tuvo un hijo, Scorpius."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["sirius black", "sirius", "canuto", "padrino de harry", "azkaban", "animago", "velo del departamento de misterios"],
+    "info": "Sirius Black (1959-1996) fue el padrino de Harry y uno de los Merodeadores, conocido como Canuto. Fue acusado injustamente de la traición de los Potter y pasó doce años en Azkaban antes de escapar en 1993. Como animago, podía transformarse en un gran perro negro. Murió en el Departamento de Misterios durante la batalla contra los Mortífagos, cayendo tras el velo. Su muerte fue uno de los golpes más duros para Harry."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["remus lupin", "lupin", "lunático", "lunatico", "hombre lobo", "profesor de defensa", "teddy lupin"],
+    "info": "Remus John Lupin (1960-1998) fue un licántropo, profesor de Defensa contra las Artes Oscuras en 1993-1994 y uno de los Merodeadores, conocido como Lunático. Fue mordido por Fenrir Greyback en su infancia y sufrió discriminación toda su vida. Enseñó a Harry el Patronus y lo ayudó a sobrevivir a los dementores. Se casó con Nymphadora Tonks y murió en la Batalla de Hogwarts, dejando a su hijo Teddy."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["minerva mcgonagall", "mcgonagall", "profesora de transformaciones", "directora de hogwarts", "animaga", "gato atigrado"],
+    "info": "Minerva McGonagall (n. 1935) fue profesora de Transformaciones, jefa de Gryffindor y directora de Hogwarts tras la muerte de Dumbledore. Es una animaga que se transforma en gato atigrado y una bruja extremadamente estricta pero justa. Fue miembro de la Orden del Fénix y defendió el castillo en la Batalla de Hogwarts. Su varita es de abeto y nervio de corazón de dragón."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["rubeus hagrid", "hagrid", "guardabosques", "medio gigante", "cuidado de criaturas mágicas", "norberto", "aragog"],
+    "info": "Rubeus Hagrid (n. 1928) fue guardián de las llaves y los terrenos de Hogwarts, y profesor de Cuidado de Criaturas Mágicas desde 1993. Era medio gigante, hijo de la giganta Fridwulfa, y fue expulsado de Hogwarts en 1943 acusado falsamente de abrir la Cámara de los Secretos. Dumbledore le dio trabajo y lo nombró profesor. Crio a Norberto, a Aragog y a Buckbeak, y fue un leal aliado de Harry y de la Orden del Fénix."
+  },
+  {
+    "categoria": "personajes",
+    "keywords": ["merodeadores", "los merodeadores", "james potter", "cornamenta", "peter pettigrew", "colagusano", "amistad de los merodeadores"],
+    "info": "Los Merodeadores fueron cuatro amigos de Gryffindor en los años setenta: James Potter (Cornamenta), Sirius Black (Canuto), Remus Lupin (Lunático) y Peter Pettigrew (Colagusano). Crearon el Mapa del Merodeador y aprendieron a convertirse en animagos para acompañar a Lupin en sus transformaciones. Su amistad terminó cuando Pettigrew traicionó a los Potter y provocó su muerte. El mapa y sus apodos siguen siendo parte del legado de Hogwarts."
+  }
+]

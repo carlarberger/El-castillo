@@ -88,6 +88,92 @@ async function uploadImageToR2(base64Image) {
 const AI_CACHE_MAX = 400;
 const AI_TIMEOUT_MS = 12000;
 
+/* ===== CEREBRO DE HOGWARTS: ARCHIVO CANÓNICO (RAG) ===== */
+// Se carga una sola vez al arrancar. Si el archivo falta o está corrupto, el juego
+// sigue funcionando sin contexto adicional en lugar de caerse.
+let LORE = [];
+try {
+  const lorePath = path.join(__dirname, 'lore.json');
+  const rawLore = JSON.parse(fs.readFileSync(lorePath, 'utf8'));
+  if (Array.isArray(rawLore)) {
+    LORE = rawLore.filter(e => e && typeof e.info === 'string' && Array.isArray(e.keywords));
+    console.log(`📚 Cerebro de Hogwarts cargado: ${LORE.length} entradas canónicas.`);
+  }
+} catch (err) {
+  console.error('⚠️ No se pudo cargar lore.json:', err.message);
+}
+
+// Normaliza tildes, mayúsculas y espacios para que «Merlín» y «merlin» coincidan.
+function normalizeLoreText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const LORE_INDEX = LORE.map(entry => ({
+  entry,
+  keywords: entry.keywords.map(normalizeLoreText).filter(Boolean)
+}));
+
+// Devuelve como máximo 3 entradas relevantes para no saturar el prompt de Groq.
+function getCanonContext(message) {
+  const text = normalizeLoreText(message);
+  if (!text || !LORE_INDEX.length) return '';
+
+  const matches = [];
+  for (const item of LORE_INDEX) {
+    let score = 0;
+    for (const keyword of item.keywords) {
+      if (!text.includes(keyword)) continue;
+      // Las frases completas pesan más que una palabra suelta.
+      score += keyword.includes(' ') ? 3 : 1;
+    }
+    if (score > 0) matches.push({ entry: item.entry, score });
+  }
+
+  if (!matches.length) return '';
+  matches.sort((a, b) => b.score - a.score);
+  return matches.slice(0, 3)
+    .map(({ entry }) => `[${entry.categoria}] ${entry.info}`)
+    .join('\n\n');
+}
+
+// Tres entradas aleatorias sin repetir para el generador de eventos canónicos.
+function pickRandomLore(count) {
+  const pool = LORE.slice();
+  const picks = [];
+  while (pool.length && picks.length < count) {
+    picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+  return picks;
+}
+
+function buildCanonPrompt(context) {
+  return `\n\nInformación histórica oficial que DEBES usar: ${context}. Responde basándote en esto.`;
+}
+
+// Respaldo local si no hay GROQ_API_KEY: el aviso sigue siendo canónico y visible.
+function firstLoreSentence(text) {
+  const clean = String(text || '').trim();
+  if (!clean) return '';
+  const parts = clean.split(/\.\s+/);
+  let sentence = parts[0] || clean;
+  if (sentence.length < 40 && parts[1]) sentence += '. ' + parts[1];
+  return sentence.replace(/[.!?]+$/, '');
+}
+
+function buildFallbackCanonEvent(entries) {
+  const first = firstLoreSentence(entries[0]?.info);
+  const second = firstLoreSentence(entries[1]?.info);
+  const tail = second
+    ? ` Los retratos murmuran que algo parecido a esto vuelve a despertar: ${second}.`
+    : ' Los retratos del castillo se niegan a mirar hacia las sombras.';
+  return `Un antiguo eco recorre los pasillos: ${first}.${tail}`;
+}
+
 // Prompts de sistema: personalidad fiel al canon, español y respuestas de máximo 2 frases.
 const NPC_PERSONAS = {
   'harry potter': `Eres Harry Potter, el chico que sobrevivió, alumno de Gryffindor en Hogwarts. Eres valiente, leal y modesto, algo impulsivo cuando algo es injusto; desconfías de Draco Malfoy y de Slytherin, y aprecias a Ron, Hermione y a Dumbledore. Te encanta el Quidditch y odias las artes oscuras. Habla SIEMPRE en español, con un tono cercano y adolescente, en máximo 2 frases breves. Nunca rompas el canon de Harry Potter, nunca digas que eres una IA ni menciones el mundo real; si te preguntan algo ajeno al mundo mágico, responde con naturalidad dentro del personaje.`,
@@ -121,7 +207,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 // ⬅️ AÑADIDO: bloquear archivos sensibles ANTES del static
 const BLOCKED_PATHS = new Set([
   '/db.json', '/server.js', '/package.json',
-  '/package-lock.json', '/.env', '/.gitignore', '/.env.local'
+  '/package-lock.json', '/.env', '/.gitignore', '/.env.local', '/lore.json'
 ]);
 app.use((req, res, next) => {
   if (BLOCKED_PATHS.has(req.path)) return res.status(403).send('Forbidden');
@@ -501,7 +587,9 @@ io.on('connection', async (socket) => {
       socket.lastAi = now;
 
       const personaKey = npcPersonaKey(npcId, data && data.npcName);
-      const systemPrompt = personaKey ? NPC_PERSONAS[personaKey] : NPC_PERSONAS['harry potter'];
+      const basePrompt = personaKey ? NPC_PERSONAS[personaKey] : NPC_PERSONAS['harry potter'];
+      const canonContext = getCanonContext(message);
+      const systemPrompt = canonContext ? basePrompt + buildCanonPrompt(canonContext) : basePrompt;
       const npcName = String((data && data.npcName) || (personaKey ? personaKey.replace(/\b\w/g, c => c.toUpperCase()) : 'Alumno'));
       const petName = data && data.petName ? String(data.petName).slice(0, 40) : '';
       const petPrompt = petName
@@ -573,6 +661,94 @@ io.on('connection', async (socket) => {
         socket.emit('npc_reply', {
           npcId, npcName, error: true,
           message: `${npcName} no puede responderte ahora mismo. La IA del castillo está indispuesta; prueba de nuevo en unos segundos.`
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+
+    // ⬅️ NUEVO: eventos canónicos generados a partir de 3 entradas del lore.json
+    socket.on('generate_canon_event', async () => {
+      const now = Date.now();
+      const wait = 20000 - (now - (socket.lastCanonEvent || 0));
+      if (wait > 0) {
+        socket.emit('canon_event_generated', {
+          error: true,
+          message: `El archivo histórico necesita ${Math.ceil(wait / 1000)} s antes de revelar otro presagio.`
+        });
+        return;
+      }
+
+      if (!LORE.length) {
+        socket.emit('canon_event_generated', {
+          error: true,
+          message: 'El archivo histórico del castillo está vacío o no se pudo cargar.'
+        });
+        return;
+      }
+
+      socket.lastCanonEvent = now;
+      const picks = pickRandomLore(3);
+      const loreText = picks.map(e => `- [${e.categoria}] ${e.info}`).join('\n');
+      const prompt = `Eres el Director de Hogwarts. Basándote estrictamente en estos datos históricos: ${loreText}, genera un evento corto y misterioso que esté ocurriendo ahora mismo en el castillo. Máximo 2 frases.`;
+
+      const payloadBase = {
+        entries: picks.map(e => ({ categoria: e.categoria, info: e.info })),
+        at: new Date().toISOString()
+      };
+
+      if (!AI_ENABLED) {
+        io.emit('canon_event_generated', {
+          ...payloadBase,
+          text: buildFallbackCanonEvent(picks),
+          fallback: true
+        });
+        return;
+      }
+
+      const aiBody = {
+        model: AI_MODEL,
+        max_tokens: 140,
+        temperature: 0.9,
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: 'Anuncia el presagio en dos frases como máximo.' }
+        ]
+      };
+      if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+      try {
+        const res = await fetch(AI_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${AI_KEY}`
+          },
+          body: JSON.stringify(aiBody),
+          signal: controller.signal
+        });
+
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          console.error(`Groq respondió ${res.status} al generar evento canónico: ${detail.slice(0, 200)}`);
+          throw new Error(`Groq HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+        let text = String(json?.choices?.[0]?.message?.content || '').trim();
+        text = text.replace(/^["“']|["”']$/g, '').trim();
+        if (!text) throw new Error('Respuesta vacía de Groq');
+
+        io.emit('canon_event_generated', { ...payloadBase, text, fallback: false });
+      } catch (err) {
+        console.error('Error generando evento canónico:', err.message);
+        // Si Groq falla, el castillo igual recibe un presagio construido con el canon local.
+        io.emit('canon_event_generated', {
+          ...payloadBase,
+          text: buildFallbackCanonEvent(picks),
+          fallback: true
         });
       } finally {
         clearTimeout(timer);
