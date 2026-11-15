@@ -2656,10 +2656,10 @@ function openBackpackModal() {
   openModal(html, true);
 }
 
-function cromoDataUrl(b64){
-  if(!b64) return '';
-  if(String(b64).startsWith('data:')) return String(b64);
-  const t=String(b64);
+function cromoImageUrl(val){
+  if(!val) return '';
+  const t=String(val);
+  if(t.startsWith('http://')||t.startsWith('https://')||t.startsWith('data:')) return t;
   let mime='image/png';
   if(t.startsWith('/9j/')) mime='image/jpeg';
   else if(t.startsWith('iVBOR')) mime='image/png';
@@ -2705,7 +2705,7 @@ function openAlbumModal() {
       <p class="muted" style="font-size:12px">${c.desc}</p>
       ${cant > 0 ? `<span class="pill good">En tu álbum (x${cant})</span>` : '<span class="pill off">No obtenido</span>'}
       ${cant > 0 ? `<button class="btn sm gold" data-do="generateCromo" data-id="${c.id}" data-name="${c.nombre}">🪄 Generar Retrato IA</button>` : ''}
-      ${_img ? `<img src="${cromoDataUrl(_img)}" alt="${c.nombre}" style="width:100%;border-radius:8px;margin-top:6px">` : (cant>0?`<div id="cromo-img-${c.id}"></div>`:'')}
+      ${_img ? `<img src="${cromoImageUrl(_img)}" alt="${c.nombre}" style="width:100%;border-radius:8px;margin-top:6px">` : (cant>0?`<div id="cromo-img-${c.id}"></div>`:'')}
       ${cant > 1 ? `<button class="btn sm gold" data-do="tradeCromo" data-id="${c.id}">Canjear (+${VALOR_CANJE_CROMO[c.rareza]} 🪙)</button>` : ''}
     </div>`;
   });
@@ -3578,7 +3578,7 @@ socket.on('cromo_image',(data)=>{
   else if(prev&&typeof prev==='object') prev.image=img;
   else u.cromos[data.cromoId]={count:1,image:img};
   commit('Retrato IA generado');
-  const src=cromoDataUrl(img);
+  const src=cromoImageUrl(img);
   const container=document.getElementById('cromo-img-'+data.cromoId);
   if(container) container.innerHTML=`<img src="${src}" alt="" style="width:100%;border-radius:8px;margin-top:6px">`;
   const btn=document.querySelector(`[data-do="generateCromo"][data-id="${data.cromoId}"]`);

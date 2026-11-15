@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 const { MongoClient, ServerApiVersion } = require('mongodb');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 /* ===== IA GENERATIVA DE NPCs (GROQ) ===== */
 const AI_KEY = process.env.GROQ_API_KEY || '';
@@ -54,6 +55,35 @@ async function generateImageWithAI(prompt) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+/* ===== CLOUDFLARE R2 (almacenamiento de imágenes de cromos) ===== */
+const R2_ENABLED = !!(process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY && process.env.R2_ENDPOINT && process.env.R2_BUCKET_NAME && process.env.R2_PUBLIC_URL);
+const s3Client = R2_ENABLED ? new S3Client({
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+  }
+}) : null;
+
+async function uploadImageToR2(base64Image) {
+  if (!R2_ENABLED || !s3Client) {
+    throw new Error('Cloudflare R2 no está configurado (faltan variables de entorno).');
+  }
+  // Limpiar prefijo data: si existe
+  const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const buffer = Buffer.from(cleanBase64, 'base64');
+  const fileName = `cromo-${Date.now()}.jpg`;
+  const command = new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME,
+    Key: fileName,
+    Body: buffer,
+    ContentType: 'image/jpeg'
+  });
+  await s3Client.send(command);
+  return `${process.env.R2_PUBLIC_URL}/${fileName}`;
 }
 const AI_CACHE_MAX = 400;
 const AI_TIMEOUT_MS = 12000;
@@ -128,7 +158,8 @@ app.post('/api/generate-cromo', async (req, res) => {
     const style = String((req.body && req.body.style) || 'retrato de fantasía, estilo cartoon').trim().slice(0, 200);
     if (!cromoName) return res.status(400).json({ ok: false, error: 'Falta el nombre del cromo.' });
     const prompt = `${cromoName}, ${style}, cromo de rana de chocolate Harry Potter, portrait`;
-    const image = await generateImageWithAI(prompt);
+    const base64Image = await generateImageWithAI(prompt);
+    const image = await uploadImageToR2(base64Image);
     res.json({ ok: true, image });
   } catch (err) {
     console.error('Error generando cromo (HTTP):', err.message);
@@ -555,8 +586,9 @@ io.on('connection', async (socket) => {
       }
       const prompt = `${cromoName}, ${style}, cromo de rana de chocolate Harry Potter, portrait`;
       try {
-        const image = await generateImageWithAI(prompt);
-        socket.emit('cromo_image', { cromoId, image });
+        const base64Image = await generateImageWithAI(prompt);
+        const imageUrl = await uploadImageToR2(base64Image);
+        socket.emit('cromo_image', { cromoId, image: imageUrl });
       } catch (err) {
         console.error('Error generando cromo:', err.message);
         const msg = /no está configurado|no configurado/i.test(err.message)
