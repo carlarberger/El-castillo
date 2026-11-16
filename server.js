@@ -418,6 +418,23 @@ function pickFallbackSandwich(npcName, phrase) {
   };
 }
 
+// Respaldo local de chismes si Groq no está disponible: rumores canónicos y
+// divertidos que no dependen del modelo.
+const FALLBACK_GOSSIP = [
+  'Draco Malfoy fue visto comprando un cargamento entero de dulces en Honeydukes… y luego fingió que era para su padre.',
+  'A Ron Weasley se le escapó su rata Scabbers por los pasillos y la estuvo persiguiendo toda la tarde.',
+  'Luna Lovegood asegura haber visto a un Crumple-Horned Snorkack cerca del lago. Nadie más lo ha visto.',
+  'Se rumorea que los gemelos Weasley preparan una nueva broma contra Filch en el tercer piso.',
+  'Neville Longbottom habló tan bajo en Pociones que Snape ni se dio cuenta de que había respondido bien.',
+  'Un alumno juró que la escalera del ala este cambió de sentido justo cuando bajaba corriendo.',
+  'Cho Chang fue vista entrenando a solas en el campo de Quidditch hasta el anochecer.',
+  'Se dice que Peeves escondió las cartas de un profesor en la Torre de Astronomía.'
+];
+
+function pickFallbackGossip() {
+  return FALLBACK_GOSSIP[Math.floor(Math.random() * FALLBACK_GOSSIP.length)];
+}
+
 app.post('/api/class-trivia', async (req, res) => {
   const subjectKey = String((req.body && req.body.subjectKey) || 'encantamientos').trim().toLowerCase();
   const subjectName = String((req.body && req.body.subjectName) || 'Encantamientos').trim().slice(0, 80);
@@ -530,6 +547,57 @@ app.post('/api/sandwich', async (req, res) => {
   }
 });
 
+// Chismes y rumores: pide a Groq un rumor corto y divertido sobre otro alumno.
+app.post('/api/gossip', async (req, res) => {
+  const year = clampSchoolYear(req.body && req.body.year);
+  const rawNames = Array.isArray(req.body && req.body.names) ? req.body.names : [];
+  const names = rawNames.map(n => String(n || '').trim().slice(0, 40)).filter(Boolean).slice(0, 12);
+
+  if (!AI_ENABLED) {
+    return res.json({ ok: true, rumor: pickFallbackGossip(), fallback: true });
+  }
+
+  const roster = names.length ? names.join(', ') : 'alumnos del castillo';
+  const systemPrompt = `Eres un alumno chismoso del castillo de Hogwarts. Cuenta un rumor corto, divertido y cariñoso (nunca cruel ni ofensivo) sobre OTRO alumno. Debe estar ambientado en el canon de Harry Potter, en español, en una sola frase de máximo 25 palabras. Elige a UN alumno de esta lista si puedes: ${roster}. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"rumor":"..."}. Están en el Año ${year}.`;
+
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: 120,
+    temperature: 0.9,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: 'Cuéntame el chisme de hoy. Devuelve el JSON.' }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const firstBrace = raw.indexOf('{'), lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) raw = raw.slice(firstBrace, lastBrace + 1);
+    const parsed = JSON.parse(raw);
+    const rumor = String(parsed.rumor || parsed.chisme || parsed.texto || '').trim().slice(0, 240);
+    if (!rumor) throw new Error('JSON de chisme incompleto');
+    return res.json({ ok: true, rumor, fallback: false });
+  } catch (err) {
+    console.error('Error generando chisme (usando respaldo local):', err.message);
+    return res.json({ ok: true, rumor: pickFallbackGossip(), fallback: true });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err && (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || (err.message && err.message.includes('buffering timed out')))) {
     console.warn('[AI Studio] Database offline — returning mock empty response');
@@ -575,6 +643,8 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
   classStars: {}, lastClassDate: null, classStreak: 0, badges: [],
   patronus: null, patronusImage: null, animagusImage: null,
+  // Cumpleaños del personaje (1-12 mes, 1-31 día) y año del último saludo.
+  birthDay: null, birthMonth: null, lastBirthdayYear: null,
   gender: FEMALES.includes(username) ? 'f' : 'm',
   romancePref: 'todos',
   quidditch_approved: false,
@@ -673,6 +743,10 @@ function defaultDb() {
     matches: [],
     cooldowns: {},
     missions: {},
+    // Correo por lechuza entre jugadores: { id, from, to, message, gift, read, claimed, at }
+    letters: [],
+    // Ofertas de intercambio de cromos: { id, from, to, giveCromoId, wantCromoId, status, at }
+    tradeOffers: [],
     // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
     spiritCache: {}
   };
@@ -760,6 +834,128 @@ function mergeFriendRequests(serverList, incomingList, doneList, users) {
   return sanitizeFriendRequests({ users: users || [], friendRequestsDone: doneList }, [...map.values()]);
 }
 
+/* ===== CORREO POR LECHUZA (cartas y regalos offline) ===== */
+const LETTER_MAX = 200;
+const LETTER_GIFT_GALEONES_MAX = 100;
+
+function sanitizeLetterGift(gift) {
+  if (!gift || typeof gift !== 'object') return null;
+  const type = String(gift.type || '');
+  if (type === 'galeones') {
+    const amount = Math.max(1, Math.min(LETTER_GIFT_GALEONES_MAX, Math.floor(Number(gift.amount) || 10)));
+    return { type: 'galeones', amount };
+  }
+  if (type === 'cromo') {
+    const cromoId = String(gift.cromoId || '').trim().slice(0, 40);
+    return cromoId ? { type: 'cromo', cromoId } : null;
+  }
+  return null;
+}
+
+function sanitizeLetter(r, users) {
+  if (!r || r.from == null || r.to == null) return null;
+  const from = Number(r.from);
+  const to = Number(r.to);
+  if (!from || !to) return null;
+  if (users && users.length && (!users.some(u => u.id === from) || !users.some(u => u.id === to))) return null;
+  return {
+    id: String(r.id || `ltr_${from}_${to}_${Date.now()}`),
+    from,
+    to,
+    message: String(r.message || '').slice(0, 400),
+    gift: sanitizeLetterGift(r.gift),
+    read: !!r.read,
+    claimed: !!r.claimed,
+    at: Number(r.at) || Date.now()
+  };
+}
+
+function sanitizeLetters(state, list) {
+  if (!Array.isArray(list)) return [];
+  const users = (state && Array.isArray(state.users)) ? state.users : [];
+  const seen = new Set();
+  const out = [];
+  list.forEach(r => {
+    const l = sanitizeLetter(r, users);
+    if (!l || seen.has(l.id)) return;
+    seen.add(l.id);
+    out.push(l);
+  });
+  return out.slice(-LETTER_MAX);
+}
+
+// Fusiona cartas del servidor y del cliente. Los flags read/claimed son
+// monotónicos: una carta leída o con regalo ya reclamado nunca vuelve atrás.
+function mergeLetters(serverList, incomingList, users) {
+  const map = new Map();
+  (serverList || []).forEach(r => { const l = sanitizeLetter(r, users); if (l) map.set(l.id, l); });
+  (incomingList || []).forEach(r => {
+    const l = sanitizeLetter(r, users);
+    if (!l) return;
+    const prev = map.get(l.id);
+    if (prev) map.set(l.id, { ...prev, read: prev.read || l.read, claimed: prev.claimed || l.claimed });
+    else map.set(l.id, l);
+  });
+  return sanitizeLetters({ users }, [...map.values()]);
+}
+
+/* ===== MERCADO DE INTERCAMBIO DE CROMOS ===== */
+const TRADE_MAX = 200;
+const TRADE_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled'];
+const isTradeTerminal = s => s === 'accepted' || s === 'rejected' || s === 'cancelled';
+
+function sanitizeTradeOffer(r, users) {
+  if (!r || r.from == null || r.to == null) return null;
+  const from = Number(r.from);
+  const to = Number(r.to);
+  if (!from || !to || from === to) return null;
+  if (users && users.length && (!users.some(u => u.id === from) || !users.some(u => u.id === to))) return null;
+  const giveCromoId = String(r.giveCromoId || '').trim().slice(0, 40);
+  const wantCromoId = String(r.wantCromoId || '').trim().slice(0, 40);
+  if (!giveCromoId || !wantCromoId) return null;
+  let status = String(r.status || 'pending');
+  if (!TRADE_STATUSES.includes(status)) status = 'pending';
+  return {
+    id: String(r.id || `trade_${from}_${to}_${Date.now()}`),
+    from,
+    to,
+    giveCromoId,
+    wantCromoId,
+    status,
+    at: Number(r.at) || Date.now()
+  };
+}
+
+function sanitizeTradeOffers(state, list) {
+  if (!Array.isArray(list)) return [];
+  const users = (state && Array.isArray(state.users)) ? state.users : [];
+  const seen = new Set();
+  const out = [];
+  list.forEach(r => {
+    const o = sanitizeTradeOffer(r, users);
+    if (!o || seen.has(o.id)) return;
+    seen.add(o.id);
+    out.push(o);
+  });
+  return out.slice(-TRADE_MAX);
+}
+
+// Un estado terminal (aceptada/rechazada/cancelada) nunca vuelve a 'pendiente'.
+function mergeTradeOffers(serverList, incomingList, users) {
+  const map = new Map();
+  (serverList || []).forEach(r => { const o = sanitizeTradeOffer(r, users); if (o) map.set(o.id, o); });
+  (incomingList || []).forEach(r => {
+    const o = sanitizeTradeOffer(r, users);
+    if (!o) return;
+    const prev = map.get(o.id);
+    if (prev) {
+      const status = (!isTradeTerminal(prev.status) && isTradeTerminal(o.status)) ? o.status : prev.status;
+      map.set(o.id, { ...prev, status });
+    } else map.set(o.id, o);
+  });
+  return sanitizeTradeOffers({ users }, [...map.values()]);
+}
+
 /* ===== MIGRACIÓN DE RELACIONES (amistad / romance) ===== */
 // Las relaciones antiguas solo guardaban `score`. Se migran al esquema nuevo:
 //   friendshipScore -> afinidad de amistad (hereda el score antiguo)
@@ -837,6 +1033,12 @@ function sanitizeState(state) {
     if (u.patronus !== null && !PATRONUS_IDS.includes(u.patronus)) u.patronus = null;
     if (typeof u.patronusImage !== 'string') u.patronusImage = null;
     if (typeof u.animagusImage !== 'string') u.animagusImage = null;
+    // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
+    const bm = Math.floor(Number(u.birthMonth));
+    const bd = Math.floor(Number(u.birthDay));
+    u.birthMonth = (bm >= 1 && bm <= 12) ? bm : null;
+    u.birthDay = (bd >= 1 && bd <= 31 && u.birthMonth !== null) ? bd : null;
+    if (u.lastBirthdayYear !== null && !Number.isFinite(Number(u.lastBirthdayYear))) u.lastBirthdayYear = null;
     if (!GENDER_IDS.includes(u.gender)) u.gender = FEMALES.includes(u.username) ? 'f' : 'm';
     if (!ROMANCE_PREF_IDS.includes(u.romancePref)) u.romancePref = 'todos';
 
@@ -880,6 +1082,9 @@ function sanitizeState(state) {
   state.friendRequestsDone = state.friendRequestsDone.map(id => String(id)).slice(-200);
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
+  // Correo por lechuza y mercado de cromos: arrays saneados y limitados.
+  state.letters = sanitizeLetters(state, state.letters);
+  state.tradeOffers = sanitizeTradeOffers(state, state.tradeOffers);
   // Caché global de imágenes: descarta entradas corruptas y limita su tamaño.
   if (!state.spiritCache || typeof state.spiritCache !== 'object' || Array.isArray(state.spiritCache)) {
     state.spiritCache = {};
@@ -937,6 +1142,62 @@ async function saveState(newState) {
   await collection.updateOne({ _id: 'global' }, { $set: stateToSave }, { upsert: true });
 }
 
+/* ===== CUMPLEAÑOS Y REGALOS ===== */
+// Ids válidos de cromo (deben coincidir con CROMOS_MAGOS del cliente).
+const CROMO_IDS = ['dumbledore', 'merlin', 'rowena', 'godric', 'helga', 'salazar', 'newt', 'morgana', 'flamel'];
+const BIRTHDAY_GALEONES = 15;
+
+function isBirthdayToday(u, now = new Date()) {
+  if (!u || !u.birthMonth || !u.birthDay) return false;
+  return (now.getMonth() + 1) === Number(u.birthMonth) && now.getDate() === Number(u.birthDay);
+}
+
+// Amigos NPC con afinidad alta (>50 y sin rivalidad) que felicitan al jugador.
+function npcBirthdayFriends(state, uid) {
+  const rels = state.relations || {};
+  const out = [];
+  state.users.forEach(npc => {
+    if (!npc.is_npc || npc.id === uid) return;
+    const [a, b] = [Math.min(uid, npc.id), Math.max(uid, npc.id)];
+    const rel = rels[`${a}_${b}`];
+    if (!rel || rel.rival) return;
+    if ((Number(rel.friendshipScore) || 0) > 50) out.push(npc);
+  });
+  return out;
+}
+
+// Genera (una sola vez por año) el saludo de cumpleaños y las cartas de los
+// amigos NPC. Devuelve un resumen para el cliente o null si hoy no toca.
+function grantBirthdayIfDue(state, uid, now = new Date()) {
+  const u = state.users.find(x => x.id === uid);
+  if (!u || !isBirthdayToday(u, now)) return null;
+  const year = now.getFullYear();
+  if (Number(u.lastBirthdayYear) === year) return null;
+
+  u.lastBirthdayYear = year;
+  u.galeones = (Number(u.galeones) || 0) + BIRTHDAY_GALEONES;
+
+  const friends = npcBirthdayFriends(state, uid);
+  state.letters = Array.isArray(state.letters) ? state.letters : [];
+  const existing = new Set(state.letters.map(l => l.id));
+  const fromNames = [];
+  friends.forEach((npc, i) => {
+    const id = `bday_${uid}_${year}_${npc.id}`;
+    if (existing.has(id)) return;
+    const wantsCromo = i % 2 === 1;
+    const gift = wantsCromo
+      ? { type: 'cromo', cromoId: CROMO_IDS[Math.floor(Math.random() * CROMO_IDS.length)] }
+      : { type: 'galeones', amount: 10 };
+    state.letters.push({
+      id, from: npc.id, to: uid,
+      message: `¡Feliz cumpleaños! Espero que pases un día mágico. Te mando un pequeño regalo. — ${npc.username}`,
+      gift, read: false, claimed: false, at: Date.now()
+    });
+    fromNames.push(npc.username);
+  });
+  return { galeones: BIRTHDAY_GALEONES, friends: fromNames };
+}
+
 io.on('connection', async (socket) => {
   try {
     const currentState = await loadState();
@@ -976,6 +1237,21 @@ io.on('connection', async (socket) => {
         );
         data.db.friendRequestsDone = (memoryState && memoryState.friendRequestsDone) || [];
 
+        // Cartas y ofertas de intercambio también se funden: el servidor es la
+        // fuente de verdad y los estados terminales (leído/reclamado/aceptado)
+        // nunca retroceden por culpa de un cliente con datos obsoletos.
+        const liveUsers = Array.isArray(data.db.users) ? data.db.users : ((memoryState && memoryState.users) || []);
+        data.db.letters = mergeLetters(
+          (memoryState && memoryState.letters) || [],
+          Array.isArray(data.db.letters) ? data.db.letters : [],
+          liveUsers
+        );
+        data.db.tradeOffers = mergeTradeOffers(
+          (memoryState && memoryState.tradeOffers) || [],
+          Array.isArray(data.db.tradeOffers) ? data.db.tradeOffers : [],
+          liveUsers
+        );
+
         await saveState(data.db);
 
         socket.broadcast.emit('sync_db', {
@@ -986,7 +1262,7 @@ io.on('connection', async (socket) => {
     });
 
     // ⬅️ MÓDULO SOCIAL: identidad del socket (sala privada por jugador)
-    socket.on('identify', (data) => {
+    socket.on('identify', async (data) => {
       const uid = Number(data && data.userId);
       // Sale de las salas anteriores antes de entrar en la nueva.
       for (const room of Array.from(socket.rooms)) {
@@ -995,6 +1271,18 @@ io.on('connection', async (socket) => {
       if (!uid) return;
       socket.data.userId = uid;
       socket.join('user:' + uid);
+
+      // Al identificarse el jugador se comprueba si hoy es su cumpleaños.
+      try {
+        const res = grantBirthdayIfDue(memoryState, uid);
+        if (res) {
+          await saveState(memoryState);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          io.to('user:' + uid).emit('birthday_greeting', res);
+        }
+      } catch (err) {
+        console.error('Error procesando el cumpleaños:', err.message);
+      }
     });
 
     // ⬅️ MÓDULO SOCIAL: nueva solicitud de amistad (notificación en tiempo real)
@@ -1069,6 +1357,207 @@ io.on('connection', async (socket) => {
         if (from) io.to('user:' + from).emit('friend_request_result', payload);
       } catch (err) {
         console.error('Error notificando la respuesta de amistad:', err.message);
+      }
+    });
+
+    // ⬅️ CORREO POR LECHUZA: se envía una carta (con regalo opcional).
+    // El servidor descuenta el regalo del remitente de forma atómica: así el
+    // saldo no se puede duplicar ni el regalo enviarse dos veces.
+    socket.on('send_letter', async (data) => {
+      try {
+        const from = Number(data && data.from);
+        const to = Number(data && data.to);
+        if (!from || !to || from === to) return;
+        const state = memoryState;
+        const sender = state.users.find(u => u.id === from);
+        const target = state.users.find(u => u.id === to);
+        if (!sender || !target) return;
+
+        const message = String((data && data.message) || '').slice(0, 400);
+        let gift = sanitizeLetterGift(data && data.gift);
+        if (!message && !gift) return;
+
+        // Valida y descuenta el regalo antes de adjuntarlo a la carta.
+        if (gift) {
+          if (gift.type === 'galeones') {
+            const amount = Math.max(1, Math.min(LETTER_GIFT_GALEONES_MAX, gift.amount));
+            if ((Number(sender.galeones) || 0) < amount) {
+              socket.emit('letter_error', { message: 'No tienes suficientes Galeones para ese regalo.' });
+              return;
+            }
+            sender.galeones = (Number(sender.galeones) || 0) - amount;
+            gift = { type: 'galeones', amount };
+          } else if (gift.type === 'cromo') {
+            const entry = (sender.cromos || {})[gift.cromoId];
+            const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
+            if (count < 1) {
+              socket.emit('letter_error', { message: 'No tienes ese cromo para regalar.' });
+              return;
+            }
+            if (count <= 1) delete sender.cromos[gift.cromoId];
+            else sender.cromos[gift.cromoId] = { count: count - 1, image: (entry && entry.image) || undefined };
+            gift = { type: 'cromo', cromoId: gift.cromoId };
+          }
+        }
+
+        state.letters = Array.isArray(state.letters) ? state.letters : [];
+        const letter = {
+          id: `ltr_${from}_${to}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          from, to, message, gift, read: false, claimed: false, at: Date.now()
+        };
+        state.letters.push(letter);
+        state.letters = sanitizeLetters(state, state.letters);
+
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.to('user:' + to).emit('new_letter', {
+          id: letter.id, from, fromName: sender.username, hasGift: !!gift, message
+        });
+        socket.emit('letter_sent', { to, toName: target.username });
+      } catch (err) {
+        console.error('Error enviando lechuza:', err.message);
+      }
+    });
+
+    // ⬅️ CORREO POR LECHUZA: el destinatario reclama el regalo de una carta.
+    // El cromo/monedas se conceden en el servidor para evitar duplicados.
+    socket.on('claim_letter', async (data) => {
+      try {
+        const uid = Number(data && data.userId);
+        const letterId = String((data && data.letterId) || '');
+        if (!uid || !letterId) return;
+        const state = memoryState;
+        const user = state.users.find(u => u.id === uid);
+        const letter = (state.letters || []).find(l => String(l.id) === letterId);
+        if (!user || !letter || Number(letter.to) !== uid) return;
+
+        let granted = null;
+        if (letter.gift && !letter.claimed) {
+          if (letter.gift.type === 'galeones') {
+            user.galeones = (Number(user.galeones) || 0) + letter.gift.amount;
+            granted = { type: 'galeones', amount: letter.gift.amount };
+          } else if (letter.gift.type === 'cromo') {
+            user.cromos = user.cromos || {};
+            const entry = user.cromos[letter.gift.cromoId];
+            const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
+            user.cromos[letter.gift.cromoId] = { count: count + 1, image: (entry && entry.image) || undefined };
+            granted = { type: 'cromo', cromoId: letter.gift.cromoId };
+          }
+          letter.claimed = true;
+        }
+        letter.read = true;
+
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('letter_claimed', { letterId, granted });
+      } catch (err) {
+        console.error('Error reclamando el regalo:', err.message);
+      }
+    });
+
+    // ⬅️ MERCADO DE CROMOS: nueva oferta de intercambio entre jugadores reales.
+    socket.on('send_trade_offer', async (data) => {
+      try {
+        const from = Number(data && data.from);
+        const to = Number(data && data.to);
+        if (!from || !to || from === to) return;
+        const state = memoryState;
+        const sender = state.users.find(u => u.id === from);
+        const target = state.users.find(u => u.id === to);
+        if (!sender || !target || target.is_npc) return;
+
+        const offer = sanitizeTradeOffer({
+          id: `trade_${from}_${to}_${Date.now()}`,
+          from, to,
+          giveCromoId: data && data.giveCromoId,
+          wantCromoId: data && data.wantCromoId,
+          status: 'pending'
+        }, state.users);
+        if (!offer) return;
+
+        state.tradeOffers = Array.isArray(state.tradeOffers) ? state.tradeOffers : [];
+        // No se admiten dos ofertas pendientes idénticas.
+        const dup = state.tradeOffers.find(o =>
+          o.status === 'pending' && Number(o.from) === from && Number(o.to) === to &&
+          o.giveCromoId === offer.giveCromoId && o.wantCromoId === offer.wantCromoId);
+        if (dup) { socket.emit('trade_error', { message: 'Ya enviaste esa oferta.' }); return; }
+
+        state.tradeOffers.push(offer);
+        state.tradeOffers = sanitizeTradeOffers(state, state.tradeOffers);
+
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.to('user:' + to).emit('new_trade_offer', {
+          id: offer.id, from, fromName: sender.username,
+          giveCromoId: offer.giveCromoId, wantCromoId: offer.wantCromoId
+        });
+        socket.emit('trade_offer_sent', { to, toName: target.username });
+      } catch (err) {
+        console.error('Error enviando la oferta de intercambio:', err.message);
+      }
+    });
+
+    // ⬅️ MERCADO DE CROMOS: aceptar o rechazar una oferta. El intercambio real
+    // de cromos se ejecuta aquí, en el servidor, para que ambos inventarios
+    // queden siempre consistentes.
+    socket.on('trade_response', async (data) => {
+      try {
+        const uid = Number(data && data.userId);
+        const offerId = String((data && data.offerId) || '');
+        const accept = !!(data && data.accept);
+        if (!uid || !offerId) return;
+        const state = memoryState;
+        const offer = (state.tradeOffers || []).find(o => String(o.id) === offerId);
+        if (!offer || offer.status !== 'pending' || Number(offer.to) !== uid) return;
+
+        if (!accept) {
+          offer.status = 'rejected';
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          io.to('user:' + Number(offer.from)).emit('trade_result', { offerId, accepted: false, byId: uid });
+          return;
+        }
+
+        const giver = state.users.find(u => u.id === Number(offer.from));
+        const taker = state.users.find(u => u.id === Number(offer.to));
+        if (!giver || !taker) return;
+        const countOf = (usr, id) => {
+          const e = (usr.cromos || {})[id];
+          return (typeof e === 'number') ? e : ((e && e.count) || 0);
+        };
+        const imgOf = (usr, id) => {
+          const e = (usr.cromos || {})[id];
+          return (e && typeof e === 'object') ? e.image : undefined;
+        };
+        // El oferente debe tener el cromo prometido; el receptor, el pedido.
+        if (countOf(giver, offer.giveCromoId) < 1 || countOf(taker, offer.wantCromoId) < 1) {
+          offer.status = 'cancelled';
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          socket.emit('trade_error', { message: 'Ya no tenéis los cromos acordados.' });
+          return;
+        }
+        const transfer = (fromUser, toUser, cromoId) => {
+          const count = countOf(fromUser, cromoId);
+          const img = imgOf(fromUser, cromoId);
+          if (count <= 1) delete fromUser.cromos[cromoId];
+          else fromUser.cromos[cromoId] = { count: count - 1, image: img };
+          toUser.cromos = toUser.cromos || {};
+          const tc = countOf(toUser, cromoId);
+          toUser.cromos[cromoId] = { count: tc + 1, image: imgOf(toUser, cromoId) || img };
+        };
+        giver.cromos = giver.cromos || {};
+        taker.cromos = taker.cromos || {};
+        transfer(giver, taker, offer.giveCromoId);
+        transfer(taker, giver, offer.wantCromoId);
+        offer.status = 'accepted';
+
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.to('user:' + Number(offer.from)).emit('trade_result', { offerId, accepted: true, byId: uid, byName: taker.username });
+        io.to('user:' + uid).emit('trade_result', { offerId, accepted: true, byId: Number(offer.from), byName: giver.username });
+      } catch (err) {
+        console.error('Error respondiendo a la oferta de intercambio:', err.message);
       }
     });
 
