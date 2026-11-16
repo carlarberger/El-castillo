@@ -262,6 +262,22 @@ th{color:var(--gold)}
 .patronus-spell{font-family:var(--display);font-weight:900;font-size:clamp(24px,6vw,42px);letter-spacing:.14em;color:#dbe4ff;text-shadow:0 0 10px #e0e7ff,0 0 28px #60a5fa,0 0 54px #3b82f6;animation:patronusPulse 2.6s ease-in-out infinite;z-index:2}
 @keyframes patronusPulse{0%,100%{opacity:.86}50%{opacity:1}}
 .patronus-sub{color:#b9c4f2;font-size:13px;z-index:2}
+.spirit-img{max-width:300px;width:100%;border-radius:14px;border:1px solid #60a5fa;box-shadow:0 0 30px #60a5fa,0 0 70px rgba(96,165,250,.55);z-index:2;animation:spiritFade .6s ease}
+@keyframes spiritFade{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.spirit-status{font-size:14px;color:#dbe4ff;letter-spacing:.05em;z-index:2;animation:patronusPulse 1.6s ease-in-out infinite}
+.spirit-status.bad{color:#ffb4b4;animation:none}
+.modal.animagus-modal{background:radial-gradient(circle at 50% 45%, #3a2c0c 0%, #241a06 40%, #120c02 74%, #060301 100%);backdrop-filter:blur(3px);cursor:pointer}
+.modal.animagus-modal .panel{max-width:640px;background:transparent;border:none;box-shadow:none;cursor:default;position:relative}
+.patronus-emoji.gold{filter:drop-shadow(0 0 26px #fbbf24) drop-shadow(0 0 60px #fde68a)}
+.modal.animagus-modal .patronus-spell{color:#fde68a;text-shadow:0 0 10px #fde68a,0 0 28px #f59e0b,0 0 54px #d97706}
+.modal.animagus-modal .patronus-name{color:#fef3c7;text-shadow:0 0 14px #f59e0b}
+.modal.animagus-modal .patronus-sub,.modal.animagus-modal .spirit-status{color:#f5e3b3}
+.modal.animagus-modal .spirit-img{border-color:#fbbf24;box-shadow:0 0 30px #fbbf24,0 0 70px rgba(251,191,36,.55)}
+.modal.animagus-modal .patronus-particle{background:#fef3c7;box-shadow:0 0 10px #fbbf24,0 0 20px #fde68a}
+.spirit-thumb{display:grid;gap:4px;justify-items:center;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:6px;cursor:pointer;font:inherit;color:inherit}
+.spirit-thumb img{width:84px;height:84px;object-fit:cover;border-radius:8px;display:block}
+.spirit-thumb span{font-size:11px;color:var(--muted)}
+.spirit-thumb:hover{border-color:var(--gold)}
 .patronus-particle{position:absolute;left:50%;bottom:8%;width:7px;height:7px;border-radius:50%;background:#e0e7ff;box-shadow:0 0 10px #60a5fa,0 0 20px #e0e7ff;pointer-events:none;animation:patronusRise 3.6s ease-in infinite;z-index:1}
 @keyframes patronusRise{
   0%{transform:translate(-50%,0) scale(.3);opacity:0}
@@ -737,29 +753,94 @@ function unlockExpectoPatronum(u){
   if(first){const f=patronusForm(u.patronus);toast(`¡Has dominado Expecto Patronum! Tu Patronus es ${f.icon} ${f.name}`);}
   return first;
 }
-// Efecto visual mágico: invoca el Patronus a pantalla completa.
-function summonPatronus(){
-  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
-  must(u.patronus,'Aún no has revelado tu Patronus');
-  const f=patronusForm(u.patronus);
-  const parts=Array.from({length:14},(_,i)=>{
+// --- Espíritus con imagen IA (Patronus y Animago) ---
+const SPIRIT_CFG={
+  patronus:{
+    spell:'Expecto Patronum', overlay:'patronus-modal',
+    sub:'Un guardián de luz plateada surge de tu varita y ahuyenta la oscuridad.',
+    missing:'Aún no has revelado tu Patronus', done:'¡Patronus invocado!'
+  },
+  animagus:{
+    spell:'Animagus', overlay:'animagus-modal',
+    sub:'Tu forma interior despierta con un aura dorada y ancestral.',
+    missing:'Aún no has completado tu ritual Animago', done:'¡Animago revelado!'
+  }
+};
+function spiritForm(type,u){
+  if(type==='animagus') return u.animagus?(ANIMAGUS_FORMS.find(a=>a.id===u.animagus)||null):null;
+  return patronusForm(u.patronus);
+}
+const spiritImageField=type=>type==='animagus'?'animagusImage':'patronusImage';
+function spiritParticles(){
+  return Array.from({length:14},()=>{
     const left=(6+Math.random()*88).toFixed(1);
     const drift=(Math.round((Math.random()*140-70)))+'px';
     const delay=(Math.random()*3.4).toFixed(2);
     const dur=(2.8+Math.random()*2).toFixed(2);
     return `<span class="patronus-particle" style="left:${left}%;--drift:${drift};animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
   }).join('');
-  openModal(`
-    <div class="patronus-stage">
-      ${parts}
-      <div class="patronus-emoji">${patronusIcon(u.patronus)}</div>
-      <div class="patronus-spell">Expecto Patronum</div>
-      <div class="patronus-name">${esc(f.name)}</div>
-      <p class="patronus-sub">Un guardián de luz plateada surge de tu varita y ahuyenta la oscuridad.</p>
+}
+function spiritStageHTML(type,form,imgUrl,loading,error){
+  const cfg=SPIRIT_CFG[type];
+  const media=imgUrl
+    ? `<img class="spirit-img" src="${cromoImageUrl(imgUrl)}" alt="${form.icon} ${esc(form.name)}">`
+    : `<div class="patronus-emoji${type==='animagus'?' gold':''}" title="${esc(form.name)}">${form.icon}</div>`;
+  const status=loading?`<p class="spirit-status">✨ Invocando magia…</p>`
+    :(error?`<p class="spirit-status bad">${esc(error)}</p>`:'');
+  return `<div class="patronus-stage">
+      ${spiritParticles()}
+      ${media}
+      <div class="patronus-spell">${esc(cfg.spell)}</div>
+      <div class="patronus-name">${esc(form.name)}</div>
+      <p class="patronus-sub">${esc(cfg.sub)}</p>
+      ${status}
       <button class="btn sm" data-do="closeModal" type="button" style="margin-top:6px">🌑 Volver a la oscuridad</button>
-    </div>
-  `,false,null,'patronus-modal');
+    </div>`;
+}
+// Efecto visual mágico: invoca el espíritu a pantalla completa y genera su retrato con IA.
+async function invokeSpirit(type){
+  const cfg=SPIRIT_CFG[type];
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const form=spiritForm(type,u); must(form,cfg.missing);
+  const field=spiritImageField(type);
+  const render=(imgUrl,loading,error)=>openModal(spiritStageHTML(type,form,imgUrl,loading,error),false,null,cfg.overlay);
   fanfare();
+  if(u[field]){ render(u[field],false,null); return; }
+  // Si el retrato ya está en la caché global del servidor, la respuesta llega al
+  // instante: solo mostramos el estado "Generando…" si la espera se alarga.
+  let loadTimer=setTimeout(()=>render(null,true,null),350);
+  try{
+    const res=await fetch('/api/generate-spirit',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type,formId:form.id,formName:form.name,gender:normGender(u.gender)})
+    });
+    const data=await res.json();
+    clearTimeout(loadTimer);
+    if(!data||!data.image) throw new Error((data&&data.error)||'No se pudo invocar el espíritu.');
+    u[field]=data.image;
+    commit(type==='patronus'?'Patronus IA generado':'Animago IA generado');
+    render(data.image,false,null);
+    toast(cfg.done);
+  }catch(err){
+    clearTimeout(loadTimer);
+    render(null,false,err.message||'No se pudo invocar la magia.');
+  }
+}
+function summonPatronus(){ return invokeSpirit('patronus'); }
+function summonAnimagus(){ return invokeSpirit('animagus'); }
+// Miniaturas de los retratos IA en el perfil (solo si ya se generaron).
+function spiritThumbsHTML(u){
+  const items=[
+    {img:u.patronusImage,icon:u.patronus?patronusIcon(u.patronus):'✨',label:u.patronus?((patronusForm(u.patronus)||{}).name||'Patronus'):'Patronus',do:'summonPatronus',color:'#60a5fa'},
+    {img:u.animagusImage,icon:u.animagus?(ANIMAGUS_FORMS.find(a=>a.id===u.animagus)||{}).icon||'✨':'✨',label:u.animagus?((ANIMAGUS_FORMS.find(a=>a.id===u.animagus)||{}).name||'Animago'):'Animago',do:'summonAnimagus',color:'#fbbf24'}
+  ].filter(it=>it.img);
+  if(!items.length) return '';
+  return `<div class="row" style="gap:10px;margin-top:10px;flex-wrap:wrap">${items.map(it=>`
+    <button type="button" data-do="${it.do}" class="spirit-thumb" style="border-color:${it.color}" title="${esc(it.label)} · Invocar">
+      <img src="${cromoImageUrl(it.img)}" alt="${it.icon} ${esc(it.label)}">
+      <span>${it.icon} ${esc(it.label)}</span>
+    </button>`).join('')}</div>`;
 }
 
 const DEATH_EATERS=[
@@ -856,18 +937,24 @@ function hashPass(str){
 }
 
 const FEMALES = ['Hermione Granger','Ginny Weasley','Luna Lovegood','Cho Chang','Pansy Parkinson','Hannah Abbott','Nymphadora Tonks','Lyra M.','Seraphina K.'];
+const GENDER_IDS = ['m','f'];
+const ROMANCE_PREF_IDS = ['chicos','chicas','ambos','ninguno'];
+const GENDER_LABEL = { m:'Chico', f:'Chica' };
+const ROMANCE_PREF_LABEL = { chicos:'Chicos', chicas:'Chicas', ambos:'Ambos', ninguno:'Ninguno' };
+const normGender = v => GENDER_IDS.includes(v) ? v : 'm';
+const normRomancePref = v => ROMANCE_PREF_IDS.includes(v) ? v : 'todos';
 
 const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor',npc_trait='',is_canon=false,yearOffset=0,personality=[])=>({
   id,username,house,points,flight_xp,role,is_admin,
   is_npc:!!is_npc,is_canon:!!is_canon,pass:pass||'',loc:loc||'comedor',locSlot:'',
   npc_trait:npc_trait||'Alumno del castillo',npc_path:null,npc_quidditch:false,npc_decided:false,npc_trials:0,animagus:null,
-  quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
+  quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m', romancePref: 'todos',
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   attrValentia: 0, attrEmpatia: 0, attrSabiduria: 0,
   spells: [],
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   classStars:{}, lastClassDate:null, classStreak:0, badges:[],
-  unlockedCosmetics:[], mcGonagallWarned:false, patronus:null,
+  unlockedCosmetics:[], mcGonagallWarned:false, patronus:null, patronusImage:null, animagusImage:null,
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
@@ -1064,7 +1151,8 @@ function ensureDbIntegrity(){
     if(!lk.style) lk.style='corto';
     if(typeof lk.eyes!=='number') lk.eyes=0;
     if(typeof u.yearOffset!=='number') u.yearOffset=0;
-    if(!u.gender) u.gender = FEMALES.includes(u.username) ? 'f' : 'm';
+    if(!GENDER_IDS.includes(u.gender)) { u.gender = FEMALES.includes(u.username) ? 'f' : 'm'; changed = true; }
+    if(!ROMANCE_PREF_IDS.includes(u.romancePref)) { u.romancePref = 'todos'; changed = true; }
     if(typeof u.quidditch_approved === 'undefined') {
         u.quidditch_approved = u.is_npc && u.npc_quidditch ? true : false;
     }
@@ -1095,6 +1183,8 @@ function ensureDbIntegrity(){
     if (typeof u.mcGonagallWarned !== 'boolean') { u.mcGonagallWarned = false; changed = true; }
     if (typeof u.patronus === 'undefined') { u.patronus = null; changed = true; }
     else if (u.patronus !== null && !PATRONUS_ICONS[u.patronus]) { u.patronus = null; changed = true; }
+    if (typeof u.patronusImage !== 'string') { u.patronusImage = null; changed = true; }
+    if (typeof u.animagusImage !== 'string') { u.animagusImage = null; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1648,6 +1738,7 @@ const API={
       if(existing.pass && existing.pass!==pHash) throw new Error('Ese personaje ya existe y la contraseña no coincide');
       existing.pass=pHash;
       if(look)existing.look=lookOf(look);
+      if(look){existing.gender=normGender(look.gender);existing.romancePref=normRomancePref(look.romancePref);}
       if(!existing.house&&house&&HOUSE(house))existing.house=house;
       session.uid=existing.id;session.passHash=pHash;
       localStorage.setItem('castillo_uid',String(existing.id));
@@ -1661,6 +1752,8 @@ const API={
     const newId=Math.max(10,...db.users.map(x=>x.id))+1;
     const u=U(newId,name,chosenHouse,0,0,'student',false,look?lookOf(look):null,false,pHash,chosenHouse||'comedor');
     if (look && look.pet) u.pet = look.pet;
+    u.gender = normGender(look && look.gender);
+    u.romancePref = normRomancePref(look && look.romancePref);
     db.users.push(u);
     session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
@@ -1711,6 +1804,8 @@ const API={
     must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
     u.username=name;
     u.look=lookOf(d);
+    u.gender=normGender(d.gender);
+    u.romancePref=normRomancePref(d.romancePref);
     if(d.pass&&String(d.pass).trim().length>=3){
       u.pass=hashPass(d.pass);
       session.passHash=u.pass;
@@ -2456,7 +2551,7 @@ const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none'};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos'};
 
 function creatorHTML(){
   const d=draft;
@@ -2471,6 +2566,8 @@ function creatorHTML(){
     <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="draftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="draftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="draftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Género</span>${GENDER_IDS.map(g=>`<button type="button" class="chip ${normGender(d.gender)===g?'on':''}" data-do="draftGender" data-id="${g}">${GENDER_LABEL[g]}</button>`).join('')}</div>
+    <div class="swrow"><span>Preferencia romántica</span>${ROMANCE_PREF_IDS.map(r=>`<button type="button" class="chip ${normRomancePref(d.romancePref)===r?'on':''}" data-do="draftRomance" data-id="${r}">${ROMANCE_PREF_LABEL[r]}</button>`).join('')}</div>
     <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="draftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
     ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
   <div class="chips" style="margin-top:6px">
@@ -2692,6 +2789,8 @@ function renderPlay(){
   <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}${u.patronus?`<span class="pill" title="Tu Patronus" style="border-color:#60a5fa;color:#cfe0ff">${patronusIcon(u.patronus)} ${esc((patronusForm(u.patronus)||{}).name||'Patronus')}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
       ${!petOf(u)?`<button class="btn sm" style="margin-top:8px" data-do="adoptPet" type="button">🐾 Adoptar mascota</button>`:`<button class="btn sm gold" style="margin-top:8px" data-do="playWithPet" type="button" ${petPlayCooldown(u)>0?'disabled':''}>${petOf(u).icon} ${petPlayCooldown(u)>0?`Jugar en ${Math.ceil(petPlayCooldown(u)/60000)} min`:'Jugar con '+petOf(u).name}</button>`}
       ${u.patronus?`<button class="btn sm" style="margin-top:8px;border-color:#60a5fa;color:#cfe0ff" data-do="summonPatronus" type="button">✨ Invocar Patronus</button>`:''}
+      ${u.animagus?`<button class="btn sm" style="margin-top:8px;border-color:#fbbf24;color:#fde68a" data-do="summonAnimagus" type="button">🐾 Invocar Animago</button>`:''}
+      ${spiritThumbsHTML(u)}
     ${hbar}</div>`;
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
@@ -2899,7 +2998,7 @@ function renderAnimagusEvent(){
   badge.className = `pill ${hasForm ? 'gold' : 'off'}`;
 
   if (hasForm) {
-    box.innerHTML = `<div class="row"><span class="pill gold">${form.icon} ${form.name}</span><span class="muted">Has completado el ritual. Tu forma es ${form.name}.</span></div>`;
+    box.innerHTML = `<div class="row" style="flex-wrap:wrap;align-items:center;gap:8px"><span class="pill gold">${form.icon} ${form.name}</span><span class="muted">Has completado el ritual. Tu forma es ${form.name}.</span><button class="btn sm" style="border-color:#fbbf24;color:#fde68a" data-do="summonAnimagus" type="button">🐾 Invocar Animago</button></div>`;
     return;
   }
 
@@ -4040,7 +4139,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none'};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos'};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -4070,7 +4169,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none'};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none',gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref)};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -6242,6 +6341,8 @@ document.addEventListener('click',e=>{
     case 'draftFeature':draft.features=Number(d.v);refreshCreator();break;
     case 'draftClothing':draft.clothing=Number(d.v);refreshCreator();break;
     case 'draftFacialHair':draft.facialHair=d.id||'none';refreshCreator();break;
+    case 'draftGender':draft.gender=normGender(d.id);refreshCreator();break;
+    case 'draftRomance':draft.romancePref=normRomancePref(d.id);refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
     case 'draftPet': draft.pet = d.id || null; refreshCreator(); break;
     case 'adoptPet': openPetAdoptModal(); break;
@@ -6318,6 +6419,7 @@ document.addEventListener('click',e=>{
     case 'openAlbum':openAlbumModal();break;
     case 'openGrimorio':openGrimorioModal();break;
     case 'summonPatronus':summonPatronus();break;
+    case 'summonAnimagus':summonAnimagus();break;
     case 'ansClassTrivia':answerClassTrivia(d.k,Number(d.i),Number(d.c));break;
     case 'openBackpack':openBackpackModal();break;
     case 'useFromBackpack':
