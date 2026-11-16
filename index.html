@@ -429,6 +429,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
     <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
+    <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
     <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button>
@@ -466,7 +467,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <div class="panel">
       <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p><p id="skipWarn" style="color:var(--bad);font-weight:700;font-size:13px;margin:4px 0 0;display:none">⚠️ Saltándote la clase</p></div><span class="pill" id="nowCount"></span></div>
       <div class="youbar" id="youBar"></div>
-      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"></div>
+      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"><span id="gossipSlot"></span></div>
       <div class="mapbox" id="mapbox" tabindex="0" aria-label="Mapa del castillo. En tiempo libre puedes tocar cualquier sala o usar las flechas para mover tu personaje."><div class="map" id="map"></div></div>
     </div>
     <div class="grid g2" style="margin-top:16px;align-items:start">
@@ -943,6 +944,12 @@ const GENDER_LABEL = { m:'Chico', f:'Chica' };
 const ROMANCE_PREF_LABEL = { chicos:'Chicos', chicas:'Chicas', ambos:'Ambos', ninguno:'Ninguno' };
 const normGender = v => GENDER_IDS.includes(v) ? v : 'm';
 const normRomancePref = v => ROMANCE_PREF_IDS.includes(v) ? v : 'todos';
+// Normaliza el día (1-31) y el mes (1-12) del cumpleaños; null si no es válido.
+const birthdayPart = (v, kind) => {
+  const n = Math.floor(Number(v));
+  if (!Number.isFinite(n)) return null;
+  return kind === 'day' ? (n >= 1 && n <= 31 ? n : null) : (n >= 1 && n <= 12 ? n : null);
+};
 
 const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass='',loc='comedor',npc_trait='',is_canon=false,yearOffset=0,personality=[])=>({
   id,username,house,points,flight_xp,role,is_admin,
@@ -955,6 +962,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   classStars:{}, lastClassDate:null, classStreak:0, badges:[],
   unlockedCosmetics:[], mcGonagallWarned:false, patronus:null, patronusImage:null, animagusImage:null,
+  birthDay:null, birthMonth:null, lastBirthdayYear:null,
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
@@ -1079,7 +1087,8 @@ let db = {
   {id:1,u:'🤖 Hermione Granger',h:'gryffindor',role:'student',ch:'global',text:'¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!',time:'20:40'},
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
  ],
- matches:[], cooldowns:{}, missions:{}, filchLoc: 'patio'
+   matches:[], cooldowns:{}, missions:{}, filchLoc: 'patio',
+ letters:[], tradeOffers:[]
 };
 
 const savedUid = Number(localStorage.getItem('castillo_uid')) || null;
@@ -1185,6 +1194,13 @@ function ensureDbIntegrity(){
     else if (u.patronus !== null && !PATRONUS_ICONS[u.patronus]) { u.patronus = null; changed = true; }
     if (typeof u.patronusImage !== 'string') { u.patronusImage = null; changed = true; }
     if (typeof u.animagusImage !== 'string') { u.animagusImage = null; changed = true; }
+    const _bm = Math.floor(Number(u.birthMonth)), _bd = Math.floor(Number(u.birthDay));
+    const _nm = (_bm >= 1 && _bm <= 12) ? _bm : null;
+    const _nd = (_nm !== null && _bd >= 1 && _bd <= 31) ? _bd : null;
+    if (u.birthMonth !== _nm) { u.birthMonth = _nm; changed = true; }
+    if (u.birthDay !== _nd) { u.birthDay = _nd; changed = true; }
+    if (typeof u.lastBirthdayYear === 'undefined') { u.lastBirthdayYear = null; changed = true; }
+    else if (u.lastBirthdayYear !== null && !Number.isFinite(Number(u.lastBirthdayYear))) { u.lastBirthdayYear = null; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1257,6 +1273,8 @@ function ensureDbIntegrity(){
   if(!db.profAffinity || typeof db.profAffinity!=='object') db.profAffinity={};
   if(typeof db.raidShield!=='number') db.raidShield=100;
   if(typeof db.npcAi==='undefined') db.npcAi=true;
+  if(!Array.isArray(db.letters)){db.letters=[];changed=true;}
+  if(!Array.isArray(db.tradeOffers)){db.tradeOffers=[];changed=true;}
   if(Array.isArray(db.matches)){
     db.matches.forEach(m=>{if(!m.type){m.type='amistoso';changed=true;}});
   }
@@ -1341,6 +1359,62 @@ socket.on('friend_request_result',(data)=>{
     : `💔 ${data.byName||'El alumno'} rechazó tu solicitud de amistad`);
   updateSocialBadge();
   if(socialModalOpen) renderSocialModal();
+});
+
+/* ===== LECHUZAS, INTERCAMBIOS Y CUMPLEAÑOS (tiempo real) ===== */
+// Llega una carta por lechuza mientras el jugador está conectado.
+socket.on('new_letter',(data)=>{
+  if(!data||!session.uid) return;
+  if(Number(data.from)===Number(session.uid)) return;
+  toast(`🦉 Lechuza de ${data.fromName||'un alumno'}${data.hasGift?' con regalo 🎁':''}`);
+  chime();
+  updateLettersBadge();
+});
+socket.on('letter_sent',(data)=>{
+  if(!data||!session.uid) return;
+  updateLettersBadge();
+});
+socket.on('letter_claimed',(data)=>{
+  if(!data||!session.uid) return;
+  const g=data.granted;
+  if(g&&g.type==='galeones') toast(`🎁 ¡Has recibido ${g.amount} Galeones!`);
+  else if(g&&g.type==='cromo'){const c=cromoById(g.cromoId);toast(`🎁 ¡Has recibido el cromo ${c?c.nombre:g.cromoId}!`);}
+  updateLettersBadge();
+  renderAll();
+});
+socket.on('letter_error',(data)=>{
+  if(data&&data.message) toast('✉️ '+data.message);
+});
+
+// Ofertas de intercambio de cromos.
+socket.on('new_trade_offer',(data)=>{
+  if(!data||!session.uid) return;
+  if(Number(data.to)!==Number(session.uid)) return;
+  const give=cromoById(data.giveCromoId),want=cromoById(data.wantCromoId);
+  toast(`🔄 ${data.fromName||'Un alumno'} te ofrece ${give?give.nombre:'?'} por ${want?want.nombre:'?'}`);
+  chime();
+});
+socket.on('trade_offer_sent',(data)=>{
+  if(!data||!session.uid) return;
+});
+socket.on('trade_result',(data)=>{
+  if(!data||!session.uid) return;
+  toast(data.accepted
+    ? `🔄 ¡Intercambio realizado con ${data.byName||'un alumno'}!`
+    : `🔄 Tu propuesta de intercambio fue rechazada`);
+  renderAll();
+});
+socket.on('trade_error',(data)=>{
+  if(data&&data.message) toast('🔄 '+data.message);
+});
+
+// Cumpleaños: el servidor avisa al jugador al iniciar sesión.
+socket.on('birthday_greeting',(data)=>{
+  if(!data) return;
+  toast(`🎂 ¡Feliz cumpleaños! Recibes +${data.galeones||15} Galeones${data.friends&&data.friends.length?` y cartas de ${data.friends.join(', ')}`:''}`);
+  fanfare();
+  updateLettersBadge();
+  renderAll();
 });
 
 function commit(reason){
@@ -1739,6 +1813,7 @@ const API={
       existing.pass=pHash;
       if(look)existing.look=lookOf(look);
       if(look){existing.gender=normGender(look.gender);existing.romancePref=normRomancePref(look.romancePref);}
+      if(look){existing.birthDay=birthdayPart(look.birthDay,'day');existing.birthMonth=birthdayPart(look.birthMonth,'month');}
       if(!existing.house&&house&&HOUSE(house))existing.house=house;
       session.uid=existing.id;session.passHash=pHash;
       localStorage.setItem('castillo_uid',String(existing.id));
@@ -1754,6 +1829,8 @@ const API={
     if (look && look.pet) u.pet = look.pet;
     u.gender = normGender(look && look.gender);
     u.romancePref = normRomancePref(look && look.romancePref);
+    u.birthDay = birthdayPart(look && look.birthDay,'day');
+    u.birthMonth = birthdayPart(look && look.birthMonth,'month');
     db.users.push(u);
     session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
@@ -1806,6 +1883,8 @@ const API={
     u.look=lookOf(d);
     u.gender=normGender(d.gender);
     u.romancePref=normRomancePref(d.romancePref);
+    u.birthDay=birthdayPart(d.birthDay,'day');
+    u.birthMonth=birthdayPart(d.birthMonth,'month');
     if(d.pass&&String(d.pass).trim().length>=3){
       u.pass=hashPass(d.pass);
       session.passHash=u.pass;
@@ -2551,7 +2630,7 @@ const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos'};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
 
 function creatorHTML(){
   const d=draft;
@@ -2568,6 +2647,10 @@ function creatorHTML(){
     <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="draftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Género</span>${GENDER_IDS.map(g=>`<button type="button" class="chip ${normGender(d.gender)===g?'on':''}" data-do="draftGender" data-id="${g}">${GENDER_LABEL[g]}</button>`).join('')}</div>
     <div class="swrow"><span>Preferencia romántica</span>${ROMANCE_PREF_IDS.map(r=>`<button type="button" class="chip ${normRomancePref(d.romancePref)===r?'on':''}" data-do="draftRomance" data-id="${r}">${ROMANCE_PREF_LABEL[r]}</button>`).join('')}</div>
+    <div class="swrow"><span>Cumpleaños</span>
+      <select id="cBirthDay" style="width:auto" aria-label="Día de cumpleaños"><option value="">Día</option>${Array.from({length:31},(_,i)=>i+1).map(n=>`<option value="${n}" ${Number(d.birthDay)===n?'selected':''}>${n}</option>`).join('')}</select>
+      <select id="cBirthMonth" style="width:auto" aria-label="Mes de cumpleaños"><option value="">Mes</option>${MONTH_NAMES.map((m,i)=>`<option value="${i+1}" ${Number(d.birthMonth)===i+1?'selected':''}>${m}</option>`).join('')}</select>
+    </div>
     <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="draftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
     ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
   <div class="chips" style="margin-top:6px">
@@ -2579,9 +2662,11 @@ function creatorHTML(){
 }
 function refreshCreator(){
   const el=$('creatorBox');if(!el)return;
-  const nm=$('cName'),pw=$('cPass');
+  const nm=$('cName'),pw=$('cPass'),bd=$('cBirthDay'),bm=$('cBirthMonth');
   if(nm)draft.name=nm.value;
   if(pw)draft.pass=pw.value;
+  if(bd)draft.birthDay=bd.value?Number(bd.value):null;
+  if(bm)draft.birthMonth=bm.value?Number(bm.value):null;
   el.outerHTML=creatorHTML();
 }
 
@@ -2643,6 +2728,15 @@ function renderMap(){
   const inClass = !db.free && slot && slot.type==='class';
   const skipping = !!(u && u.house && inClass && u.loc && slot.room && u.loc !== slot.room);
   const sw=$('skipWarn'); if(sw) sw.style.display = skipping ? 'block' : 'none';
+  const gs=$('gossipSlot');
+  if(gs){
+    if(canListenGossip(u)){
+      const cd=Math.max(0,15000-(Date.now()-((db.cooldowns[u.id]||{}).gossip||0)));
+      gs.innerHTML=`<button class="btn sm" type="button" data-do="listenGossip" ${cd>0?'disabled':''} title="Escucha un rumor divertido sobre otro alumno">👂 ${cd>0?`Espera ${Math.ceil(cd/1000)} s`:'Escuchar chismes'}</button>`;
+    } else if(u&&u.house&&(Number(u.attrEmpatia)||0)<3){
+      gs.innerHTML=`<span class="hint" title="Necesitas Empatía Nv. 3">👂 Escuchar chismes (Empatía Nv. 3)</span>`;
+    } else { gs.innerHTML=''; }
+  }
 }
 function renderYou(){
   const u=me(),box=$('youBar'),s=curSlot();
@@ -2783,6 +2877,8 @@ function renderPlay(){
   ${Array.isArray(u.unlockedCosmetics)&&u.unlockedCosmetics.length?`<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
     <span class="muted" style="font-size:12px;align-self:center">Prendas icónicas:</span>${cosmeticsBadgesHTML(u)}
   </div>`:''}
+  ${birthdayLabel(u)?`<p style="font-size:12px;margin-top:6px"><span class="pill gold">🎂 Cumpleaños: ${esc(birthdayLabel(u))}</span></p>`:''}
+  ${tradeOffersHTML(u)}
   ${reputationHTML(u)}`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
@@ -3533,6 +3629,7 @@ function openAlbumModal() {
       ${cant > 0 ? `<button class="btn sm gold" data-do="generateCromo" data-id="${c.id}" data-name="${c.nombre}">🪄 Generar Retrato IA</button>` : ''}
       ${_img ? `<img src="${cromoImageUrl(_img)}" alt="${c.nombre}" style="width:100%;border-radius:8px;margin-top:6px">` : (cant>0?`<div id="cromo-img-${c.id}"></div>`:'')}
       ${cant > 1 ? `<button class="btn sm gold" data-do="tradeCromo" data-id="${c.id}">Canjear (+${VALOR_CANJE_CROMO[c.rareza]} 🪙)</button>` : ''}
+      ${cant > 1 ? `<button class="btn sm" data-do="openTrade" data-id="${c.id}">🔄 Intercambiar</button>` : ''}
     </div>`;
   });
   html += `</div><button class="btn sm" data-do="closeModal" type="button" style="margin-top:8px">Cerrar</button>`;
@@ -3672,6 +3769,7 @@ function renderAll(){
   renderCourses();
   renderClock();
   updateSocialBadge();
+  updateLettersBadge();
 }
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
@@ -4139,7 +4237,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos'};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -4169,7 +4267,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none',gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref)};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none',gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),birthDay:u.birthDay||null,birthMonth:u.birthMonth||null};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -4476,6 +4574,7 @@ function studentSheet(id){
      ${enrolled?`<button class="btn" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>`:''}
      ${(u.is_npc&&enrolled)?`<button class="btn gold" data-do="openNpcTrial" data-id="${id}" type="button">🌟 Hacer Prueba / Decidir destino</button>`:''}
      ${(u.is_npc&&u.is_canon)?`<button class="btn" data-do="openNpcChat" data-id="${id}" type="button">💬 Hablar</button>`:''}
+     ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn gold" data-do="openComposeLetter" data-id="${id}" type="button">✉️ Enviar Lechuza</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
      <button class="btn" data-do="closeModal" type="button">Cerrar</button>
    </div>`);
@@ -5369,6 +5468,260 @@ function renderSocialModal(){
     </div>
   </div>`;
   openModal(html,true,'soc-panel');
+}
+
+/* ===== MECÁNICAS SOCIALES Y DE EVENTOS =====
+   1) Correo por Lechuza  2) Mercado de cromos  3) Chismes IA  4) Cumpleaños */
+
+/* --- Utilidades compartidas --- */
+const cromoById = id => CROMOS_MAGOS.find(c => c.id === id) || null;
+const cromoCount = (u, id) => {
+  if (!u || !u.cromos) return 0;
+  const e = u.cromos[id];
+  return (typeof e === 'number') ? e : ((e && e.count) || 0);
+};
+function lettersList() { return Array.isArray(db.letters) ? db.letters : (db.letters = []); }
+function tradeOffersList() { return Array.isArray(db.tradeOffers) ? db.tradeOffers : (db.tradeOffers = []); }
+function inboxLetters(uid) { return lettersList().filter(l => Number(l.to) === Number(uid)); }
+function unreadLetters(uid) { return inboxLetters(uid).filter(l => !l.read); }
+function pendingTradeOffersFor(uid) {
+  return tradeOffersList().filter(o => Number(o.to) === Number(uid) && o.status === 'pending');
+}
+// Jugadores reales a los que se puede escribir o proponer intercambios.
+function realPlayersExcept(uid) {
+  return db.users.filter(x => !x.is_npc && Number(x.id) !== Number(uid) && x.pass);
+}
+
+/* ===== 1. CORREO POR LECHUZA ===== */
+const LETTER_GALEONES_OPTIONS = [10];
+function updateLettersBadge() {
+  const badge = $('lettersBadge');
+  if (!badge) return;
+  const u = me();
+  const n = u ? unreadLetters(u.id).length : 0;
+  badge.textContent = String(n);
+  badge.hidden = !(n > 0);
+}
+function letterGiftLabel(gift) {
+  if (!gift) return '';
+  if (gift.type === 'galeones') return `🪙 ${gift.amount} Galeones`;
+  if (gift.type === 'cromo') { const c = cromoById(gift.cromoId); return `🐸 Cromo: ${c ? c.nombre : gift.cromoId}`; }
+  return '';
+}
+function openLettersModal() {
+  const u = me();
+  if (!u) return toast('Inicia sesión con tu personaje para revisar tus lechuzas');
+  const inbox = inboxLetters(u.id).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  const unread = inbox.filter(l => !l.read).length;
+  let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+    <h3 style="font-size:20px;color:var(--gold)">✉️ Lechuzas</h3>
+    <span class="pill ${unread ? 'warn' : 'off'}">${unread} sin leer</span>
+  </div>`;
+  html += `<div class="row" style="width:100%;margin-bottom:10px">
+    <button class="btn sm gold" data-do="openComposeLetter" type="button">✍️ Enviar nueva lechuza</button>
+    <button class="btn sm" data-do="closeModal" type="button">Cerrar</button>
+  </div>`;
+  if (!inbox.length) {
+    html += `<div class="box" style="width:100%;text-align:center;padding:26px 10px"><p class="muted">Aún no has recibido ninguna lechuza. Escribe a un amigo desde su perfil o desde aquí.</p></div>`;
+  } else {
+    html += `<div style="width:100%;display:grid;gap:8px;text-align:left">`;
+    inbox.forEach(l => {
+      const f = db.users.find(x => x.id === Number(l.from));
+      const giftLbl = letterGiftLabel(l.gift);
+      html += `<div class="box" style="border-left:3px solid ${l.read ? 'var(--line)' : 'var(--gold)'}">
+        <div class="row" style="justify-content:space-between">
+          <strong>${f ? `${av(f,28)} ${esc(f.username)}` : 'Alumno desconocido'}</strong>
+          ${l.read ? '<span class="pill off">Leída</span>' : '<span class="pill warn">Nueva</span>'}
+        </div>
+        <p style="font-size:14px;margin:6px 0">${esc(l.message || '(sin mensaje)')}</p>
+        ${giftLbl ? `<p style="font-size:13px"><span class="pill gold">🎁 Regalo: ${esc(giftLbl)}</span></p>` : ''}
+        <div class="row" style="margin-top:6px">
+          ${(l.gift && !l.claimed) ? `<button class="btn sm gold" data-do="claimLetter" data-id="${esc(l.id)}" type="button">🎁 Reclamar regalo</button>` : (l.gift && l.claimed ? '<span class="pill good">Regalo reclamado</span>' : '')}
+          ${!l.read ? `<button class="btn sm" data-do="readLetter" data-id="${esc(l.id)}" type="button">Marcar como leída</button>` : ''}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  openModal(html, true);
+}
+function openComposeLetterModal(targetId) {
+  const u = me();
+  if (!u) return toast('Inicia sesión con tu personaje primero');
+  const players = realPlayersExcept(u.id);
+  if (!players.length) return toast('Todavía no hay otros jugadores reales en el castillo');
+  const cromos = CROMOS_MAGOS.filter(c => cromoCount(u, c.id) > 0);
+  const sel = Number(targetId) || (players[0] && players[0].id);
+  openModal(`<h3 style="font-size:20px;color:var(--gold)">✍️ Enviar Lechuza</h3>
+    <p class="muted" style="font-size:13px">Tu saldo: 🪙 ${u.galeones || 0} Galeones. Puedes adjuntar un regalo.</p>
+    <div style="width:100%;text-align:left;display:grid;gap:10px">
+      <div><label class="hint" for="letterTo">Destinatario</label>
+        <select id="letterTo" style="width:100%">${players.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.username)}</option>`).join('')}</select></div>
+      <div><label class="hint" for="letterMsg">Mensaje</label>
+        <textarea id="letterMsg" rows="3" maxlength="400" placeholder="Escribe unas palabras para tu amigo…" style="width:100%"></textarea></div>
+      <div><label class="hint">Regalo (opcional)</label>
+        <div class="chips" style="margin-top:6px">
+          <button type="button" class="chip on" data-do="letterGift" data-v="none">Sin regalo</button>
+          <button type="button" class="chip" data-do="letterGift" data-v="galeones">🪙 10 Galeones</button>
+          ${cromos.map(c => `<button type="button" class="chip" data-do="letterGift" data-v="cromo:${c.id}">🐸 ${esc(c.nombre)} (x${cromoCount(u, c.id)})</button>`).join('')}
+        </div></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn gold" data-do="sendLetter" type="button">🦉 Enviar</button>
+      <button class="btn" data-do="closeModal" type="button">Cancelar</button>
+    </div>`, true);
+}
+let letterGiftDraft = { type: 'none' };
+function setLetterGiftDraft(v) {
+  if (v === 'none') letterGiftDraft = { type: 'none' };
+  else if (v === 'galeones') letterGiftDraft = { type: 'galeones', amount: 10 };
+  else if (String(v).startsWith('cromo:')) letterGiftDraft = { type: 'cromo', cromoId: String(v).slice(6) };
+  const chips = document.querySelectorAll('[data-do="letterGift"]');
+  chips.forEach(ch => ch.classList.toggle('on', ch.dataset.v === v));
+}
+function sendLetter() {
+  const u = me();
+  must(u, 'Inicia sesión primero');
+  const to = Number($('letterTo') && $('letterTo').value);
+  must(to, 'Elige un destinatario');
+  const message = String(($('letterMsg') && $('letterMsg').value) || '').trim();
+  const gift = letterGiftDraft.type === 'none' ? null : { ...letterGiftDraft };
+  must(message || gift, 'Escribe un mensaje o adjunta un regalo');
+  if (gift && gift.type === 'galeones') must((u.galeones || 0) >= gift.amount, 'No tienes suficientes Galeones');
+  // El servidor descuenta el regalo y crea la carta (fuente de verdad).
+  socket.emit('send_letter', { from: Number(u.id), to, message, gift });
+  letterGiftDraft = { type: 'none' };
+  closeModal();
+  toast('🦉 Tu lechuza ha echado a volar…');
+}
+function claimLetter(letterId) {
+  const u = me(); must(u, 'Inicia sesión primero');
+  socket.emit('claim_letter', { userId: Number(u.id), letterId });
+}
+function readLetter(letterId) {
+  const u = me(); must(u, 'Inicia sesión primero');
+  const l = lettersList().find(x => String(x.id) === String(letterId));
+  if (l && Number(l.to) === Number(u.id)) { l.read = true; commit(`${u.username} leyó una lechuza`); }
+  openLettersModal();
+}
+
+/* ===== 2. MERCADO DE INTERCAMBIO DE CROMOS ===== */
+let tradeDraft = { giveCromoId: null, wantCromoId: null, toId: null };
+function openTradeModal(giveCromoId) {
+  const u = me();
+  if (!u) return toast('Inicia sesión primero');
+  must(cromoCount(u, giveCromoId) > 1, 'Solo puedes intercambiar cromos repetidos');
+  const players = realPlayersExcept(u.id);
+  if (!players.length) return toast('No hay otros jugadores reales para intercambiar');
+  tradeDraft = { giveCromoId, wantCromoId: null, toId: players[0].id };
+  renderTradeModal();
+}
+function renderTradeModal() {
+  const u = me();
+  const players = realPlayersExcept(u.id);
+  const give = cromoById(tradeDraft.giveCromoId);
+  const target = db.users.find(x => Number(x.id) === Number(tradeDraft.toId)) || players[0];
+  const theirCromos = target ? CROMOS_MAGOS.filter(c => cromoCount(target, c.id) > 0) : [];
+  openModal(`<h3 style="font-size:20px;color:var(--gold)">🔄 Intercambiar cromo</h3>
+    <p class="muted" style="font-size:13px">Ofreces <b>${give ? esc(give.nombre) : ''}</b> (tienes x${cromoCount(u, give && give.id)}) y pides otro a cambio.</p>
+    <div style="width:100%;text-align:left;display:grid;gap:10px">
+      <div><label class="hint" for="tradeTo">Jugador</label>
+        <select id="tradeTo" style="width:100%">${players.map(p => `<option value="${p.id}" ${Number(p.id) === Number(tradeDraft.toId) ? 'selected' : ''}>${esc(p.username)}</option>`).join('')}</select></div>
+      <div><label class="hint">Cromo que quieres de su álbum</label>
+        <div class="chips" style="margin-top:6px">
+          ${theirCromos.length ? theirCromos.map(c => `<button type="button" class="chip ${tradeDraft.wantCromoId === c.id ? 'on' : ''}" data-do="tradeWant" data-id="${c.id}">🐸 ${esc(c.nombre)} (x${cromoCount(target, c.id)})</button>`).join('') : '<span class="muted">Ese jugador no tiene cromos todavía.</span>'}
+        </div></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn gold" data-do="sendTradeOffer" type="button" ${tradeDraft.wantCromoId ? '' : 'disabled'}>📨 Enviar propuesta</button>
+      <button class="btn" data-do="closeModal" type="button">Cancelar</button>
+    </div>`, true);
+}
+function sendTradeOffer() {
+  const u = me(); must(u, 'Inicia sesión primero');
+  const to = Number($('tradeTo') && $('tradeTo').value);
+  must(to, 'Elige un jugador');
+  must(tradeDraft.giveCromoId && tradeDraft.wantCromoId, 'Elige el cromo que quieres a cambio');
+  socket.emit('send_trade_offer', {
+    from: Number(u.id), to,
+    giveCromoId: tradeDraft.giveCromoId, wantCromoId: tradeDraft.wantCromoId
+  });
+  closeModal();
+  toast('📨 Propuesta de intercambio enviada');
+}
+function respondTrade(offerId, accept) {
+  const u = me(); must(u, 'Inicia sesión primero');
+  socket.emit('trade_response', { userId: Number(u.id), offerId, accept });
+}
+// Bloque de ofertas pendientes para el perfil del jugador.
+function tradeOffersHTML(u) {
+  if (!u) return '';
+  const incoming = pendingTradeOffersFor(u.id);
+  const sent = tradeOffersList().filter(o => Number(o.from) === Number(u.id) && o.status === 'pending');
+  if (!incoming.length && !sent.length) return '';
+  let h = `<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><span class="muted" style="font-size:12px;align-self:center">🔄 Intercambios:</span>`;
+  incoming.forEach(o => {
+    const from = db.users.find(x => Number(x.id) === Number(o.from));
+    const give = cromoById(o.giveCromoId), want = cromoById(o.wantCromoId);
+    h += `<span class="pill gold" title="Te ofrece ${give ? esc(give.nombre) : ''} por ${want ? esc(want.nombre) : ''}">
+      ${from ? esc(from.username) : '?'}: ${give ? give.nombre : '?'} ⇄ ${want ? want.nombre : '?'}
+      <button class="btn sm gold" type="button" data-do="acceptTrade" data-id="${esc(o.id)}" style="margin-left:6px">✅</button>
+      <button class="btn sm danger" type="button" data-do="rejectTrade" data-id="${esc(o.id)}">❌</button></span>`;
+  });
+  sent.forEach(o => {
+    const to = db.users.find(x => Number(x.id) === Number(o.to));
+    const give = cromoById(o.giveCromoId), want = cromoById(o.wantCromoId);
+    h += `<span class="pill off" title="Esperando respuesta">⏳ ${to ? esc(to.username) : '?'}: ${give ? give.nombre : '?'} ⇄ ${want ? want.nombre : '?'}</span>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+/* ===== 3. CHISMES Y RUMORES (IA) ===== */
+function canListenGossip(u) {
+  if (!u || !u.house) return false;
+  if ((Number(u.attrEmpatia) || 0) < 3) return false;
+  const loc = userLoc(u);
+  return loc === 'patio' || loc === u.house;
+}
+async function listenGossip() {
+  const u = me(); must(u && u.house, 'Inicia sesión con tu personaje primero');
+  must((Number(u.attrEmpatia) || 0) >= 3, 'Necesitas Empatía Nv. 3 para escuchar chismes');
+  const loc = userLoc(u);
+  must(loc === 'patio' || loc === u.house, 'Solo puedes escuchar chismes en el Patio o en tu Sala Común');
+  const cdKey = 'gossip';
+  const last = (db.cooldowns[u.id] || {})[cdKey] || 0;
+  const rem = Math.max(0, 15000 - (Date.now() - last));
+  must(rem <= 0, `Espera ${Math.ceil(rem / 1000)} s para volver a escuchar chismes`);
+  (db.cooldowns[u.id] = db.cooldowns[u.id] || {})[cdKey] = Date.now();
+
+  toast('👂 Prestando atención a los rumores…');
+  const others = db.users.filter(x => Number(x.id) !== Number(u.id) && isEnrolled(x)).map(x => x.username);
+  try {
+    const res = await fetch('/api/gossip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: db.schoolYear || 1, names: others.slice(0, 12) })
+    });
+    const data = await res.json();
+    const rumor = (data && data.rumor) || 'No logras oír nada interesante…';
+    toast(`👂 ${rumor}`);
+    db.chat.push({
+      id: Date.now(), u: '👂 Rumor', h: u.house, role: 'student', ch: 'global',
+      text: rumor, time: curTime()
+    });
+    if (db.chat.length > 60) db.chat.shift();
+    commit(`${u.username} escuchó un chisme en ${roomName(loc)}`);
+  } catch (err) {
+    toast('Los rumores se desvanecen… inténtalo más tarde');
+  }
+}
+
+/* ===== 4. CUMPLEAÑOS ===== */
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+function birthdayLabel(u) {
+  if (!u || !u.birthMonth || !u.birthDay) return '';
+  return `${u.birthDay} de ${MONTH_NAMES[u.birthMonth - 1]}`;
 }
 
 /* ===== 8.5. CATÁLOGO DE 6 MINIJUEGOS EN HTML5 CANVAS ===== */
@@ -6428,6 +6781,18 @@ document.addEventListener('click',e=>{
       break;
     case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
     case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
+    case 'openTrade':openTradeModal(d.id);break;
+    case 'tradeWant':tradeDraft.wantCromoId=d.id;renderTradeModal();break;
+    case 'sendTradeOffer':sendTradeOffer();break;
+    case 'acceptTrade':respondTrade(d.id,true);break;
+    case 'rejectTrade':respondTrade(d.id,false);break;
+    case 'openLetters':openLettersModal();break;
+    case 'openComposeLetter':openComposeLetterModal(d.id?Number(d.id):null);break;
+    case 'letterGift':setLetterGiftDraft(d.v);break;
+    case 'sendLetter':sendLetter();break;
+    case 'claimLetter':claimLetter(d.id);break;
+    case 'readLetter':readLetter(d.id);break;
+    case 'listenGossip':listenGossip();break;
     case 'generateCromo':generateCromoImage(d.id);break;
     case 'delMatch':API.deleteMatch(d.m);break;
     case 'genElims':API.generateEliminatorias();break;
