@@ -789,6 +789,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   spells: [],
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   classStars:{}, lastClassDate:null, classStreak:0, badges:[],
+  unlockedCosmetics:[], mcGonagallWarned:false,
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
@@ -1012,6 +1013,8 @@ function ensureDbIntegrity(){
     if (typeof u.lastClassDate === 'undefined') { u.lastClassDate = null; changed = true; }
     if (typeof u.classStreak !== 'number') { u.classStreak = 0; changed = true; }
     if (!Array.isArray(u.badges)) { u.badges = []; changed = true; }
+    if (!Array.isArray(u.unlockedCosmetics)) { u.unlockedCosmetics = []; changed = true; }
+    if (typeof u.mcGonagallWarned !== 'boolean') { u.mcGonagallWarned = false; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1398,6 +1401,72 @@ function getSubjectAttr(key) {
   return CLASS_ATTRIBUTE_MAP[key] || { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' };
 }
 
+/* ===== 1. REQUISITOS DE ATRIBUTOS EN INTERACCIONES (estilo Hogwarts Mystery) ===== */
+// Cada personaje tiene un atributo favorito: impresionarlo exige cierto nivel.
+const ATTR_DEFS = {
+  valentia: { prop: 'attrValentia', label: 'Valentía',  icon: '🦁' },
+  empatia:  { prop: 'attrEmpatia',  label: 'Empatía',   icon: '🕊️' },
+  sabiduria:{ prop: 'attrSabiduria',label: 'Sabiduría', icon: '🦅' }
+};
+// El nivel de un atributo es 1 + puntos/10 (arranca en 0 puntos = nivel 1).
+function attrLevelOf(u, key) {
+  const def = ATTR_DEFS[key]; if (!def || !u) return 1;
+  return Math.floor(Math.max(0, Number(u[def.prop]) || 0) / 10) + 1;
+}
+// Semilla numérica estable a partir del id (los profesores usan ids de texto).
+function attrSeed(target) {
+  const raw = target && target.id;
+  if (Number.isFinite(Number(raw))) return Number(raw);
+  let h = 0; const s = String(raw || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+// Atributo favorito de un personaje: usa su asignatura, luego sus rasgos y, si no, su casa.
+const SUBJECT_ATTR_HINTS = [
+  [/pociones|encantamientos|historia|astronom|runas|direcci|antigua|fama|duelo/i, 'sabiduria'],
+  [/transformaciones|defensa|vuelo|quidditch/i, 'valentia'],
+  [/herbolog|criaturas/i, 'empatia']
+];
+function npcFavoredAttr(target) {
+  if (!target) return 'sabiduria';
+  if (target.subject) for (const [re, k] of SUBJECT_ATTR_HINTS) if (re.test(target.subject)) return k;
+  const traits = (target.personality || []).map(t => String(t).toLowerCase());
+  const has = (...names) => traits.some(t => names.includes(t));
+  if (has('intelecto', 'sabiduria', 'justicia', 'responsabilidad')) return 'sabiduria';
+  if (has('empatia', 'lealtad')) return 'empatia';
+  if (has('valentia', 'bromista', 'liderazgo')) return 'valentia';
+  if (has('astucia', 'ambicion')) return 'valentia'; // la ambición se reta con osadía
+  const byHouse = { ravenclaw: 'sabiduria', hufflepuff: 'empatia', gryffindor: 'valentia', slytherin: 'valentia' };
+  return byHouse[target.house] || 'sabiduria';
+}
+// Requisito de "Impresionar" para un personaje concreto.
+function impressReqFor(target) {
+  const key = npcFavoredAttr(target);
+  const def = ATTR_DEFS[key];
+  const level = 3 + (attrSeed(target) % 3);
+  return { key, prop: def.prop, label: def.label, icon: def.icon, level };
+}
+// ¿Cumple el jugador el requisito de impresionar a este personaje?
+function canImpress(u, target) {
+  const req = impressReqFor(target);
+  return attrLevelOf(u, req.key) >= req.level;
+}
+// Botón (deshabilitado si no cumple) con el requisito indicado.
+function impressButton(target) {
+  const req = impressReqFor(target);
+  const u = me();
+  const ok = u ? canImpress(u, target) : false;
+  const name = target.name || target.username || 'este personaje';
+  return `<button class="btn sm gold" type="button" data-do="impress" data-id="${target.id}" ${ok ? '' : 'disabled'} title="Impresiona a ${esc(name)}">✨ Impresionar [Requiere ${req.icon} ${req.label} Nv. ${req.level}]</button>`;
+}
+// Botón para invitar a comer sándwiches: solo si ambos están en el Gran Comedor.
+function sandwichButton(target){
+  const u = me();
+  if (!u || !target || !target.is_npc) return '';
+  const bothInHall = userLoc(u) === 'comedor' && userLoc(target) === 'comedor';
+  return `<button class="btn sm" type="button" data-do="openSandwich" data-id="${target.id}" ${bothInHall ? '' : 'disabled'} title="${bothInHall ? 'Invitar a comer sándwiches en el Gran Comedor' : 'Debéis estar ambos en el Gran Comedor'}">🥪 Comer sándwiches</button>`;
+}
+
 const CLASS_SPELLS = {
   encantamientos:   { id: 'wingardium_leviosa', name: 'Wingardium Leviosa', subject: 'Encantamientos', icon: '🪶', desc: 'Hace levitar objetos con un movimiento de agitar y golpear.' },
   defensa:          { id: 'expelliarmus',       name: 'Expelliarmus',       subject: 'Defensa contra las Artes Oscuras', icon: '🛡️', desc: 'Conjuro desarmador que arrebata la varita del oponente.' },
@@ -1584,12 +1653,15 @@ const API={
       u.academic_progress = Math.max(0, (u.academic_progress||0) - 5);
       toast(`🤫 Te has escapado de ${esc(slotLabel(s))}. -5 Académico`);
       if(Math.random() < 0.30){
-        const profs = db.users.filter(x=>x.is_npc && (x.role==='professor'||x.role==='prefect'));
-        const prof = profs.length ? profs[Math.floor(Math.random()*profs.length)] : null;
-        const profName = prof ? prof.username : 'un profesor';
+        const prof = pickCatchingProfessor();
         u.happiness = Math.max(0, (u.happiness||50) - 5);
-        toast(`¡El profesor ${profName} te ha pillado en los pasillos! Detención.`);
-        startDetentionMinigame(profName);
+        const res = applyCatchConsequence(u, prof, 10);
+        if(res.warned){
+          toast(`🧑‍🏫 ${prof.name} te ha pillado en los pasillos… pero tu buena reputación te salva: solo te da un aviso (-0 pts).`);
+        } else {
+          toast(`¡El profesor ${prof.name} te ha pillado en los pasillos! Detención${res.doubled?' y castigo doble':''}: -${res.pts} pts.`);
+        }
+        startDetentionMinigame(prof.name);
       }
     }
     u.loc=roomId;u.locSlot=slotKey();
@@ -1614,11 +1686,11 @@ const API={
     }
     const caught = !immune && !petProtected && (Math.random() < 0.45);
     if(caught){
-      u.points = Math.max(0, u.points - 10);
+      // El toque de queda lo vigila Snape: con afinidad baja el castigo es doble.
+      const res = applyCatchConsequence(u, {id:'snape',name:'Severus Snape'}, 10);
       u.happiness = Math.max(0, u.happiness - 10);
-      db.houses.find(h=>h.id===u.house).points -= 10;
       u.loc = u.house;
-      toast('¡Filch y la Sra. Norris te atraparon! -10 pts, -10 Felicidad y de vuelta a tu Sala Común.');
+      toast(`¡Filch y la Sra. Norris te atraparon! -${res.pts} pts${res.doubled?' (Snape te tiene en su punto de mira: castigo doble)':''}, -10 Felicidad y de vuelta a tu Sala Común.`);
     }else{
       const msg = petProtected ? '🐱 ¡Tu gato distrajo a la Sra. Norris!' : '¡Esquivaste a Filch y encontraste un secreto!';
       u.points += 8;
@@ -2528,7 +2600,11 @@ function renderPlay(){
     <span class="pill" style="border-color:var(--gry)" title="Valentía (Defensa, Vuelo, Transformaciones)">🦁 Valentía: <b class="mono">${u.attrValentia||0}</b></span>
     <span class="pill" style="border-color:var(--huf)" title="Empatía (Herbología, Criaturas Mágicas)">🕊️ Empatía: <b class="mono">${u.attrEmpatia||0}</b></span>
     <span class="pill" style="border-color:var(--rav)" title="Sabiduría (Encantamientos, Pociones, Historia, Astronomía, Runas)">🦅 Sabiduría: <b class="mono">${u.attrSabiduria||0}</b></span>
-  </div>`;
+  </div>
+  ${Array.isArray(u.unlockedCosmetics)&&u.unlockedCosmetics.length?`<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+    <span class="muted" style="font-size:12px;align-self:center">Prendas icónicas:</span>${cosmeticsBadgesHTML(u)}
+  </div>`:''}
+  ${reputationHTML(u)}`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
   <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
@@ -4075,6 +4151,10 @@ function openNpcChatModal(npcId){
       <span class="muted" style="font-size:11px">Cada mensaje tarda al menos 8 s y suma +3 de afinidad.</span>
       <button class="btn sm" data-do="closeNpcChat" type="button">Cerrar</button>
     </div>
+    <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+      ${impressButton(target)}
+      ${!target.prof?`<button class="btn sm" type="button" data-do="openSandwich" data-id="${target.id}">🥪 Comer sándwiches</button>`:''}
+    </div>
   </div>`,true);
   renderNpcChatHistory();
   const form=$('npcChatForm');
@@ -4149,6 +4229,9 @@ socket.on('npc_reply',(data)=>{
       cur.friendshipScore=Math.min(100,(Number(cur.friendshipScore)||0)+3);
       if(typeof cur.romanceScore!=='number') cur.romanceScore=0;
       db.relations[k]=cur;
+      // Si la amistad llega al máximo chateando, se desbloquea la prenda icónica.
+      const npcUser=db.users.find(x=>x.id===Number(target.id));
+      if(npcUser) checkFriendshipUnlock(npcUser);
     }
     commit(`${u.username} habló con ${target.name}`);
     if(key===npcChatKey)renderNpcChatHistory();
@@ -4317,6 +4400,8 @@ function renderRelations(){
          <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
          <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
          ${Number(rel.friendshipScore)>=50?`<button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="romance" ${cd>0?'disabled':''} title="Cortejo (+8 romance)">💕 Cortejo</button>`:''}
+         ${sandwichButton(o)}
+         ${impressButton(o)}
          <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>`;
     return `<div class="arcade-card h-${o.house}">
       <div class="row" style="justify-content:space-between">
@@ -4327,6 +4412,292 @@ function renderRelations(){
       <div class="row" style="gap:6px;margin-top:auto">${actions}</div>
     </div>`;
   }).join('')}</div>`;
+}
+
+function interactImpress(targetId){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  // Los profesores usan ids de texto y su reputación va en db.profAffinity.
+  const isProf=!Number.isFinite(Number(targetId));
+  const target=npcChatTarget(targetId);must(target,'Personaje no encontrado');
+  const t=isProf?target:db.users.find(x=>x.id===Number(targetId));must(t,'Alumno no encontrado');
+  must(Number(t.id)!==u.id,'No puedes impresionarte a ti mismo');
+  const req=impressReqFor(t);
+  must(canImpress(u,t),`Necesitas ${req.icon} ${req.label} Nv. ${req.level} para impresionar a ${target.name}`);
+  const cdKey='rel_act',last=(db.cooldowns[u.id]||{})[cdKey]||0,rem=Math.max(0,12000-(Date.now()-last));
+  must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para otra interacción social`);
+  (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
+  fanfare();
+
+  // Con un profesor el doble de afinidad se refleja en la reputación del claustro.
+  if(isProf){
+    const gain=24; // el doble de una charla normal con un profesor (+12)
+    db.profAffinity=db.profAffinity||{};
+    const mine=db.profAffinity[u.id]=db.profAffinity[u.id]||{};
+    mine[target.id]=Math.min(100,(Number(mine[target.id])||0)+gain);
+    const pts=8;
+    u.points+=pts;
+    u.happiness=Math.min(100,(u.happiness||50)+4);
+    db.log.unshift({u:`${u.username} & ${target.name}`,h:u.house,a:`Impresionó a ${target.name}`,p:pts,x:0});
+    db.log.length=Math.min(db.log.length,15);
+    commit(`${u.username} impresionó al profesor ${target.name}`);
+    toast(`✨ ¡Impresionaste a ${target.name}! +${gain} de reputación con el claustro y +${pts} pts.`);
+    return;
+  }
+
+  // Con un alumno (NPC o jugador) sube la amistad el doble.
+  const k=relKey(u.id,t.id);
+  const cur=db.relations[k]||emptyRel();
+  if(typeof cur.friendshipScore!=='number'||Number.isNaN(cur.friendshipScore)) cur.friendshipScore=0;
+  if(typeof cur.romanceScore!=='number'||Number.isNaN(cur.romanceScore)) cur.romanceScore=0;
+  // Con jugadores reales sin amistad previa hace falta consentimiento mutuo.
+  if(!t.is_npc && !(Number(cur.friendshipScore)>0)){ sendFriendRequest(t.id,'friend'); return; }
+  db.relations=db.relations||{};
+  cur.rival=false;
+  const gain=24; // el doble de una charla normal (+12)
+  cur.friendshipScore=Math.min(100,cur.friendshipScore+gain);
+  db.relations[k]=cur;
+  const pts=8+friendBonusFor(u.id);
+  u.points+=pts;t.points+=4;
+  u.happiness=Math.min(100,(u.happiness||50)+6);
+  db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:`Impresionó a ${t.username}`,p:pts,x:0});
+  db.log.length=Math.min(db.log.length,15);
+  // Texto especial en el chat del personaje.
+  if(t.is_npc){
+    const chatKey=u.id+'_'+t.id;
+    db.aiChats=db.aiChats||{};
+    const hist=db.aiChats[chatKey]=db.aiChats[chatKey]||[];
+    hist.push({role:'npc',text:impressChatLine(t,req),time:npcChatTime()});
+    if(hist.length>40)hist.splice(0,hist.length-40);
+    if(chatKey===npcChatKey)renderNpcChatHistory();
+  }
+  // Amistad al máximo: desbloquea la prenda icónica del personaje.
+  checkFriendshipUnlock(t);
+  commit(`${u.username} impresionó a ${t.username}`);
+  toast(`✨ ¡Impresionaste a ${t.username}! +${gain} afinidad (el doble) y +${pts} pts.`);
+  if(socialModalOpen) renderSocialModal();
+}
+// Línea especial que aparece en el chat tras impresionar.
+function impressChatLine(t,req){
+  const lines={
+    sabiduria:`«¡Vaya! Nunca había conocido a alguien con tanta Sabiduría… podríamos estudiar juntos en la Biblioteca.»`,
+    valentia:`«Eso ha sido muy valiente por tu parte. Me impresiona tu Valentía, ${esc(t.username)} no lo olvidará.»`,
+    empatia:`«Se nota que te preocupas de verdad por los demás. Tu Empatía es un don, gracias por escucharme.»`
+  };
+  return lines[req.key]||`«Me has impresionado de verdad.»`;
+}
+
+/* ===== 2. MINIJUEGO DE SÁNDWICHES EN EL GRAN COMEDOR (IA de Groq) ===== */
+const SANDWICH_PHRASES = [
+  'Hablar de Quidditch',
+  'Quejarse de Snape',
+  'Hablar de libros',
+  'Presumir de tu familia',
+  'Hablar de criaturas mágicas',
+  'Contar una broma de los Weasley'
+];
+let sandwichState=null; // {npcId, turn, correct, log}
+
+function sandwichPick3(){
+  const pool=SANDWICH_PHRASES.slice();
+  const out=[];
+  while(pool.length&&out.length<3) out.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  return out;
+}
+
+function openSandwichModal(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const t=npcChatTarget(npcId);must(t,'Personaje no encontrado');
+  const tUser=db.users.find(x=>x.id===Number(t.id));
+  must(tUser&&tUser.is_npc,'Solo puedes comer sándwiches con los personajes del canon');
+  const myLoc=userLoc(u), tLoc=userLoc(tUser);
+  must(myLoc==='comedor'&&tLoc==='comedor','Solo podéis comer sándwiches en el Gran Comedor (id allí ambos)');
+  sandwichState={npcId:t.id,turn:0,correct:0,log:[]};
+  renderSandwichModal();
+}
+
+function renderSandwichModal(){
+  const st=sandwichState;if(!st)return;
+  const t=npcChatTarget(st.npcId);if(!t)return;
+  if(st.turn>=3){ // resumen final
+    const gain=st.log.reduce((a,l)=>a+l.gain,0);
+    openModal(`<div style="width:100%;text-align:left">
+      <span class="pill gold">🥪 Sándwiches en el Gran Comedor</span>
+      <h3 style="font-size:20px;color:var(--gold)">Fin de la comida con ${esc(t.name)}</h3>
+      <div class="box" style="display:grid;gap:8px">
+        ${st.log.map(l=>`<div><b class="mono">${l.gain>=15?'+15':'+2'}</b> ${esc(l.phrase)}<br><span class="muted" style="font-size:13px;font-style:italic">${esc(t.name)}: «${esc(l.reply)}»</span></div>`).join('')}
+      </div>
+      <p style="font-weight:700;color:var(--gold)">Afinidad total ganada: +${gain} (${st.correct}/3 aciertos)</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-do="closeSandwich" type="button">Cerrar</button></div>
+    </div>`,true);
+    return;
+  }
+  const choices=sandwichPick3();
+  st.choices=choices;
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">🥪 Sándwiches en el Gran Comedor · Turno ${st.turn+1}/3</span>
+    <h3 style="font-size:20px;color:var(--gold)">Comiendo con ${esc(t.name)}</h3>
+    <p class="muted" style="font-size:13px">Elige un tema. La IA del castillo juzgará si encaja con su personalidad: <b>acierto +15 afinidad</b>, <b>fallo +2</b>.</p>
+    <div id="sandwichFeed" class="box" style="display:grid;gap:6px;max-height:180px;overflow-y:auto">
+      ${st.log.length?st.log.map(l=>`<div><b class="mono" style="color:${l.gain>=15?'var(--good)':'var(--warn)'}">${l.gain>=15?'+15':'+2'}</b> ${esc(l.phrase)} — «${esc(l.reply)}»</div>`).join(''):'<span class="muted" style="font-size:13px">Aún no habéis hablado de nada…</span>'}
+    </div>
+    <div style="display:grid;gap:8px;margin-top:8px">
+      ${choices.map((c,i)=>`<button class="btn" type="button" style="justify-content:flex-start;text-align:left" data-do="sandwichChoice" data-c="${i}">${esc(c)}</button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:8px;justify-content:flex-end"><button class="btn sm" data-do="closeSandwich" type="button">Terminar</button></div>
+  </div>`,true);
+}
+
+async function answerSandwich(choiceIdx){
+  const st=sandwichState;must(st,'No hay ninguna comida en curso');
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const t=npcChatTarget(st.npcId);must(t,'Personaje no encontrado');
+  const phrase=(st.choices||[])[Number(choiceIdx)];must(phrase,'Elige un tema válido');
+  const tUser=db.users.find(x=>x.id===Number(t.id));
+  // Se bloquea el panel mientras la IA responde.
+  const feed=$('sandwichFeed');
+  if(feed)feed.innerHTML=`<span class="muted" style="font-size:13px">${esc(t.name)} está pensando mientras mastica…</span>`;
+  let match=false, reply='';
+  try{
+    const res=await fetch('/api/sandwich',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({npcName:t.name,phrase,trait:t.trait,year:Number(db.schoolYear)||1})
+    });
+    const data=await res.json();
+    match=!!(data&&data.match);
+    reply=String((data&&data.reply)||'').trim()||(match?'¡Justo el tema que me gusta!':'Prefiero hablar de otra cosa.');
+  }catch(err){
+    reply='La IA del castillo está indispuesta; '+t.name+' asiente sin más.';
+    match=false;
+  }
+  const gain=match?15:2;
+  db.relations=db.relations||{};
+  const k=relKey(u.id,t.id);
+  const cur=db.relations[k]||emptyRel();
+  cur.friendshipScore=Math.min(100,(Number(cur.friendshipScore)||0)+gain);
+  if(typeof cur.romanceScore!=='number') cur.romanceScore=0;
+  db.relations[k]=cur;
+  st.correct+=match?1:0;
+  st.log.push({phrase,reply,gain});
+  st.turn++;
+  // La amistad máxima desbloquea la prenda icónica (si aún no la tenía).
+  if(cur.friendshipScore>=100&&tUser) tryUnlockCosmetic(tUser);
+  commit(`${u.username} compartió sándwiches con ${t.name}`);
+  if(st.turn>=3){ renderSandwichModal(); toast(`Comida terminada · +${st.log.reduce((a,l)=>a+l.gain,0)} afinidad`); }
+  else renderSandwichModal();
+}
+
+
+/* ===== 3. RECOMPENSAS DE NIVEL 10 (PRENDAS ICÓNICAS) ===== */
+// Prenda icónica que se desbloquea al alcanzar 100 de amistad con cada personaje.
+const ICONIC_COSMETICS = {
+  201: { id: 'gafas_harry',     name: 'Gafas Redondas de Harry',     icon: '👓' },
+  202: { id: 'libro_hermione',  name: 'Libro Encantado de Hermione',  icon: '📖' },
+  203: { id: 'bufanda_weasley', name: 'Bufanda de la Sra. Weasley',   icon: '🧣' },
+  204: { id: 'sombrero_ginny',  name: 'Sombrero de Gryffindor',       icon: '🎩' },
+  205: { id: 'guantes_neville', name: 'Guantes de Herbología',        icon: '🌱' },
+  206: { id: 'gafas_luna',      name: 'Gafas de Luna',                icon: '👓' },
+  207: { id: 'pluma_cho',       name: 'Pluma de Ravenclaw',           icon: '🪶' },
+  208: { id: 'broche_draco',    name: 'Broche de Draco',              icon: '💎' },
+  209: { id: 'panuelo_pansy',   name: 'Pañuelo de Slytherin',         icon: '🐍' },
+  210: { id: 'anillo_blaise',   name: 'Anillo de Plata de Blaise',    icon: '💍' },
+  211: { id: 'bufanda_cedric',  name: 'Bufanda de Hufflepuff',        icon: '💛' },
+  212: { id: 'cinta_hannah',    name: 'Cinta Amarilla de Hannah',     icon: '🎀' },
+  213: { id: 'gafas_tonks',     name: 'Gafas de Tonks',               icon: '🕶️' },
+  214: { id: 'caramelo_fred',   name: 'Caramelo de Broma',            icon: '🍬' },
+  215: { id: 'bomba_george',    name: 'Bomba Fétida Perfumada',       icon: '💣' },
+  216: { id: 'insignia_percy',  name: 'Insignia de Prefecto',         icon: '📛' },
+  217: { id: 'guantes_oliver',  name: 'Guantes de Quidditch',         icon: '🧤' },
+  218: { id: 'escudo_ernie',    name: 'Escudo de Hufflepuff',         icon: '🛡️' }
+};
+// Prenda por defecto si el personaje no tiene una asignada.
+function cosmeticFor(target){
+  if(!target) return null;
+  const byId=ICONIC_COSMETICS[Number(target.id)];
+  if(byId) return byId;
+  const byHouse={
+    gryffindor:{id:'insignia_gry',name:'Insignia de Gryffindor',icon:'🦁'},
+    slytherin:{id:'insignia_sly',name:'Insignia de Slytherin',icon:'🐍'},
+    ravenclaw:{id:'insignia_rav',name:'Insignia de Ravenclaw',icon:'🦅'},
+    hufflepuff:{id:'insignia_huf',name:'Insignia de Hufflepuff',icon:'🦡'}
+  };
+  return byHouse[target.house]||null;
+}
+// Desbloquea la prenda icónica del personaje para el jugador (si no la tenía).
+function tryUnlockCosmetic(npcUser){
+  const u=me(); if(!u||!npcUser) return false;
+  const cosmetic=cosmeticFor(npcUser); if(!cosmetic) return false;
+  u.unlockedCosmetics=Array.isArray(u.unlockedCosmetics)?u.unlockedCosmetics:[];
+  if(u.unlockedCosmetics.some(c=>c&&c.id===cosmetic.id)) return false;
+  u.unlockedCosmetics.push({...cosmetic,from:npcUser.username,at:Date.now()});
+  fanfare();
+  toast(`🎁 ¡Amistad máxima con ${npcUser.username}! Desbloqueaste: ${cosmetic.icon} ${cosmetic.name}`);
+  return true;
+}
+// Revisa si la amistad con un NPC ha llegado al máximo y desbloquea su prenda.
+function checkFriendshipUnlock(npcUser){
+  const u=me(); if(!u||!npcUser||!npcUser.is_npc) return;
+  const rel=getRel(u.id,npcUser.id);
+  if((Number(rel.friendshipScore)||0)>=100) tryUnlockCosmetic(npcUser);
+}
+// Insignias de prendas desbloqueadas para el perfil del jugador.
+function cosmeticsBadgesHTML(u){
+  const list=Array.isArray(u&&u.unlockedCosmetics)?u.unlockedCosmetics:[];
+  if(!list.length) return '';
+  return list.map(c=>`<span class="pill gold" title="Prenda icónica${c.from?` · amistad máxima con ${esc(c.from)}`:''}">${c.icon||'🎁'} ${esc(c.name||'Prenda')}</span>`).join('');
+}
+
+/* ===== 4. REPUTACIÓN CON PROFESORES (CONSECUENCIAS) ===== */
+// Afinidad del jugador con un profesor concreto (usa db.profAffinity).
+function profRep(u,profId){
+  if(!u||!profId) return 0;
+  return Math.max(0,Number(((db.profAffinity||{})[u.id]||{})[profId])||0);
+}
+// Color de la barra de reputación según el valor.
+function repColor(v){ return v>=60?'var(--good)':v>=30?'var(--gold)':'var(--bad)'; }
+// Profesor que pilla al jugador: usa los NPC docentes si existen; si no, Snape/McGonagall.
+function professorIdByName(name){
+  const p=PROFESSORS.find(x=>x.name.toLowerCase()===String(name||'').toLowerCase());
+  return p?p.id:null;
+}
+function pickCatchingProfessor(){
+  const profs=db.users.filter(x=>x.is_npc&&(x.role==='professor'||x.role==='prefect'));
+  if(profs.length){
+    const chosen=profs[Math.floor(Math.random()*profs.length)];
+    return { id: professorIdByName(chosen.username)||String(chosen.username).toLowerCase(), name: chosen.username };
+  }
+  const fallback=[{id:'snape',name:'Severus Snape'},{id:'mcgonagall',name:'Minerva McGonagall'}];
+  return fallback[Math.floor(Math.random()*fallback.length)];
+}
+// Aplica las consecuencias de reputación al ser sorprendido.
+//   - Snape con afinidad baja (<20): pierde el DOBLE de puntos.
+//   - McGonagall con afinidad alta (>=40): la primera vez solo advierte (0 pts).
+function applyCatchConsequence(u,prof,basePts){
+  const rep=profRep(u,prof.id);
+  let pts=basePts, warned=false, doubled=false;
+  if(prof.id==='snape'&&rep<20){ pts=basePts*2; doubled=true; }
+  else if(prof.id==='mcgonagall'&&rep>=40&&!u.mcGonagallWarned){ u.mcGonagallWarned=true; pts=0; warned=true; }
+  if(pts>0){
+    u.points=Math.max(0,(u.points||0)-pts);
+    const hObj=db.houses.find(h=>h.id===u.house); if(hObj) hObj.points-=pts;
+  }
+  return {pts,warned,doubled,rep};
+}
+// Barra compacta de reputación para el perfil del jugador.
+function reputationHTML(u){
+  if(!u) return '';
+  const tracked=['snape','mcgonagall'];
+  const map=(db.profAffinity||{})[u.id]||{};
+  const allVals=Object.values(map).map(v=>Number(v)||0);
+  const avg=allVals.length?Math.round(allVals.reduce((a,b)=>a+b,0)/allVals.length):0;
+  const chips=tracked.map(id=>{
+    const p=PROFESSORS.find(x=>x.id===id); if(!p) return '';
+    const v=Math.min(100,profRep(u,id));
+    return `<div class="stat-item" title="Reputación con ${esc(p.name)}: ${v}/100${id==='snape'?' (baja = castigo doble)':id==='mcgonagall'?' (alta = aviso la 1.ª vez)':''}"><span>${esc(p.name.split(' ')[0])}</span><span class="stat-bar"><i style="width:${v}%;background:${repColor(v)}"></i></span></div>`;
+  }).join('');
+  return `<div class="stat-row" style="margin-top:6px">
+    <div class="stat-item" title="Reputación media con el claustro: ${avg}/100"><span>🎓 Reputación</span><span class="stat-bar"><i style="width:${avg}%;background:${repColor(avg)}"></i></span><b class="mono">${avg}</b></div>
+    ${chips}
+  </div>`;
 }
 
 function interactRelation(targetId,type){
@@ -4391,6 +4762,8 @@ function interactRelation(targetId,type){
   (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
   db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:type==='rival'?'Duelo de Rivalidad':(type==='romance'?'Cortejo':'Vínculo de Amistad'),p:pts,x:0});
   db.log.length=Math.min(db.log.length,15);
+  // Amistad al máximo: desbloquea la prenda icónica del personaje.
+  checkFriendshipUnlock(t);
   chime();
   commit(`${u.username} fortaleció su vínculo con ${t.username}`);
   toast(msg);
@@ -4764,7 +5137,8 @@ function socialActionsHTML(){
       <button class="btn sm gold" type="button" data-do="relAct" data-id="${sel.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
       ${fScore>=50?`<button class="btn sm gold" type="button" data-do="relAct" data-id="${sel.id}" data-t="romance" ${cd>0?'disabled':''} title="Cortejo (+8 romance)">💕 Cortejo</button>`:''}
       <button class="btn sm danger" type="button" data-do="relAct" data-id="${sel.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
-    </div>`;
+    </div>
+    <div class="row" style="margin-top:6px">${sandwichButton(sel)}${impressButton(sel)}</div>`;
     if(cd>0) h+=`<div class="soc-note">Espera ${Math.ceil(cd/1000)} s para otra interacción social.</div>`;
     if(fScore<50) h+=`<div class="soc-note">El romance se desbloquea con 50 de amistad.</div>`;
   }
@@ -5818,7 +6192,11 @@ document.addEventListener('click',e=>{
     case 'ansProf':answerProfTask(d.id,d.i);break;
     case 'relFilter':relFilterMode=d.f;renderRelations();break;
     case 'relAct':interactRelation(d.id,d.t);break;
-    case 'tutor':{const sel=db.users.find(x=>x.id===Number(d.id)); const u=me(); if(u&&sel){ const r=getRel(u.id,sel.id); r.friendshipScore=Math.min(100,(r.friendshipScore||0)+5); db.relations[relKey(u.id,sel.id)]=r; u.points=(u.points||0)+5; sel.points=(sel.points||0)+5; const hu=db.houses.find(h=>h.id===u.house); if(hu) hu.points+=5; const hs=db.houses.find(h=>h.id===sel.house); if(hs) hs.points+=5; commit(`${u.username} dio tutoría a ${sel.username}`); toast('Tutoría completada: +5 amistad, +5 pts para ambos'); renderSocialModal(); } break;}
+    case 'impress':interactImpress(/^\d+$/.test(String(d.id))?Number(d.id):d.id);break;
+    case 'openSandwich':openSandwichModal(Number(d.id));break;
+    case 'sandwichChoice':answerSandwich(d.c);break;
+    case 'closeSandwich':sandwichState=null;closeModal();break;
+    case 'tutor':{const sel=db.users.find(x=>x.id===Number(d.id)); const u=me(); if(u&&sel){ const r=getRel(u.id,sel.id); r.friendshipScore=Math.min(100,(r.friendshipScore||0)+5); db.relations[relKey(u.id,sel.id)]=r; u.points=(u.points||0)+5; sel.points=(sel.points||0)+5; const hu=db.houses.find(h=>h.id===u.house); if(hu) hu.points+=5; const hs=db.houses.find(h=>h.id===sel.house); if(hs) hs.points+=5; checkFriendshipUnlock(sel); commit(`${u.username} dio tutoría a ${sel.username}`); toast('Tutoría completada: +5 amistad, +5 pts para ambos'); renderSocialModal(); } break;}
     case 'openSocial':openSocialModal();break;
     case 'socialTab':socialTab=d.t;socialSelectedId=null;renderSocialModal();break;
     case 'socialSelect':socialSelectedId=Number(d.id);renderSocialModal();break;
