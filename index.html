@@ -249,6 +249,30 @@ th{color:var(--gold)}
 .modal{position:fixed;inset:0;z-index:100;background:rgba(6,5,18,.72);backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px;overflow-y:auto}
 .modal .panel{max-width:440px;width:100%;text-align:center;display:grid;gap:12px;justify-items:center}
 .modal .panel.wide{max-width:760px}
+/* Patronus: efecto visual mágico a pantalla completa */
+.modal.patronus-modal{background:radial-gradient(circle at 50% 45%, #12275e 0%, #0a1440 38%, #05081f 72%, #02030d 100%);backdrop-filter:blur(3px);cursor:pointer}
+.modal.patronus-modal .panel{max-width:640px;background:transparent;border:none;box-shadow:none;cursor:default;position:relative}
+.patronus-stage{position:relative;display:grid;place-items:center;gap:10px;padding:26px 10px 30px;width:100%;isolation:isolate}
+.patronus-emoji{font-size:120px;line-height:1;animation:patronusGlow 3.4s ease-in-out infinite;filter:drop-shadow(0 0 26px #60a5fa) drop-shadow(0 0 60px #e0e7ff);will-change:transform,filter;z-index:2}
+@keyframes patronusGlow{
+  0%,100%{transform:translateY(0) scale(1);text-shadow:0 0 18px #e0e7ff,0 0 40px #60a5fa,0 0 80px #3b82f6;filter:drop-shadow(0 0 22px #60a5fa) drop-shadow(0 0 52px #e0e7ff)}
+  50%{transform:translateY(-18px) scale(1.06);text-shadow:0 0 26px #ffffff,0 0 60px #60a5fa,0 0 110px #3b82f6;filter:drop-shadow(0 0 34px #93c5fd) drop-shadow(0 0 80px #e0e7ff)}
+}
+.patronus-name{font-family:var(--display);font-weight:700;font-size:24px;color:#e0e7ff;letter-spacing:.06em;text-shadow:0 0 14px #60a5fa;z-index:2}
+.patronus-spell{font-family:var(--display);font-weight:900;font-size:clamp(24px,6vw,42px);letter-spacing:.14em;color:#dbe4ff;text-shadow:0 0 10px #e0e7ff,0 0 28px #60a5fa,0 0 54px #3b82f6;animation:patronusPulse 2.6s ease-in-out infinite;z-index:2}
+@keyframes patronusPulse{0%,100%{opacity:.86}50%{opacity:1}}
+.patronus-sub{color:#b9c4f2;font-size:13px;z-index:2}
+.patronus-particle{position:absolute;left:50%;bottom:8%;width:7px;height:7px;border-radius:50%;background:#e0e7ff;box-shadow:0 0 10px #60a5fa,0 0 20px #e0e7ff;pointer-events:none;animation:patronusRise 3.6s ease-in infinite;z-index:1}
+@keyframes patronusRise{
+  0%{transform:translate(-50%,0) scale(.3);opacity:0}
+  15%{opacity:1}
+  70%{opacity:.75}
+  100%{transform:translate(calc(-50% + var(--drift,0px)),-260px) scale(1.05);opacity:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .patronus-emoji{animation:none}
+  .patronus-particle{animation:none;opacity:.5}
+}
 .toasts{position:fixed;top:calc(72px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:120;display:grid;gap:8px;pointer-events:none;max-width:340px}
 .toast{background:var(--surface);border:1px solid var(--gold);padding:10px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);font-size:14px;animation:tin .25s ease}
 .canon-banner{position:fixed;top:calc(78px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:121;width:min(580px,calc(100vw - 32px));pointer-events:none}
@@ -684,6 +708,60 @@ const ANIMAGUS_FORMS=[
  {id:'sabueso',name:'Sabueso Negro',icon:'🐕',desc:'Valentía indomable al más puro estilo de Canuto.'}
 ];
 
+/* ===== PATRONUS (Efecto Visual Mágico) ===== */
+const PATRONUS_ICONS={ciervo:'🦌',nutria:'🦦',lobo:'🐺',fenix:'🦅',perro:'🐕',gato:'🐈'};
+const PATRONUS_FORMS=[
+ {id:'ciervo',name:'Ciervo de Plata',icon:'🦌',desc:'Nobleza protectora que guía a los perdidos.'},
+ {id:'nutria',name:'Nutria Juguetona',icon:'🦦',desc:'Alegría luminosa que desarma la tristeza.'},
+ {id:'lobo',name:'Lobo de Plata',icon:'🐺',desc:'Instinto feroz y lealtad inquebrantable.'},
+ {id:'fenix',name:'Fénix Resplandeciente',icon:'🦅',desc:'Renace de las cenizas para proteger la luz.'},
+ {id:'perro',name:'Perro Guardián',icon:'🐕',desc:'Fidelidad incansable que nunca te abandona.'},
+ {id:'gato',name:'Gato Espectral',icon:'🐈',desc:'Sigilo y astucia para acechar en la oscuridad.'}
+];
+const patronusIcon=id=>PATRONUS_ICONS[id]||'✨';
+const patronusForm=id=>PATRONUS_FORMS.find(p=>p.id===id)||null;
+// Hechizo avanzado que se domina al superar Defensa y revela el Patronus.
+const EXPECTO_PATRONUM={id:'expecto_patronum',name:'Expecto Patronum',subject:'Defensa contra las Artes Oscuras',icon:'☀️',desc:'Invoca un guardián de plata con forma de animal que repele a los dementores.'};
+const hasExpectoPatronum=u=>hasSpell(u,EXPECTO_PATRONUM);
+function revealPatronus(u){
+  if(!u)return null;
+  if(!u.patronus)u.patronus=PATRONUS_FORMS[Math.floor(Math.random()*PATRONUS_FORMS.length)].id;
+  return u.patronus;
+}
+function unlockExpectoPatronum(u){
+  if(!u)return false;
+  if(!Array.isArray(u.spells))u.spells=[];
+  const first=!hasSpell(u,EXPECTO_PATRONUM);
+  if(first)u.spells.push(EXPECTO_PATRONUM.name);
+  revealPatronus(u);
+  if(first){const f=patronusForm(u.patronus);toast(`¡Has dominado Expecto Patronum! Tu Patronus es ${f.icon} ${f.name}`);}
+  return first;
+}
+// Efecto visual mágico: invoca el Patronus a pantalla completa.
+function summonPatronus(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(u.patronus,'Aún no has revelado tu Patronus');
+  const f=patronusForm(u.patronus);
+  const parts=Array.from({length:14},(_,i)=>{
+    const left=(6+Math.random()*88).toFixed(1);
+    const drift=(Math.round((Math.random()*140-70)))+'px';
+    const delay=(Math.random()*3.4).toFixed(2);
+    const dur=(2.8+Math.random()*2).toFixed(2);
+    return `<span class="patronus-particle" style="left:${left}%;--drift:${drift};animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }).join('');
+  openModal(`
+    <div class="patronus-stage">
+      ${parts}
+      <div class="patronus-emoji">${patronusIcon(u.patronus)}</div>
+      <div class="patronus-spell">Expecto Patronum</div>
+      <div class="patronus-name">${esc(f.name)}</div>
+      <p class="patronus-sub">Un guardián de luz plateada surge de tu varita y ahuyenta la oscuridad.</p>
+      <button class="btn sm" data-do="closeModal" type="button" style="margin-top:6px">🌑 Volver a la oscuridad</button>
+    </div>
+  `,false,null,'patronus-modal');
+  fanfare();
+}
+
 const DEATH_EATERS=[
  {id:'bellatrix',name:'Bellatrix Lestrange',icon:'💀',title:'Lugarteniente Oscura',power:'Maleficio Cruciatus y Duelo Frenético',pts:25},
  {id:'lucius',name:'Lucius Malfoy',icon:'🐍',title:'Mortífago de Élite',power:'Maldición Imperius y Magia Sombría',pts:22},
@@ -789,7 +867,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   spells: [],
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   classStars:{}, lastClassDate:null, classStreak:0, badges:[],
-  unlockedCosmetics:[], mcGonagallWarned:false,
+  unlockedCosmetics:[], mcGonagallWarned:false, patronus:null,
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
@@ -1015,6 +1093,8 @@ function ensureDbIntegrity(){
     if (!Array.isArray(u.badges)) { u.badges = []; changed = true; }
     if (!Array.isArray(u.unlockedCosmetics)) { u.unlockedCosmetics = []; changed = true; }
     if (typeof u.mcGonagallWarned !== 'boolean') { u.mcGonagallWarned = false; changed = true; }
+    if (typeof u.patronus === 'undefined') { u.patronus = null; changed = true; }
+    else if (u.patronus !== null && !PATRONUS_ICONS[u.patronus]) { u.patronus = null; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1750,6 +1830,7 @@ const API={
     // 2. El Grimorio: si gana el minijuego (hit = true) y no tiene el hechizo, añadirlo
     if (hit || extra >= 6) {
       unlockClassSpell(u, key);
+      if (key === 'defensa') unlockExpectoPatronum(u);
     }
     
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
@@ -1802,6 +1883,7 @@ const API={
     u.academic_progress += hit?1:0;
     if (hit) {
       unlockClassSpell(u, key);
+      if (key === 'defensa') unlockExpectoPatronum(u);
     }
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
@@ -2333,9 +2415,9 @@ function hideCanonEventBanner(){
   clearTimeout(canonEventTimer);
 }
 let mgClean=null;
-function openModal(html,wide,cls){
+function openModal(html,wide,cls,overlayCls){
   if(mgClean){mgClean();mgClean=null}
-  const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''} ${cls||''}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal ${overlayCls||''}" data-do="modalBg"><div class="panel ${wide?'wide':''} ${cls||''}" role="dialog" aria-modal="true">${html}</div></div>`;
 }
 function closeModal(){
   if(mgClean){mgClean();mgClean=null}
@@ -2607,8 +2689,9 @@ function renderPlay(){
   ${reputationHTML(u)}`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
-  <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
+  <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}${u.patronus?`<span class="pill" title="Tu Patronus" style="border-color:#60a5fa;color:#cfe0ff">${patronusIcon(u.patronus)} ${esc((patronusForm(u.patronus)||{}).name||'Patronus')}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
       ${!petOf(u)?`<button class="btn sm" style="margin-top:8px" data-do="adoptPet" type="button">🐾 Adoptar mascota</button>`:`<button class="btn sm gold" style="margin-top:8px" data-do="playWithPet" type="button" ${petPlayCooldown(u)>0?'disabled':''}>${petOf(u).icon} ${petPlayCooldown(u)>0?`Jugar en ${Math.ceil(petPlayCooldown(u)/60000)} min`:'Jugar con '+petOf(u).name}</button>`}
+      ${u.patronus?`<button class="btn sm" style="margin-top:8px;border-color:#60a5fa;color:#cfe0ff" data-do="summonPatronus" type="button">✨ Invocar Patronus</button>`:''}
     ${hbar}</div>`;
   if(!u.house){
     area.innerHTML=`<div class="sec-head" style="margin-bottom:16px"><h3 style="font-size:20px">El Sombrero Seleccionador</h3><p class="muted" style="margin-top:6px">Elige tu casa. La decisión es definitiva.</p></div>
@@ -2977,7 +3060,7 @@ function openGrimorioModal() {
   if (!u) return toast('Inicia sesión primero');
   if (!Array.isArray(u.spells)) u.spells = [];
 
-  const allSpells = Object.values(CLASS_SPELLS);
+  const allSpells = Object.values(CLASS_SPELLS).concat([EXPECTO_PATRONUM]);
   const learnedCount = allSpells.filter(s => hasSpell(u, s)).length;
 
   let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
@@ -3134,6 +3217,7 @@ function startClassSession(key){
       </button>
     </div>
     <div class="row" style="margin-top:12px;justify-content:center">
+      ${key==='defensa'&&hasExpectoPatronum(u)?`<button class="btn" data-do="summonPatronus" type="button" style="border-color:#60a5fa;color:#cfe0ff">✨ Invocar Patronus</button>`:''}
       <button class="btn sm" data-do="closeModal" type="button">Cerrar</button>
     </div>
   `);
@@ -6233,6 +6317,7 @@ document.addEventListener('click',e=>{
     case 'useItem':API.useItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'openAlbum':openAlbumModal();break;
     case 'openGrimorio':openGrimorioModal();break;
+    case 'summonPatronus':summonPatronus();break;
     case 'ansClassTrivia':answerClassTrivia(d.k,Number(d.i),Number(d.c));break;
     case 'openBackpack':openBackpackModal();break;
     case 'useFromBackpack':
