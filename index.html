@@ -342,7 +342,8 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
-    <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button> <!-- ⬅️ AÑADIR ESTA LÍNEA -->
+    <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
+    <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button>
     <button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button>
     <button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
@@ -736,6 +737,8 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   npc_trait:npc_trait||'Alumno del castillo',npc_path:null,npc_quidditch:false,npc_decided:false,npc_trials:0,animagus:null,
   quidditch_approved: false, gender: FEMALES.includes(username)?'f':'m',
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
+  attrValentia: 0, attrEmpatia: 0, attrSabiduria: 0,
+  spells: [],
   galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
   personality: personality,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
@@ -952,6 +955,10 @@ function ensureDbIntegrity(){
     if (typeof u.petLastPlay === 'undefined') { u.petLastPlay = null; changed = true; }
     if (typeof u.petLove !== 'number' || isNaN(u.petLove)) { u.petLove = 50; changed = true; }
     else { const _pl = Math.max(0, Math.min(100, u.petLove)); if (_pl !== u.petLove) { u.petLove = _pl; changed = true; } }
+    if (typeof u.attrValentia !== 'number' || isNaN(u.attrValentia)) { u.attrValentia = 0; changed = true; }
+    if (typeof u.attrEmpatia !== 'number' || isNaN(u.attrEmpatia)) { u.attrEmpatia = 0; changed = true; }
+    if (typeof u.attrSabiduria !== 'number' || isNaN(u.attrSabiduria)) { u.attrSabiduria = 0; changed = true; }
+    if (!Array.isArray(u.spells)) { u.spells = []; changed = true; }
     
     if(!u.personality || !Array.isArray(u.personality)) {
         u.personality = [];
@@ -1248,6 +1255,52 @@ function getClassSpec(key, u) {
   return { yr, rawYr, minYear, locked, isMaster, diff, label: labels[diff], stars, topic: entry.name, desc: entry.desc, bonusPts: (diff - 1) * 2, bonusGal: diff };
 }
 
+/* ===== ATRIBUTOS ACADÉMICOS RPG Y GRIMORIO DE HECHIZOS ===== */
+const CLASS_ATTRIBUTE_MAP = {
+  defensa:          { prop: 'attrValentia',  label: 'Valentía',  icon: '🦁' },
+  vuelo:            { prop: 'attrValentia',  label: 'Valentía',  icon: '🦁' },
+  transformaciones: { prop: 'attrValentia',  label: 'Valentía',  icon: '🦁' },
+  herbologia:       { prop: 'attrEmpatia',   label: 'Empatía',   icon: '🕊️' },
+  criaturas:        { prop: 'attrEmpatia',   label: 'Empatía',   icon: '🕊️' },
+  encantamientos:   { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' },
+  pociones:         { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' },
+  historia:         { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' },
+  astronomia:       { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' },
+  runas:            { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' }
+};
+
+function getSubjectAttr(key) {
+  return CLASS_ATTRIBUTE_MAP[key] || { prop: 'attrSabiduria', label: 'Sabiduría', icon: '🦅' };
+}
+
+const CLASS_SPELLS = {
+  encantamientos:   { id: 'wingardium_leviosa', name: 'Wingardium Leviosa', subject: 'Encantamientos', icon: '🪶', desc: 'Hace levitar objetos con un movimiento de agitar y golpear.' },
+  defensa:          { id: 'expelliarmus',       name: 'Expelliarmus',       subject: 'Defensa contra las Artes Oscuras', icon: '🛡️', desc: 'Conjuro desarmador que arrebata la varita del oponente.' },
+  transformaciones: { id: 'vera_verto',         name: 'Vera Verto',         subject: 'Transformaciones', icon: '🐱', desc: 'Transforma un animal pequeño en una copa de cristal.' },
+  pociones:         { id: 'aguamenti',          name: 'Aguamenti',          subject: 'Pociones', icon: '🧪', desc: 'Conjura un chorro de agua pura desde la punta de la varita para el caldero.' },
+  herbologia:       { id: 'lumos_solem',        name: 'Lumos Solem',        subject: 'Herbología', icon: '🌱', desc: 'Produce un destello de luz solar ardiente que repele al Lazo del Diablo.' },
+  criaturas:        { id: 'immobilus',          name: 'Immobilus',          subject: 'Cuidado de Criaturas Mágicas', icon: '🦅', desc: 'Inmoviliza temporalmente a criaturas traviesas como los duendecillos de Cornualles.' },
+  historia:         { id: 'revelio',            name: 'Revelio',            subject: 'Historia de la Magia', icon: '📜', desc: 'Revela inscripciones, pasadizos o secretos ocultos en reliquias antiguas.' },
+  vuelo:            { id: 'arresto_momentum',   name: 'Arresto Momentum',   subject: 'Clase de Vuelo', icon: '🧹', desc: 'Disminuye la velocidad de caída de un mago desde gran altura.' },
+  astronomia:       { id: 'lumos_maxima',       name: 'Lumos Maxima',       subject: 'Astronomía', icon: '✨', desc: 'Ilumina las bóvedas y cartas estelares en plena oscuridad nocturna.' },
+  runas:            { id: 'aparecium',          name: 'Aparecium',          subject: 'Runas Antiguas', icon: '🔮', desc: 'Hace visible la tinta invisible y los glifos rúnicos ocultos en pergaminos.' }
+};
+
+function hasSpell(u, spell) {
+  if (!u || !Array.isArray(u.spells) || !spell) return false;
+  return u.spells.some(s => (typeof s === 'string' ? (s === spell.id || s === spell.name) : (s && (s.id === spell.id || s.name === spell.name))));
+}
+
+function unlockClassSpell(u, key) {
+  const spell = CLASS_SPELLS[key];
+  if (!u || !spell) return false;
+  if (!Array.isArray(u.spells)) u.spells = [];
+  if (hasSpell(u, spell)) return false;
+  u.spells.push(spell.name);
+  toast(`¡Nuevo hechizo aprendido! ✨ ${spell.name}`);
+  return true;
+}
+
 const TIENDA_HOGSMEADE = {
   bomba_fetida: { id: 'bomba_fetida', tienda: 'Zonko', nombre: 'Bomba Fétida', precio: 15, desc: 'Distrae a Filch y te da 60s de inmunidad en el toque de queda.' },
   polvo_oscuridad: { id: 'polvo_oscuridad', tienda: 'Zonko', nombre: 'Polvo de Oscuridad Peruano', precio: 25, desc: 'Escapa al instante a tu Sala Común durante el toque de queda o recreo.' },
@@ -1466,7 +1519,7 @@ const API={
     commit(`${u.username} +${pts} pts (${fa.name})`);
     return{pts,fx};
   },
-  attend(key,extra=0,extraFlight=0){
+  attend(key,extra=0,extraFlight=0,hit=false){
     const u=me();must(u&&u.house,'Elige tu casa primero');
     const spec = getClassSpec(key, u);
     must(!spec.locked, 'Esta asignatura no está disponible para tu curso.');
@@ -1487,6 +1540,15 @@ const API={
     u.galeones = (u.galeones||0) + galGain;
     u.academic_progress += 1 + (spec.diff || 1);
     u.happiness = Math.min(100, u.happiness + 2);
+
+    // 1. Atributos Base: sumar +1 al atributo correspondiente a la materia
+    const attrInfo = getSubjectAttr(key);
+    u[attrInfo.prop] = (Number(u[attrInfo.prop]) || 0) + 1;
+
+    // 2. El Grimorio: si gana el minijuego (hit = true) y no tiene el hechizo, añadirlo
+    if (hit || extra >= 6) {
+      unlockClassSpell(u, key);
+    }
     
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
     
@@ -1507,7 +1569,13 @@ const API={
     
     chime();
     commit(`${u.username} +${pts} pts (${spec.topic})`);
-    return{pts,fx,gal:galGain};
+
+    // 3. Interrupción de Preguntas en Clase (30% de probabilidad)
+    if (Math.random() < 0.30) {
+      setTimeout(() => triggerProfessorInterruption(key), 180);
+    }
+
+    return{pts,fx,gal:galGain,attr:attrInfo};
   },
   trainMinigame(key,hit){
     const cfg=ACTS[key],u=me();must(u&&u.house,'Elige tu casa primero');
@@ -1516,7 +1584,7 @@ const API={
     must(!spec.locked, 'Esta asignatura no está disponible para tu curso.');
     
     if(open){
-      return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0);
+      return this.attend(key,hit?6:2,key==='vuelo'&&hit?4:0,hit);
     }
     const cd=this.cooldown(key);must(cd<=0,`Espera ${Math.ceil(cd/1000)} s para volver a jugar`);
     
@@ -1530,6 +1598,9 @@ const API={
     if(u.buffDobleGaleon){ galGain *= 2; u.buffDobleGaleon = false; }
     u.galeones = (u.galeones||0) + galGain;
     u.academic_progress += hit?1:0;
+    if (hit) {
+      unlockClassSpell(u, key);
+    }
     db.houses.find(h=>h.id===u.house).points+=pts;
     (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[key]=Date.now();
     db.log.unshift({u:u.username,h:u.house,a:`Práctica: ${spec.topic}`,p:pts,x:fx});
@@ -2320,6 +2391,11 @@ function renderPlay(){
     <div class="stat-item">🦁 Orgullo <span class="stat-bar"><i style="width:${u.pride}%; background:var(--bad)"></i></span></div>
     <div class="stat-item">📚 Académico <span class="stat-bar"><i style="width:${Math.min(100, u.academic_progress/2)}%; background:var(--rav)"></i></span></div>
     ${petOf(u)?`<div class="stat-item" title="Cariño de ${petOf(u).name}: ${petLoveOf(u)}/100${petLoveBoosted(u)?' · bono doble activo':''}">${petOf(u).icon} Cariño ${petLoveOf(u)}${petLoveBoosted(u)?' ⚡':''} <span class="stat-bar"><i style="width:${petLoveOf(u)}%; background:var(--gold)"></i></span></div>`:''}
+  </div>
+  <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+    <span class="pill" style="border-color:var(--gry)" title="Valentía (Defensa, Vuelo, Transformaciones)">🦁 Valentía: <b class="mono">${u.attrValentia||0}</b></span>
+    <span class="pill" style="border-color:var(--huf)" title="Empatía (Herbología, Criaturas Mágicas)">🕊️ Empatía: <b class="mono">${u.attrEmpatia||0}</b></span>
+    <span class="pill" style="border-color:var(--rav)" title="Sabiduría (Encantamientos, Pociones, Historia, Astronomía, Runas)">🦅 Sabiduría: <b class="mono">${u.attrSabiduria||0}</b></span>
   </div>`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
@@ -2768,6 +2844,121 @@ function openBackpackModal() {
   </div>`;
   
   openModal(html, true);
+}
+
+function openGrimorioModal() {
+  const u = me();
+  if (!u) return toast('Inicia sesión primero');
+  if (!Array.isArray(u.spells)) u.spells = [];
+
+  const allSpells = Object.values(CLASS_SPELLS);
+  const learnedCount = allSpells.filter(s => hasSpell(u, s)).length;
+
+  let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+    <div>
+      <h3 style="font-size:20px;color:var(--gold)">📖 El Grimorio de ${esc(u.username)}</h3>
+      <p class="muted" style="font-size:13px">Supera con éxito los minijuegos de cada clase para dominar nuevos conjuros.</p>
+    </div>
+    <span class="pill gold mono">${learnedCount}/${allSpells.length} hechizos</span>
+  </div>`;
+
+  if (u.spells.length === 0) {
+    html += `<div class="box" style="width:100%;text-align:center;padding:18px;margin-bottom:12px">
+      <p class="muted">Aún no has registrado ningún hechizo en tu Grimorio. ¡Gana el minijuego de una asignatura para aprender su conjuro!</p>
+    </div>`;
+  }
+
+  html += `<div class="grid g2" style="width:100%;text-align:left">`;
+  allSpells.forEach(sp => {
+    const unlocked = hasSpell(u, sp);
+    html += `<div class="box" style="display:flex;flex-direction:column;gap:6px;border-left:3px solid ${unlocked ? 'var(--gold)' : 'var(--line)'};opacity:${unlocked ? '1' : '0.55'}">
+      <div class="row" style="justify-content:space-between">
+        <strong style="font-size:15px;color:${unlocked ? 'var(--gold)' : 'var(--fg)'}">${sp.icon} ${esc(sp.name)}</strong>
+        ${unlocked ? '<span class="pill good">Aprendido</span>' : '<span class="pill off">Bloqueado</span>'}
+      </div>
+      <span class="muted" style="font-size:11px;font-weight:700;text-transform:uppercase">${esc(sp.subject)}</span>
+      <p class="muted" style="font-size:12px">${esc(sp.desc)}</p>
+    </div>`;
+  });
+  html += `</div>
+  <div class="row" style="margin-top:16px;justify-content:center">
+    <button class="btn sm" data-do="closeModal" type="button">Cerrar Grimorio</button>
+  </div>`;
+
+  openModal(html, true);
+}
+
+async function triggerProfessorInterruption(key) {
+  const u = me();
+  if (!u || !u.house) return;
+  const act = ACTS[key] || { name: 'Magia', prof: 'El Profesor' };
+  const spec = getClassSpec(key, u);
+  const attrInfo = getSubjectAttr(key);
+
+  openModal(`
+    <span class="pill gold">⚡ Interrupción del Profesor</span>
+    <h3 style="font-size:20px;color:var(--gold)">🧙‍♂️ ${esc(act.prof)} te hace una pregunta</h3>
+    <p class="muted" style="font-size:13px">Asignatura: <strong>${esc(act.name)}</strong> (${spec.yr}.º curso) · Recompensa: <b>+5 pts</b> y <b>+1 ${attrInfo.icon} ${attrInfo.label}</b></p>
+    <div class="box" style="width:100%;text-align:center;padding:20px">
+      <p class="muted">🪄 Formulando pregunta de clase...</p>
+    </div>
+  `);
+
+  try {
+    const res = await fetch('/api/class-trivia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subjectKey: key,
+        subjectName: act.name,
+        topic: spec.topic,
+        year: spec.yr
+      })
+    });
+    const data = await res.json();
+    if (!data || !data.question || !Array.isArray(data.options)) throw new Error('Sin pregunta');
+
+    openModal(`
+      <span class="pill gold">⚡ Interrupción del Profesor</span>
+      <h3 style="font-size:20px;color:var(--gold)">🧙‍♂️ ${esc(act.prof)} te interroga en clase</h3>
+      <p class="muted" style="font-size:13px">Si respondes correctamente ganarás <b>+5 puntos extra</b> y <b>+1 ${attrInfo.icon} ${attrInfo.label}</b>.</p>
+      <div class="box" style="width:100%;text-align:left;border-left:3px solid var(--gold)">
+        <p style="font-weight:700;font-size:15px">${esc(data.question)}</p>
+      </div>
+      <div style="display:grid;gap:8px;width:100%">
+        ${data.options.map((opt, idx) => `
+          <button class="btn" type="button" style="justify-content:flex-start;text-align:left" data-do="ansClassTrivia" data-k="${esc(key)}" data-i="${idx}" data-c="${Number(data.correctIndex) || 0}">
+            <b style="color:var(--gold);margin-right:6px">${['A', 'B', 'C'][idx] || (idx + 1)}.</b> ${esc(opt)}
+          </button>
+        `).join('')}
+      </div>
+    `);
+  } catch (err) {
+    closeModal();
+  }
+}
+
+function answerClassTrivia(key, chosenIdx, correctIdx) {
+  const u = me();
+  closeModal();
+  if (!u || !u.house) return;
+  const act = ACTS[key] || { name: 'Clase' };
+  const attrInfo = getSubjectAttr(key);
+
+  if (chosenIdx === correctIdx) {
+    u.points = (Number(u.points) || 0) + 5;
+    u[attrInfo.prop] = (Number(u[attrInfo.prop]) || 0) + 1;
+    const hObj = db.houses.find(h => h.id === u.house);
+    if (hObj) hObj.points += 5;
+    db.log.unshift({ u: u.username, h: u.house, a: `Pregunta de ${act.name}`, p: 5, x: 0 });
+    db.log.length = Math.min(db.log.length, 15);
+    fanfare();
+    commit(`${u.username} acertó la pregunta del profesor (+5 pts, +1 ${attrInfo.label})`);
+    toast(`¡Respuesta correcta! +5 pts extra · +1 ${attrInfo.icon} ${attrInfo.label}`);
+  } else {
+    buzzSnd();
+    toast(`Respuesta incorrecta. ¡Sigue repasando ${act.name}!`);
+  }
 }
 
 function cromoImageUrl(val){
@@ -4934,10 +5125,12 @@ document.addEventListener('click',e=>{
     case 'buyItem':API.buyItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'useItem':API.useItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'openAlbum':openAlbumModal();break;
-    case 'openBackpack':openBackpackModal();break; // ⬅️ AÑADIR ESTA LÍNEA
-    case 'useFromBackpack': // ⬅️ Y ESTE BLOQUE
+    case 'openGrimorio':openGrimorioModal();break;
+    case 'ansClassTrivia':answerClassTrivia(d.k,Number(d.i),Number(d.c));break;
+    case 'openBackpack':openBackpackModal();break;
+    case 'useFromBackpack':
       API.useItem(d.id); 
-      openBackpackModal(); // Recarga la mochila para actualizar la cantidad (x0, x1...)
+      openBackpackModal();
       break;
     case 'tradeCromo':API.tradeCromo(d.id);openAlbumModal();break;
     case 'tradeAllCromos':API.tradeAllCromos();openAlbumModal();break;
