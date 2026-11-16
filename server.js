@@ -526,6 +526,7 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   spells: [],
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
   classStars: {}, lastClassDate: null, classStreak: 0, badges: [],
+  patronus: null,
   quidditch_approved: false,
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
@@ -754,6 +755,7 @@ function sanitizeState(state) {
     }
   });
 
+  const PATRONUS_IDS = ['ciervo', 'nutria', 'lobo', 'fenix', 'perro', 'gato'];
   state.users.forEach(u => {
     if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
     if (typeof u.galeones !== 'number') u.galeones = 15;
@@ -780,6 +782,7 @@ function sanitizeState(state) {
     if (typeof u.lastClassDate === 'undefined') { u.lastClassDate = null; }
     if (typeof u.classStreak !== 'number') { u.classStreak = 0; }
     if (!Array.isArray(u.badges)) { u.badges = []; }
+    if (u.patronus !== null && !PATRONUS_IDS.includes(u.patronus)) u.patronus = null;
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
