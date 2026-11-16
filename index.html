@@ -3039,10 +3039,15 @@ function startClassSession(key){
   const coopName=coopPartnerName(key);
   const coopNotice = coop ? `<div class="box" style="border-left:3px solid #63a87b;margin-bottom:10px">¡${esc(coopName)} está en la misma clase! Tendréis un bono cooperativo (x1.2).</div>` : '';
   const stars=classStarsOf(u,key);
+  const starBar=`<div class="starBar" title="Estrellas en ${esc(act.name)}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%">
+      <span style="font-size:20px;letter-spacing:2px">${'⭐'.repeat(Math.min(stars,5))}${'☆'.repeat(Math.max(0,5-stars))}</span>
+      <span class="pill gold" style="font-size:12px">${stars} ⭐</span>
+    </div>`;
   openModal(`
+    ${starBar}
     <span class="pill gold">📚 Sesión de Clase</span>
     <h3 style="font-size:20px;color:var(--gold)">${esc(act.name)}</h3>
-    <p class="muted" style="font-size:13px">${esc(spec.topic)} · Estrellas actuales: <b>${stars} ⭐</b></p>
+    <p class="muted" style="font-size:13px">${esc(spec.topic)}</p>
     ${coopNotice}
     <div style="display:grid;gap:10px;width:100%;margin-top:8px">
       <button class="btn gold" type="button" data-do="classQuick" data-k="${esc(key)}">
@@ -3092,23 +3097,49 @@ async function doIntensiveClass(key){
 /* ===== Trazado de Varita (Canvas) ===== */
 function startRuneDrawingMinigame(key){
   return new Promise(resolve=>{
-    openCanvasModal('✨ Trazado de Varita', 'Dibuja la runa sobre la línea punteada.', 'Arrastra el ratón o el dedo siguiendo la línea.', false);
-    // objetivo: triángulo
-    const pts=[];
-    const cx=400, cy=200, r=120;
-    for(let i=0;i<=3;i++){
-      const a=(i*Math.PI*2/3) - Math.PI/2;
-      pts.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
-    }
-    // interpolar
-    const target=[];
-    for(let i=0;i<pts.length-1;i++){
-      const a=pts[i], b=pts[i+1];
-      const steps=40;
-      for(let s=0;s<=steps;s++){
-        target.push({x:a.x+(b.x-a.x)*s/steps, y:a.y+(b.y-a.y)*s/steps});
+    const shapeFor = key==='encantamientos' ? 'una espiral' : key==='pociones' ? 'una serpiente en forma de S' : key==='defensa' ? 'un rayo' : 'un triángulo';
+    openCanvasModal('✨ Trazado de Varita', `Dibuja ${shapeFor} sobre la línea punteada.`, 'Arrastra el ratón o el dedo siguiendo la línea.', false);
+    // objetivo: símbolo según la asignatura
+    const cx=400, cy=200;
+    const buildSpiral=()=>{ // encantamientos
+      const out=[], rMax=140, turns=2.5, steps=260;
+      for(let i=0;i<=steps;i++){
+        const t=i/steps, a=t*Math.PI*2*turns, r=rMax*t;
+        out.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
       }
-    }
+      return out;
+    };
+    const buildSnake=()=>{ // pociones
+      const out=[], steps=160, hw=90, amp=70;
+      for(let i=0;i<=steps;i++){
+        const t=i/steps, x=cx-hw+2*hw*t;
+        out.push({x, y:cy - amp*Math.sin(t*Math.PI*2)});
+      }
+      return out;
+    };
+    const buildLightning=()=>{ // defensa
+      const nodes=[[470,70],[330,205],[420,205],[320,330]];
+      const out=[];
+      for(let i=0;i<nodes.length-1;i++){
+        const a=nodes[i], b=nodes[i+1], steps=40;
+        for(let s=0;s<=steps;s++) out.push({x:a[0]+(b[0]-a[0])*s/steps, y:a[1]+(b[1]-a[1])*s/steps});
+      }
+      return out;
+    };
+    const buildTriangle=()=>{ // por defecto
+      const pts=[], r=120;
+      for(let i=0;i<=3;i++){
+        const a=(i*Math.PI*2/3) - Math.PI/2;
+        pts.push({x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r});
+      }
+      const out=[];
+      for(let i=0;i<pts.length-1;i++){
+        const a=pts[i], b=pts[i+1], steps=40;
+        for(let s=0;s<=steps;s++) out.push({x:a.x+(b.x-a.x)*s/steps, y:a.y+(b.y-a.y)*s/steps});
+      }
+      return out;
+    };
+    const target = key==='encantamientos' ? buildSpiral() : key==='pociones' ? buildSnake() : key==='defensa' ? buildLightning() : buildTriangle();
     let drawing=false, drawn=[];
     const toCanvas=(e)=>{
       const rect=canvas.getBoundingClientRect();
