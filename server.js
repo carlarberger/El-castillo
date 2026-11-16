@@ -352,6 +352,33 @@ function pickFallbackTrivia(subjectKey) {
   };
 }
 
+// Respaldo local si Groq no está disponible: heurística por palabras clave del tema.
+const SANDWICH_HINTS = {
+  libros: ['estudio', 'libro', 'leer', 'biblioteca', 'examen', 'deberes', 'tarea', 'hechizo'],
+  quidditch: ['quidditch', 'escoba', 'snitch', 'partido', 'vuelo', 'aro', 'bludger', 'golpeador', 'buscador'],
+  snape: ['snape', 'pociones', 'caldero', 'mazmorras', 'profesor'],
+  familia: ['padre', 'madre', 'familia', 'linaje', 'malfoy', 'sangre', 'casa'],
+  criaturas: ['hipogrifo', 'dragón', 'criatura', 'cuidado de criaturas', 'hagrid', 'animal'],
+  bromas: ['broma', 'travesura', 'weasley', 'chiste', 'filch', 'pasadizo']
+};
+function pickFallbackSandwich(npcName, phrase) {
+  const text = normalizeLoreText(phrase);
+  const name = normalizeLoreText(npcName);
+  const likes = [];
+  if (/hermione|percy|binns|flitwick|cho|lyra/.test(name)) likes.push('libros');
+  if (/harry|ron|fred|george|oliver|cedric|ginny/.test(name)) likes.push('quidditch', 'bromas');
+  if (/draco|pansy|blaise|seraphina/.test(name)) likes.push('familia', 'snape');
+  if (/neville|hannah|sprout|hagrid|ernie/.test(name)) likes.push('criaturas');
+  if (/luna/.test(name)) likes.push('criaturas');
+  if (!likes.length) likes.push('quidditch', 'libros');
+  const hitTopic = likes.find(topic => (SANDWICH_HINTS[topic] || []).some(k => text.includes(k)));
+  const match = !!hitTopic;
+  return {
+    match,
+    reply: match ? '¡Justo el tema que me encanta! Sigue, sigue…' : 'Mmm… prefiero hablar de otra cosa, la verdad.'
+  };
+}
+
 app.post('/api/class-trivia', async (req, res) => {
   const subjectKey = String((req.body && req.body.subjectKey) || 'encantamientos').trim().toLowerCase();
   const subjectName = String((req.body && req.body.subjectName) || 'Encantamientos').trim().slice(0, 80);
@@ -407,6 +434,58 @@ app.post('/api/class-trivia', async (req, res) => {
   } catch (err) {
     console.error('Error generando trivia de clase (usando respaldo local):', err.message);
     return res.json({ ok: true, ...pickFallbackTrivia(subjectKey), fallback: true });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// 🥪 Minijuego de sándwiches: la IA de Groq evalúa si la frase encaja con el personaje.
+app.post('/api/sandwich', async (req, res) => {
+  const npcName = String((req.body && req.body.npcName) || 'un alumno').trim().slice(0, 60);
+  const phrase = String((req.body && req.body.phrase) || '').trim().slice(0, 120);
+  const trait = String((req.body && req.body.trait) || '').trim().slice(0, 200);
+  const year = clampSchoolYear(req.body && req.body.year);
+
+  if (!phrase) return res.json({ ok: true, match: false, reply: 'Mejor hablemos de otra cosa…', fallback: true });
+
+  if (!AI_ENABLED) {
+    return res.json({ ok: true, ...pickFallbackSandwich(npcName, phrase), fallback: true });
+  }
+
+  const systemPrompt = `Eres ${npcName}, alumno del castillo de Hogwarts (${trait || 'alumno del castillo'}). Estás comiendo sándwiches en el Gran Comedor con el jugador. El jugador intenta sacar un tema de conversación. Decide si ese tema encaja con tu personalidad y tus gustos. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema: {"match": true o false, "reply": "tu reacción en una frase, en español y dentro del personaje"}. Nunca rompas el canon ni menciones que eres una IA. Están en el Año ${year}.`;
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: 180,
+    temperature: 0.7,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Tema que saca el jugador mientras coméis: "${phrase}". ¿Te interesa? Devuelve el JSON.` }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const firstBrace = raw.indexOf('{'), lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) raw = raw.slice(firstBrace, lastBrace + 1);
+    const parsed = JSON.parse(raw);
+    const match = parsed.match === true || parsed.match === 'true' || parsed.acierto === true;
+    const reply = String(parsed.reply || parsed.respuesta || '').trim().slice(0, 200) || (match ? '¡Justo lo que quería oír!' : 'Prefiero hablar de otra cosa.');
+    return res.json({ ok: true, match, reply, fallback: false });
+  } catch (err) {
+    console.error('Error evaluando sándwiches (usando respaldo local):', err.message);
+    return res.json({ ok: true, ...pickFallbackSandwich(npcName, phrase), fallback: true });
   } finally {
     clearTimeout(timer);
   }
