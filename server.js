@@ -528,6 +528,11 @@ function defaultDb() {
     free: false,
     npcAi: true,
     relations: {},
+    // Solicitudes de amistad pendientes: { id, from, to, type, at }
+    friendRequests: [],
+    // Ids de solicitudes ya resueltas (aceptadas/rechazadas): evita que un
+    // cliente con datos obsoletos reintroduzca una solicitud ya cerrada.
+    friendRequestsDone: [],
     profAffinity: {},
     raidShield: 100,
     chat: [
@@ -571,6 +576,55 @@ function reconcileHousePoints(state) {
       .reduce((acc, u) => acc + (Number(u.points) || 0), 0);
     h.points = sum + (matchWins[h.id] || 0);
   });
+}
+
+function sanitizeFriendRequests(state, list) {
+  if (!Array.isArray(list)) return [];
+  const done = new Set((state && Array.isArray(state.friendRequestsDone) ? state.friendRequestsDone : []).map(String));
+  const users = (state && Array.isArray(state.users)) ? state.users : [];
+  const seenPairs = new Set();
+  const out = [];
+  list.forEach(r => {
+    if (!r || r.from == null || r.to == null) return;
+    const from = Number(r.from);
+    const to = Number(r.to);
+    if (!from || !to || from === to) return;
+    const id = String(r.id || `fr_${from}_${to}_${Date.now()}`);
+    if (done.has(id)) return;
+    // Ambas partes deben existir todavía en el castillo.
+    if (!users.some(u => u.id === from) || !users.some(u => u.id === to)) return;
+    // Un jugador no puede tener dos solicitudes abiertas hacia la misma persona.
+    const pair = `${from}->${to}`;
+    if (seenPairs.has(pair)) return;
+    seenPairs.add(pair);
+    out.push({
+      id,
+      from,
+      to,
+      type: r.type === 'rival' ? 'rival' : 'friend',
+      at: Number(r.at) || Date.now()
+    });
+  });
+  return out;
+}
+
+// Fusiona la lista de solicitudes del servidor con la que envía un cliente.
+// Las solicitudes ya resueltas (tombstones) nunca se reincorporan.
+function mergeFriendRequests(serverList, incomingList, doneList, users) {
+  const done = new Set((doneList || []).map(String));
+  const map = new Map();
+  const push = r => {
+    if (!r || r.from == null || r.to == null) return;
+    const from = Number(r.from);
+    const to = Number(r.to);
+    if (!from || !to || from === to) return;
+    const id = String(r.id || `fr_${from}_${to}_${Date.now()}`);
+    if (done.has(id)) return;
+    map.set(id, { id, from, to, type: r.type === 'rival' ? 'rival' : 'friend', at: Number(r.at) || Date.now() });
+  };
+  (serverList || []).forEach(push);
+  (incomingList || []).forEach(push);
+  return sanitizeFriendRequests({ users: users || [], friendRequestsDone: doneList }, [...map.values()]);
 }
 
 function sanitizeState(state) {
@@ -650,6 +704,10 @@ function sanitizeState(state) {
   }
   if (!state.relations || typeof state.relations !== 'object') state.relations = {};
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
+  if (!Array.isArray(state.friendRequests)) state.friendRequests = [];
+  if (!Array.isArray(state.friendRequestsDone)) state.friendRequestsDone = [];
+  state.friendRequests = sanitizeFriendRequests(state, state.friendRequests);
+  state.friendRequestsDone = state.friendRequestsDone.map(id => String(id)).slice(-200);
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
 
@@ -728,12 +786,109 @@ io.on('connection', async (socket) => {
           }
         }
 
+        // Las solicitudes de amistad se funden con la lista del servidor:
+        // un cliente con datos obsoletos no puede borrar las pendientes.
+        data.db.friendRequests = mergeFriendRequests(
+          (memoryState && memoryState.friendRequests) || [],
+          Array.isArray(data.db.friendRequests) ? data.db.friendRequests : [],
+          (memoryState && memoryState.friendRequestsDone) || [],
+          Array.isArray(data.db.users) ? data.db.users : ((memoryState && memoryState.users) || [])
+        );
+        data.db.friendRequestsDone = (memoryState && memoryState.friendRequestsDone) || [];
+
         await saveState(data.db);
 
         socket.broadcast.emit('sync_db', {
           db: memoryState,
           reason: data.reason || null
         });
+      }
+    });
+
+    // ⬅️ MÓDULO SOCIAL: identidad del socket (sala privada por jugador)
+    socket.on('identify', (data) => {
+      const uid = Number(data && data.userId);
+      // Sale de las salas anteriores antes de entrar en la nueva.
+      for (const room of Array.from(socket.rooms)) {
+        if (room !== socket.id && room.startsWith('user:')) socket.leave(room);
+      }
+      if (!uid) return;
+      socket.data.userId = uid;
+      socket.join('user:' + uid);
+    });
+
+    // ⬅️ MÓDULO SOCIAL: nueva solicitud de amistad (notificación en tiempo real)
+    socket.on('new_friend_request', async (data) => {
+      try {
+        const from = Number(data && data.from);
+        const to = Number(data && data.to);
+        const type = (data && data.type) === 'rival' ? 'rival' : 'friend';
+        if (!from || !to || from === to) return;
+
+        const state = await loadState();
+        const sender = state.users.find(u => u.id === from);
+        const target = state.users.find(u => u.id === to);
+        if (!sender || !target) return;
+        if (target.is_npc) return;
+
+        const requestId = String((data && data.requestId) || `fr_${from}_${to}_${Date.now()}`);
+        const existing = state.friendRequests.find(r => Number(r.from) === from && Number(r.to) === to);
+        if (!existing) {
+          // El servidor es la fuente de verdad de las solicitudes pendientes.
+          state.friendRequests = mergeFriendRequests(
+            state.friendRequests,
+            [{ id: requestId, from, to, type, at: Date.now() }],
+            state.friendRequestsDone,
+            state.users
+          );
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+        }
+
+        const payload = {
+          requestId: (existing && existing.id) || requestId,
+          from,
+          to,
+          type,
+          fromName: sender.username,
+          toName: target.username,
+          at: Date.now()
+        };
+        io.to('user:' + to).emit('new_friend_request', payload);
+        io.to('user:' + from).emit('new_friend_request_sent', payload);
+      } catch (err) {
+        console.error('Error procesando la solicitud de amistad:', err.message);
+      }
+    });
+
+    // ⬅️ MÓDULO SOCIAL: respuesta a una solicitud (aceptada o rechazada)
+    socket.on('friend_request_response', async (data) => {
+      try {
+        const requestId = String((data && data.requestId) || '');
+        if (!requestId) return;
+        const accepted = !!(data && data.accepted);
+        const from = Number(data && data.from); // quien responde
+        const to = Number(data && data.to);     // quien envió la solicitud
+
+        // Mutación síncrona: así un sync_db posterior no reintroduce la solicitud.
+        const state = memoryState;
+        state.friendRequests = (state.friendRequests || []).filter(r => String(r.id) !== requestId);
+        if (!Array.isArray(state.friendRequestsDone)) state.friendRequestsDone = [];
+        if (!state.friendRequestsDone.includes(requestId)) state.friendRequestsDone.push(requestId);
+        state.friendRequestsDone = state.friendRequestsDone.slice(-200);
+
+        try {
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+        } catch (err) {
+          console.error('Error guardando la respuesta de amistad:', err.message);
+        }
+
+        const payload = { requestId, from, to, accepted, byName: String((data && data.byName) || '') };
+        if (to) io.to('user:' + to).emit('friend_request_result', payload);
+        if (from) io.to('user:' + from).emit('friend_request_result', payload);
+      } catch (err) {
+        console.error('Error notificando la respuesta de amistad:', err.message);
       }
     });
 

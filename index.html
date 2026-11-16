@@ -52,6 +52,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
   margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
 .nav-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:20px;height:60px}
+/* La fila de botones no se parte en varias líneas: si no cabe, se desliza. */
+.nav-in > .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%;padding:6px 2px}
+.nav-in > .row::-webkit-scrollbar{display:none}
 .brand{font-family:var(--display);font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
 .brand svg{width:26px;height:26px}
 .links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
@@ -333,6 +336,50 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .rareza-Raro{background:#4a3b8c;color:#fff}
 .rareza-Común{background:#2c4a3e;color:#fff}
 .cromo-repetido{position:absolute;top:8px;right:8px;background:var(--gold);color:var(--gold-ink);font-weight:900;font-size:11px;padding:2px 7px;border-radius:8px}
+
+/* ===== MÓDULO SOCIAL (estilo Hogwarts Mystery) ===== */
+#socialBtn{position:relative}
+.soc-badge{position:absolute;top:-2px;right:-2px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg);pointer-events:none}
+.soc-badge.inline{position:static;box-shadow:none;margin-left:6px;min-width:18px;height:18px}
+.modal .panel.soc-panel{max-width:980px;text-align:left;justify-items:stretch}
+.soc{width:100%;display:grid;gap:14px}
+.soc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.soc-head h3{font-size:20px;color:var(--gold);letter-spacing:.06em}
+.soc-head .soc-sub{font-size:12px;color:var(--muted)}
+.soc-tabs{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.soc-tab{padding:8px 16px;border-radius:999px;border:1px solid #d4af37;background:#0b1a2a;color:#e8d9a0;font-weight:700;cursor:pointer;font-size:13px;display:inline-flex;align-items:center}
+.soc-tab:hover{border-color:#e3bb4e;color:#fff}
+.soc-tab.on{background:linear-gradient(180deg,#e3bb4e,#b8860b);color:#1b1405;border-color:#e3bb4e}
+.soc-body{display:grid;grid-template-columns:minmax(230px,1fr) minmax(240px,1fr) minmax(230px,1fr);gap:12px;align-items:start}
+@media (max-width:820px){.soc-body{grid-template-columns:1fr}}
+.soc-panel-box{background:#0b1a2a;border:1px solid #d4af37;border-radius:14px;padding:12px;box-shadow:0 0 0 1px rgba(212,175,55,.18),0 12px 30px rgba(0,0,0,.35)}
+.soc-list{display:grid;gap:8px;max-height:430px;overflow-y:auto}
+.soc-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px;border-radius:12px;border:1px solid rgba(212,175,55,.30);background:#0f2338;color:#e8eefc;cursor:pointer;font:inherit}
+.soc-item:hover{border-color:#e3bb4e}
+.soc-item.on{border-color:#e3bb4e;background:#15304d;box-shadow:0 0 0 1px rgba(227,187,78,.35)}
+.soc-item.static{cursor:default}
+.soc-item.static:hover{border-color:rgba(212,175,55,.30)}
+.soc-item-txt{display:grid;gap:3px;min-width:0;flex:1}
+.soc-item-txt strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.soc-item-txt small{font-size:11px;color:#a9bed8;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.soc-item-txt .hbadge{font-size:10px}
+.soc-card{display:grid;gap:8px;justify-items:center;text-align:center;background:radial-gradient(120% 80% at 50% 0%,#16324f 0%,#0b1a2a 72%)}
+.soc-card h4{font-size:19px;color:#f3e3b3}
+.soc-card .row{justify-content:center}
+.soc-lvl{font-family:var(--display);color:#e3bb4e;letter-spacing:.1em;font-size:15px}
+.soc-card .bar{width:100%;height:9px;background:#08203a;border:1px solid rgba(212,175,55,.35);margin-top:0}
+.soc-card .bar i{background:linear-gradient(90deg,#b8860b,#ffe9a8)}
+.soc-note{font-size:12px;color:#a9bed8}
+.soc-actions{display:grid;gap:8px}
+.soc-actions .btn{background:#12283f;border-color:rgba(212,175,55,.4)}
+.soc-actions .btn.gold{background:linear-gradient(180deg,#e3bb4e,#b8860b);color:#1b1405;border-color:#e3bb4e}
+.soc-actions .btn.danger{border-color:var(--bad);color:#ff9d90}
+.soc-empty{font-size:13px;color:#a9bed8;text-align:center;padding:18px 8px}
+.soc-req{border:1px solid rgba(212,175,55,.35);border-radius:12px;background:#0f2338;padding:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.soc-sec-title{font-family:var(--display);color:#e3bb4e;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:2px 0 6px}
+.soc-req .row{margin-left:auto;gap:6px}
+.soc-tabs-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;font-weight:800}
+.soc-tab.on .soc-tabs-count{background:#1b1405;color:#e3bb4e}
 </style>
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
@@ -341,6 +388,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </div>
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
+    <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
     <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button>
@@ -859,7 +907,7 @@ let db = {
  apps:[], votes:[],
  events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
  period:'application',schoolYear:1,clockMode:'real',mockTime:null,mockDay:null,free:false,npcAi:true,
- relations:{}, profAffinity:{}, raidShield:100,
+ relations:{}, profAffinity:{}, raidShield:100, friendRequests:[], friendRequestsDone:[],
  chat:[
   {id:1,u:'🤖 Hermione Granger',h:'gryffindor',role:'student',ch:'global',text:'¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!',time:'20:40'},
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
@@ -1000,6 +1048,13 @@ function ensureDbIntegrity(){
     if(db.apps.length!==prevApps) changed=true;
   }
   if(!db.relations || typeof db.relations!=='object') db.relations={};
+  if(!Array.isArray(db.friendRequests)){db.friendRequests=[];changed=true;}
+  else{
+    const prevReqs=db.friendRequests.length;
+    db.friendRequests=db.friendRequests.filter(r=>r&&r.id&&r.from!=null&&r.to!=null&&Number(r.from)!==Number(r.to));
+    if(db.friendRequests.length!==prevReqs)changed=true;
+  }
+  if(!Array.isArray(db.friendRequestsDone)){db.friendRequestsDone=[];changed=true;}
   if(!db.profAffinity || typeof db.profAffinity!=='object') db.profAffinity={};
   if(typeof db.raidShield!=='number') db.raidShield=100;
   if(typeof db.npcAi==='undefined') db.npcAi=true;
@@ -1038,6 +1093,7 @@ socket.on('init_db', (serverDb) => {
     db = serverDb;
     const migrated = ensureDbIntegrity();
     validateLocalSession();
+    identifySocket();
     if (migrated) socket.emit('sync_db', { db: db, reason: null });
     renderAll();
   }
@@ -1051,6 +1107,41 @@ socket.on('sync_db', (data) => {
     if (data.reason) toast('En vivo: ' + data.reason);
     renderAll();
   }
+});
+
+/* ===== MÓDULO SOCIAL: identidad del socket y avisos en tiempo real ===== */
+// El servidor usa salas privadas ('user:<id>') para avisar a un jugador concreto.
+function identifySocket(){
+  if(!socket) return;
+  socket.emit('identify',{userId:Number(session.uid)||0});
+}
+
+// Llega una solicitud de amistad mientras el jugador está conectado.
+socket.on('new_friend_request',(data)=>{
+  if(!data||!session.uid) return;
+  if(Number(data.to)!==Number(session.uid)) return;
+  toast(`📨 ${data.fromName||'Un alumno'} te ha enviado una solicitud de amistad`);
+  chime();
+  updateSocialBadge();
+  if(socialModalOpen) renderSocialModal();
+});
+
+// Confirmación para quien envió la solicitud.
+socket.on('new_friend_request_sent',(data)=>{
+  if(!data||!session.uid) return;
+  if(Number(data.from)!==Number(session.uid)) return;
+  updateSocialBadge();
+});
+
+// Respuesta (aceptada o rechazada) a una solicitud que enviaste.
+socket.on('friend_request_result',(data)=>{
+  if(!data||!session.uid) return;
+  if(Number(data.to)!==Number(session.uid)) return;
+  toast(data.accepted
+    ? `🤝 ${data.byName||'Tu amigo'} aceptó tu solicitud de amistad`
+    : `💔 ${data.byName||'El alumno'} rechazó tu solicitud de amistad`);
+  updateSocialBadge();
+  if(socialModalOpen) renderSocialModal();
 });
 
 function commit(reason){
@@ -1378,6 +1469,7 @@ const API={
       session.uid=existing.id;session.passHash=pHash;
       localStorage.setItem('castillo_uid',String(existing.id));
       localStorage.setItem('castillo_pass',pHash);
+      identifySocket();
       commit('Entró '+existing.username);
       toast('Sesión iniciada como '+existing.username);
       return;
@@ -1390,6 +1482,7 @@ const API={
     session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
     localStorage.setItem('castillo_pass',pHash);
+    identifySocket();
     if(chosenHouse)fanfare();
     commit('Nuevo alumno: '+name);
     toast('¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
@@ -1406,6 +1499,7 @@ const API={
       session.uid=target.id;session.passHash=pHash;
       localStorage.setItem('castillo_uid',String(target.id));
       localStorage.setItem('castillo_pass',pHash);
+      identifySocket();
       chime();
       commit(target.username+' protegió su cuenta con contraseña');
       toast('Contraseña guardada. ¡Bienvenido de vuelta, '+target.username+'!');
@@ -1415,6 +1509,7 @@ const API={
     session.uid=target.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(target.id));
     localStorage.setItem('castillo_pass',pHash);
+    identifySocket();
     chime();
     renderAll();
     toast('¡Bienvenido de vuelta, '+target.username+'!');
@@ -1423,6 +1518,7 @@ const API={
     session.uid=null;session.passHash='';session.channel='global';
     localStorage.removeItem('castillo_uid');
     localStorage.removeItem('castillo_pass');
+    identifySocket();
     renderAll();
     toast('Has cerrado sesión en este dispositivo.');
   },
@@ -2130,12 +2226,13 @@ function hideCanonEventBanner(){
   clearTimeout(canonEventTimer);
 }
 let mgClean=null;
-function openModal(html,wide){
+function openModal(html,wide,cls){
   if(mgClean){mgClean();mgClean=null}
-  const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const m=$('modalRoot');m.hidden=false;m.innerHTML=`<div class="modal" data-do="modalBg"><div class="panel ${wide?'wide':''} ${cls||''}" role="dialog" aria-modal="true">${html}</div></div>`;
 }
 function closeModal(){
   if(mgClean){mgClean();mgClean=null}
+  socialModalOpen=false;
   const m=$('modalRoot');m.hidden=true;m.innerHTML='';
 }
 document.addEventListener('keydown',e=>{
@@ -2686,88 +2783,6 @@ function renderMortifagosEvent(){
   box.innerHTML = h;
 }
 
-function renderRelations(){
-  const box=$('relationsBox'),badge=$('relBonusBadge');if(!box)return;
-  const u=me();
-  if(!u){
-    if(badge)badge.textContent='Inicia sesión';
-    box.innerHTML='<p class="muted">Inicia sesión con tu personaje para forjar amistades o rivalidades con los personajes del canon y demás alumnos.</p>';
-    return;
-  }
-  const fBonus=friendBonusFor(u.id);
-  if(badge)badge.textContent=`Bono de amistad: +${fBonus} pts`;
-  
-  const others=db.users.filter(x=>{
-    if(x.id===u.id || !isEnrolled(x)) return false;
-    if(relFilterMode==='canon') return x.is_canon;
-    if(relFilterMode==='players') return !x.is_npc;
-    return true;
-  });
-  
-  const cd=Math.max(0,12000-(Date.now()-((db.cooldowns[u.id]||{})['rel_act']||0)));
-
-  box.innerHTML=`
-    <div class="row" style="margin-bottom:10px; gap:6px">
-       <button class="chip ${relFilterMode==='all'?'on':''}" data-do="relFilter" data-f="all">Todos</button>
-       <button class="chip ${relFilterMode==='canon'?'on':''}" data-do="relFilter" data-f="canon">Canon</button>
-       <button class="chip ${relFilterMode==='players'?'on':''}" data-do="relFilter" data-f="players">Jugadores</button>
-    </div>
-    <div class="arcade-grid">${others.map(o=>{
-    const rel=getRel(u.id,o.id), tier=relTier(rel);
-    return `<div class="arcade-card h-${o.house}">
-      <div class="row" style="justify-content:space-between">
-        <div class="row"><span class="pawn">${av(o,30)}</span><div><h4 style="margin:0">${esc(o.username)}</h4><div class="row" style="gap:4px;margin-top:2px">${hbadge(o.house)}${yearBadge(o)}</div></div></div>
-        <span class="pill ${tier.col}">${tier.label}</span>
-      </div>
-      <div class="bar" style="margin:6px 0"><i style="width:${Math.min(100,rel.score)}%"></i></div>
-      <div class="row" style="gap:6px;margin-top:auto">
-        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
-        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
-        <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
-        <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
-      </div>
-    </div>`;
-  }).join('')}</div>`;
-}
-
-function interactRelation(targetId,type){
-  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
-  const t=db.users.find(x=>x.id===Number(targetId));must(t,'Alumno no encontrado');
-  const cdKey='rel_act',last=(db.cooldowns[u.id]||{})[cdKey]||0,rem=Math.max(0,12000-(Date.now()-last));
-  must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para otra interacción social`);
-
-  db.relations=db.relations||{};
-  const k=relKey(u.id,t.id);
-  const cur=db.relations[k]||{score:0,rival:false};
-  const fBonus=friendBonusFor(u.id);
-  let pts=4+fBonus, msg='';
-
-  if(type==='rival'){
-    cur.rival=true;
-    cur.score=Math.min(100,cur.score+15);
-    pts=8+fBonus;
-    u.points+=pts;t.points+=4;
-    u.pride = Math.min(100, u.pride + 5);
-    msg=`⚔️ ¡Retaste a ${t.username} a un duelo de rivalidad! Ganaste +${pts} pts para tu casa.`;
-  }else{
-    cur.rival=false;
-    const gain=type==='gift'?22:type==='study'?16:12;
-    cur.score=Math.min(100,cur.score+gain);
-    pts=(type==='gift'?6:5)+fBonus;
-    u.points+=pts;t.points+=4;
-    u.happiness = Math.min(100, u.happiness + 5);
-    const tier=relTier(cur);
-    msg=`🤝 Pasaste tiempo con ${t.username} (${tier.label} · ${cur.score}/100) y sumaste +${pts} pts.`;
-  }
-  db.relations[k]=cur;
-  (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
-  db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:type==='rival'?'Duelo de Rivalidad':'Vínculo de Amistad',p:pts,x:0});
-  db.log.length=Math.min(db.log.length,15);
-  chime();
-  commit(`${u.username} fortaleció su vínculo con ${t.username}`);
-  toast(msg);
-}
-
 function openHogsmeadeModal(tab='Zonko') {
   const u = me();
   if (!u) return toast('Inicia sesión primero');
@@ -3150,6 +3165,7 @@ function renderAll(){
   renderStudents();
   renderCourses();
   renderClock();
+  updateSocialBadge();
 }
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
@@ -4040,18 +4056,25 @@ function renderRelations(){
     </div>
     <div class="arcade-grid">${others.map(o=>{
     const rel=getRel(u.id,o.id), tier=relTier(rel);
+    // Con los jugadores reales hace falta su consentimiento: si no sois amigos,
+    // la única acción posible es enviar una solicitud de amistad.
+    const pending=!o.is_npc && !areFriends(u.id,o.id);
+    const req=requestBetween(u.id,o.id);
+    const actions=pending
+      ? (req
+          ? `<button class="btn sm" type="button" disabled title="Solicitud pendiente">⏳ Solicitud pendiente</button>`
+          : `<button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="friend" title="Enviar solicitud de amistad">🤝 Solicitar amistad</button>`)
+      : `<button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
+         <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
+         <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
+         <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>`;
     return `<div class="arcade-card h-${o.house}">
       <div class="row" style="justify-content:space-between">
         <div class="row"><span class="pawn">${av(o,30)}</span><div><h4 style="margin:0">${esc(o.username)}</h4><div class="row" style="gap:4px;margin-top:2px">${hbadge(o.house)}${yearBadge(o)}</div></div></div>
         <span class="pill ${tier.col}">${tier.label}</span>
       </div>
       <div class="bar" style="margin:6px 0"><i style="width:${Math.min(100,rel.score)}%"></i></div>
-      <div class="row" style="gap:6px;margin-top:auto">
-        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
-        <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
-        <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
-        <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
-      </div>
+      <div class="row" style="gap:6px;margin-top:auto">${actions}</div>
     </div>`;
   }).join('')}</div>`;
 }
@@ -4059,12 +4082,21 @@ function renderRelations(){
 function interactRelation(targetId,type){
   const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
   const t=db.users.find(x=>x.id===Number(targetId));must(t,'Alumno no encontrado');
+  must(t.id!==u.id,'No puedes interactuar contigo mismo');
   const cdKey='rel_act',last=(db.cooldowns[u.id]||{})[cdKey]||0,rem=Math.max(0,12000-(Date.now()-last));
   must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para otra interacción social`);
 
   db.relations=db.relations||{};
   const k=relKey(u.id,t.id);
   const cur=db.relations[k]||{score:0,rival:false};
+
+  // 🧙‍♂️ Jugador real y todavía no sois amigos: hace falta consentimiento mutuo,
+  // así que la interacción se convierte en una SOLICITUD de amistad.
+  if(!t.is_npc && !(Number(cur.score)>0)){
+    sendFriendRequest(t.id,type);
+    return;
+  }
+
   const fBonus=friendBonusFor(u.id);
   let pts=4+fBonus, msg='';
 
@@ -4092,6 +4124,370 @@ function interactRelation(targetId,type){
   chime();
   commit(`${u.username} fortaleció su vínculo con ${t.username}`);
   toast(msg);
+  if(socialModalOpen) renderSocialModal();
+}
+
+/* ===== MÓDULO SOCIAL (Hogwarts Mystery + consentimiento mutuo) ===== */
+let socialTab='friends';        // friends | romance | requests
+let socialSelectedId=null;
+let socialModalOpen=false;
+
+const SOCIAL_TABS=[
+  {id:'friends',label:'Amistades',icon:'🤝'},
+  {id:'romance',label:'Romance',icon:'💖'},
+  {id:'requests',label:'Solicitudes',icon:'📨'}
+];
+
+// Lista segura de solicitudes pendientes (vive en la base de datos global).
+function friendRequests(){
+  if(!Array.isArray(db.friendRequests)) db.friendRequests=[];
+  return db.friendRequests;
+}
+// Solicitudes que ha recibido el jugador.
+function pendingRequestsFor(uid){
+  return friendRequests().filter(r=>Number(r.to)===Number(uid));
+}
+// Solicitudes que ha enviado el jugador.
+function sentRequestsFor(uid){
+  return friendRequests().filter(r=>Number(r.from)===Number(uid));
+}
+// ¿Son ya amigos? (relación positiva y sin rivalidad)
+function areFriends(idA,idB){
+  const rel=getRel(idA,idB);
+  return !!rel && Number(rel.score)>0 && !rel.rival;
+}
+// Solicitud abierta entre dos jugadores (en cualquier dirección).
+function requestBetween(idA,idB){
+  return friendRequests().find(r=>(Number(r.from)===Number(idA)&&Number(r.to)===Number(idB))||(Number(r.from)===Number(idB)&&Number(r.to)===Number(idA)))||null;
+}
+// Nivel de un personaje a partir de sus puntos.
+function charLevel(u){
+  const p=Math.max(0,Number(u&&u.points)||0);
+  return Math.max(1,Math.floor(p/100)+1);
+}
+// Progreso (en %) hacia el siguiente nivel.
+function charLevelProgress(u){
+  const p=Math.max(0,Number(u&&u.points)||0);
+  return p%100;
+}
+// Etiqueta del vínculo romántico según la afinidad.
+function romanceTier(rel){
+  if(!rel||Number(rel.score)<50) return {label:'🤝 Aún sois amigos',col:'off'};
+  if(rel.score>=80) return {label:'💖 Enamorados',col:'gold'};
+  if(rel.score>=65) return {label:'💘 Novios',col:'good'};
+  return {label:'💕 Hay chispa',col:'warn'};
+}
+// Badge rojo del botón Social con el número de solicitudes pendientes.
+function updateSocialBadge(){
+  const badge=$('socialBadge');
+  if(!badge) return;
+  const u=me();
+  const n=u?pendingRequestsFor(u.id).length:0;
+  badge.textContent=String(n);
+  badge.hidden=!(n>0);
+}
+
+/* --- Envío de solicitudes de amistad --- */
+function sendFriendRequest(targetId,type='friend'){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const t=db.users.find(x=>x.id===Number(targetId));must(t,'Alumno no encontrado');
+  must(t.id!==u.id,'No puedes enviarte una solicitud a ti mismo');
+  must(!t.is_npc,'Los alumnos NPC no necesitan solicitudes de amistad');
+
+  db.friendRequests=Array.isArray(db.friendRequests)?db.friendRequests:[];
+  // No se pueden duplicar solicitudes hacia la misma persona.
+  const alreadySent=db.friendRequests.find(r=>Number(r.from)===Number(u.id)&&Number(r.to)===Number(t.id));
+  if(alreadySent){
+    toast(`Ya le enviaste una solicitud a ${t.username}. Espera su respuesta.`);
+    return false;
+  }
+  const incoming=db.friendRequests.find(r=>Number(r.from)===Number(t.id)&&Number(r.to)===Number(u.id));
+  if(incoming){
+    toast(`${t.username} ya te ha enviado una solicitud. Responde desde 🤝 Social.`);
+    updateSocialBadge();
+    return false;
+  }
+
+  const req={
+    id:`fr_${u.id}_${t.id}_${Date.now()}`,
+    from:Number(u.id),
+    to:Number(t.id),
+    type:type==='rival'?'rival':'friend',
+    at:Date.now()
+  };
+  db.friendRequests.push(req);
+  (db.cooldowns[u.id]=db.cooldowns[u.id]||{})['rel_act']=Date.now();
+
+  commit(`${u.username} envió una solicitud de amistad a ${t.username}`);
+  // Aviso en tiempo real al destinatario (si está conectado).
+  socket.emit('new_friend_request',{requestId:req.id,from:req.from,to:req.to,type:req.type});
+  toast(`Solicitud de amistad enviada a ${t.username}`);
+  updateSocialBadge();
+  if(socialModalOpen) renderSocialModal();
+  return true;
+}
+
+/* --- Aceptar una solicitud de amistad --- */
+function acceptFriendRequest(reqId){
+  const u=me();must(u,'Inicia sesión con tu personaje primero');
+  db.friendRequests=Array.isArray(db.friendRequests)?db.friendRequests:[];
+  const req=db.friendRequests.find(r=>String(r.id)===String(reqId));
+  must(req,'Esta solicitud ya no existe');
+  must(Number(req.to)===Number(u.id),'Esa solicitud no te pertenece');
+
+  const other=db.users.find(x=>x.id===Number(req.from));
+  // Se elimina la solicitud del array.
+  db.friendRequests=db.friendRequests.filter(r=>String(r.id)!==String(reqId));
+  // Se crea la relación con score 10.
+  db.relations=db.relations||{};
+  const k=relKey(u.id,req.from);
+  const cur=db.relations[k]||{score:0,rival:false};
+  cur.rival=false;
+  cur.score=Math.max(10,Number(cur.score)||0);
+  db.relations[k]=cur;
+
+  db.log.unshift({u:`${u.username} & ${other?other.username:'un alumno'}`,h:u.house,a:'Amistad sellada',p:0,x:0});
+  db.log.length=Math.min(db.log.length,15);
+  chime();
+
+  // Notificación a ambos jugadores.
+  socket.emit('friend_request_response',{requestId:String(reqId),from:Number(u.id),to:Number(req.from),accepted:true,byName:u.username});
+  commit(`${u.username} aceptó ser amigo de ${other?other.username:'un alumno'}`);
+  toast(`🤝 ¡Ahora sois amigos! ${other?other.username:''} ya aparece en tu lista de Amistades.`);
+  updateSocialBadge();
+  if(socialModalOpen) renderSocialModal();
+}
+
+/* --- Rechazar (o cancelar) una solicitud --- */
+function rejectFriendRequest(reqId){
+  const u=me();must(u,'Inicia sesión con tu personaje primero');
+  db.friendRequests=Array.isArray(db.friendRequests)?db.friendRequests:[];
+  const req=db.friendRequests.find(r=>String(r.id)===String(reqId));
+  must(req,'Esta solicitud ya no existe');
+
+  const isRecipient=Number(req.to)===Number(u.id);
+  const other=db.users.find(x=>x.id===Number(isRecipient?req.from:req.to));
+  const target=Number(isRecipient?req.from:req.to);
+  // Se elimina la solicitud del array.
+  db.friendRequests=db.friendRequests.filter(r=>String(r.id)!==String(reqId));
+
+  socket.emit('friend_request_response',{requestId:String(reqId),from:Number(u.id),to:target,accepted:false,byName:u.username});
+  commit(`${u.username} rechazó una solicitud de amistad`);
+  toast(isRecipient
+    ? `Has rechazado la solicitud de ${other?other.username:'un alumno'}.`
+    : `Has cancelado tu solicitud a ${other?other.username:'un alumno'}.`);
+  updateSocialBadge();
+  if(socialModalOpen) renderSocialModal();
+}
+
+/* --- Contactos de cada pestaña --- */
+function socialContacts(tab){
+  const u=me();
+  if(!u) return [];
+  const others=db.users.filter(x=>x.id!==u.id && isEnrolled(x));
+  return others.filter(o=>{
+    const rel=getRel(u.id,o.id);
+    if(o.is_npc) return true;                       // los NPCs del canon siempre están
+    if(tab==='romance') return !rel.rival && Number(rel.score)>=50;
+    return Number(rel.score)>0 || !!rel.rival;       // amistades y rivales
+  }).sort((a,b)=>{
+    const ra=getRel(u.id,a.id),rb=getRel(u.id,b.id);
+    return (Number(rb.score)-Number(ra.score)) || String(a.username).localeCompare(String(b.username));
+  });
+}
+
+// Jugadores reales con los que todavía no hay amistad ni solicitud pendiente.
+function socialCandidates(){
+  const u=me();
+  if(!u) return [];
+  return db.users.filter(x=>x.id!==u.id && !x.is_npc && isEnrolled(x)
+      && !areFriends(u.id,x.id) && !requestBetween(u.id,x.id))
+    .sort((a,b)=>String(a.username).localeCompare(String(b.username)));
+}
+
+// Todos los personajes que se pueden seleccionar en la pestaña actual.
+function socialSelectionPool(tab){
+  const u=me();
+  if(!u) return [];
+  if(tab==='requests') return pendingRequestsFor(u.id).map(r=>Number(r.from));
+  if(tab==='romance') return socialContacts('romance').map(c=>c.id);
+  const ids=socialContacts('friends').map(c=>c.id);
+  socialCandidates().forEach(c=>ids.push(c.id));
+  // También son seleccionables quienes tienen una solicitud en curso.
+  friendRequests().forEach(r=>{
+    if(Number(r.from)===Number(u.id)) ids.push(Number(r.to));
+    if(Number(r.to)===Number(u.id)) ids.push(Number(r.from));
+  });
+  return ids;
+}
+
+/* --- Modal Social --- */
+function openSocialModal(tab){
+  const u=me();
+  if(!u){toast('Inicia sesión con tu personaje para usar el Módulo Social');return;}
+  socialTab=tab||socialTab||'friends';
+  socialModalOpen=true;
+  renderSocialModal();
+}
+
+function socialListHTML(){
+  const u=me();
+  if(!u) return '';
+  const pending=pendingRequestsFor(u.id);
+  const sent=sentRequestsFor(u.id);
+
+  if(socialTab==='requests'){
+    if(!pending.length&&!sent.length){
+      return `<div class="soc-empty">No tienes solicitudes pendientes.<br><small>Envía una desde la pestaña Amistades.</small></div>`;
+    }
+    let h='';
+    if(pending.length){
+      h+=`<div class="soc-sec-title">Recibidas (${pending.length})</div>`;
+      h+=pending.map(r=>{
+        const f=db.users.find(x=>x.id===Number(r.from));
+        return `<div class="soc-req">
+          <span class="pawn">${f?av(f,34):''}</span>
+          <span class="soc-item-txt"><strong>${esc(f?f.username:'Alumno desconocido')}</strong>
+            <small>${r.type==='rival'?'⚔️ Solicitud de rivalidad':'🤝 Solicitud de amistad'}${f?` · ${hbadge(f.house)}`:''}</small></span>
+          <span class="row">
+            <button class="btn sm gold" type="button" data-do="acceptFriend" data-id="${esc(r.id)}">✅ Aceptar</button>
+            <button class="btn sm danger" type="button" data-do="rejectFriend" data-id="${esc(r.id)}">❌ Rechazar</button>
+          </span>
+        </div>`;
+      }).join('');
+    }
+    if(sent.length){
+      h+=`<div class="soc-sec-title" style="margin-top:12px">Enviadas (${sent.length})</div>`;
+      h+=sent.map(r=>{
+        const t=db.users.find(x=>x.id===Number(r.to));
+        return `<div class="soc-req">
+          <span class="pawn">${t?av(t,34):''}</span>
+          <span class="soc-item-txt"><strong>${esc(t?t.username:'Alumno desconocido')}</strong>
+            <small>⏳ Esperando respuesta${t?` · ${hbadge(t.house)}`:''}</small></span>
+          <span class="row"><button class="btn sm danger" type="button" data-do="rejectFriend" data-id="${esc(r.id)}">Cancelar</button></span>
+        </div>`;
+      }).join('');
+    }
+    return h;
+  }
+
+  const contacts=socialContacts(socialTab);
+  const candidates=(socialTab==='friends')?socialCandidates():[];
+  if(!contacts.length&&!candidates.length){
+    return `<div class="soc-empty">${socialTab==='romance'
+      ? 'Todavía no hay ningún vínculo romántico.<br><small>Afianzad una amistad hasta llegar a 50 de afinidad.</small>'
+      : 'Aún no tienes amigos entre los jugadores.<br><small>Envía una solicitud para empezar.</small>'}</div>`;
+  }
+  const item=(c,extra='')=>{
+    const rel=getRel(u.id,c.id);
+    const tier=socialTab==='romance'?romanceTier(rel):relTier(rel);
+    return `<button class="soc-item ${Number(socialSelectedId)===Number(c.id)?'on':''}" type="button" data-do="socialSelect" data-id="${c.id}">
+      <span class="pawn">${av(c,34)}</span>
+      <span class="soc-item-txt"><strong>${esc(c.username)}</strong>
+        <small>${hbadge(c.house)}${c.is_npc?'<span class="pill off" style="font-size:10px;padding:1px 6px">🤖 NPC</span>':''}<span class="pill ${tier.col}" style="font-size:10px;padding:1px 6px">${tier.label}</span>${extra}</small></span>
+      <span class="mono soc-note">${Number(rel.score)}</span>
+    </button>`;
+  };
+  let h='';
+  if(contacts.length) h+=contacts.map(c=>item(c)).join('');
+  if(candidates.length){
+    h+=`<div class="soc-sec-title" style="margin-top:10px">Conectar con un alumno</div>`;
+    h+=candidates.map(c=>item(c,'<span class="pill gold" style="font-size:10px;padding:1px 6px">＋ Solicitar</span>')).join('');
+  }
+  return h;
+}
+
+function socialCardHTML(){
+  const u=me();
+  const sel=(socialSelectedId!=null)?db.users.find(x=>x.id===Number(socialSelectedId)):null;
+  if(!sel) return `<div class="soc-empty">Elige a alguien de la lista<br>para ver su ficha.</div>`;
+  const rel=getRel(u.id,sel.id);
+  const tier=socialTab==='romance'?romanceTier(rel):relTier(rel);
+  const lvl=charLevel(sel);
+  const prog=charLevelProgress(sel);
+  return `<div class="soc-card soc-panel-box">
+    <span class="pawn big">${av(sel,72)}</span>
+    <h4>${esc(sel.username)}</h4>
+    <div class="row">${hbadge(sel.house)}${yearBadge(sel)}${sel.is_npc?'<span class="pill off">🤖 NPC</span>':'<span class="pill">👤 Jugador</span>'}</div>
+    <div class="soc-lvl">Nivel ${lvl}</div>
+    <div class="bar"><i style="width:${prog}%"></i></div>
+    <div class="soc-note">${prog}% para el nivel ${lvl+1} · ${sel.points||0} pts</div>
+    <div class="soc-lvl" style="font-size:13px;color:#f3e3b3">Afinidad: ${Number(rel.score)}/100</div>
+    <div class="bar"><i style="width:${Math.min(100,Number(rel.score))}%"></i></div>
+    <span class="pill ${tier.col}">${tier.label}</span>
+  </div>`;
+}
+
+function socialActionsHTML(){
+  const u=me();
+  const sel=(socialSelectedId!=null)?db.users.find(x=>x.id===Number(socialSelectedId)):null;
+  if(!sel) return `<div class="soc-empty">Sin personaje seleccionado.</div>`;
+  const cd=Math.max(0,12000-(Date.now()-((db.cooldowns[u.id]||{})['rel_act']||0)));
+  const req=requestBetween(u.id,sel.id);
+  const mine=req&&Number(req.from)===Number(u.id);
+  const theirs=req&&Number(req.to)===Number(u.id);
+  let h=`<div class="soc-sec-title">Acciones</div>`;
+
+  if(!sel.is_npc && !areFriends(u.id,sel.id)){
+    if(theirs){
+      h+=`<div class="soc-note">📨 ${esc(sel.username)} te ha enviado una solicitud de amistad.</div>
+          <div class="row">
+            <button class="btn sm gold" type="button" data-do="acceptFriend" data-id="${esc(req.id)}">✅ Aceptar</button>
+            <button class="btn sm danger" type="button" data-do="rejectFriend" data-id="${esc(req.id)}">❌ Rechazar</button>
+          </div>`;
+    }else if(mine){
+      h+=`<div class="soc-note">⏳ Solicitud pendiente: esperando la respuesta de ${esc(sel.username)}.</div>
+          <button class="btn sm danger" type="button" data-do="rejectFriend" data-id="${esc(req.id)}">Cancelar solicitud</button>`;
+    }else{
+      h+=`<div class="soc-note">Todavía no sois amigos. Para interactuar hace falta su consentimiento.</div>
+          <button class="btn sm gold" type="button" data-do="socialRequest" data-id="${sel.id}">🤝 Enviar solicitud de amistad</button>`;
+    }
+  }else{
+    h+=`<div class="row">
+      <button class="btn sm" type="button" data-do="relAct" data-id="${sel.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
+      <button class="btn sm" type="button" data-do="relAct" data-id="${sel.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
+      <button class="btn sm gold" type="button" data-do="relAct" data-id="${sel.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
+      <button class="btn sm danger" type="button" data-do="relAct" data-id="${sel.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
+    </div>`;
+    if(cd>0) h+=`<div class="soc-note">Espera ${Math.ceil(cd/1000)} s para otra interacción social.</div>`;
+  }
+  h+=`<div class="soc-sec-title" style="margin-top:10px">Ficha</div>
+      <div class="soc-note">Casa: ${sel.house?esc(HOUSE(sel.house).name):'—'}<br>
+      Curso: ${esc(yearBadge(sel).replace(/<[^>]*>/g,''))}<br>
+      Puntos: ${sel.points||0} · Galeones: ${sel.galeones||0}<br>
+      Afinidad contigo: ${Number(getRel(u.id,sel.id).score)}/100</div>`;
+  return h;
+}
+
+function renderSocialModal(){
+  const u=me();
+  if(!u){socialModalOpen=false;closeModal();return;}
+  const pending=pendingRequestsFor(u.id);
+  const pool=socialSelectionPool(socialTab);
+  if(!pool.some(id=>Number(id)===Number(socialSelectedId)))
+    socialSelectedId=pool.length?Number(pool[0]):null;
+
+  const html=`<div class="soc">
+    <div class="soc-head">
+      <div>
+        <h3>🤝 Módulo Social</h3>
+        <div class="soc-sub">Club de Deseos de Hogwarts · ${esc(u.username)}</div>
+      </div>
+      <button class="btn sm" type="button" data-do="closeModal">✕ Cerrar</button>
+    </div>
+    <div class="soc-tabs">
+      ${SOCIAL_TABS.map(t=>`<button class="soc-tab ${socialTab===t.id?'on':''}" type="button" data-do="socialTab" data-t="${t.id}">${t.icon} ${t.label}${t.id==='requests'&&pending.length?`<span class="soc-tabs-count">${pending.length}</span>`:''}</button>`).join('')}
+    </div>
+    <div class="soc-body">
+      <div class="soc-panel-box">
+        <div class="soc-sec-title">${socialTab==='requests'?'Solicitudes':(socialTab==='romance'?'Vínculos románticos':'Amigos y NPCs')}</div>
+        <div class="soc-list">${socialListHTML()}</div>
+      </div>
+      ${socialCardHTML()}
+      <div class="soc-panel-box soc-actions">${socialActionsHTML()}</div>
+    </div>
+  </div>`;
+  openModal(html,true,'soc-panel');
 }
 
 /* ===== 8.5. CATÁLOGO DE 6 MINIJUEGOS EN HTML5 CANVAS ===== */
@@ -5096,6 +5492,12 @@ document.addEventListener('click',e=>{
     case 'ansProf':answerProfTask(d.id,d.i);break;
     case 'relFilter':relFilterMode=d.f;renderRelations();break;
     case 'relAct':interactRelation(d.id,d.t);break;
+    case 'openSocial':openSocialModal();break;
+    case 'socialTab':socialTab=d.t;socialSelectedId=null;renderSocialModal();break;
+    case 'socialSelect':socialSelectedId=Number(d.id);renderSocialModal();break;
+    case 'socialRequest':sendFriendRequest(Number(d.id),'friend');break;
+    case 'acceptFriend':acceptFriendRequest(d.id);break;
+    case 'rejectFriend':rejectFriendRequest(d.id);break;
     case 'setSchoolYear':API.setSchoolYear(d.y);renderCourses();break;
     case 'trait':{const p=$('pitch');if(p)pitchDraft=p.value;const t=d.v;
       if(traitsDraft.includes(t))traitsDraft=traitsDraft.filter(x=>x!==t);else{if(traitsDraft.length>=3){toast('Máximo 3 características');break}traitsDraft.push(t)}renderPrefects();break}
