@@ -283,6 +283,146 @@ app.post('/api/generate-cromo', async (req, res) => {
   }
 });
 
+const FALLBACK_CLASS_TRIVIA = {
+  pociones: [
+    { question: '¿Qué piedra extraída del estómago de una cabra actúa como antídoto contra la mayoría de los venenos?', options: ['Bezoar', 'Piedra lunar', 'Ojo de tigre'], correctIndex: 0 },
+    { question: '¿Qué ingrediente es fundamental en la Poción Multijugos para adoptar la forma de otra persona?', options: ['Algo de la persona a transformarse (como un cabello)', 'Pluma de fénix', 'Escama de dragón'], correctIndex: 0 },
+    { question: '¿Qué poción otorga una suerte extraordinaria durante un periodo de tiempo?', options: ['Felix Felicis', 'Amortentia', 'Veritaserum'], correctIndex: 0 }
+  ],
+  transformaciones: [
+    { question: '¿En qué animal se transforma la profesora Minerva McGonagall como Animaga?', options: ['Un gato atigrado', 'Un ciervo', 'Un cisne'], correctIndex: 0 },
+    { question: '¿Cuál es el conjuro que transforma un animal en una copa de cristal?', options: ['Vera Verto', 'Reparo', 'Alohomora'], correctIndex: 0 },
+    { question: '¿Cuál de estas cosas NO se puede crear de la nada según las Leyes de Gamp?', options: ['Comida', 'Agua', 'Luz'], correctIndex: 0 }
+  ],
+  encantamientos: [
+    { question: '¿Qué movimiento de varita enseña el profesor Flitwick para Wingardium Leviosa?', options: ['Agitar y golpear', 'Girar en espiral', 'Dar tres toques secos'], correctIndex: 0 },
+    { question: '¿Qué encantamiento sirve para abrir cerraduras comunes?', options: ['Alohomora', 'Colloportus', 'Lumos'], correctIndex: 0 },
+    { question: '¿Qué conjuro atrae un objeto directamente hacia quien lo invoca?', options: ['Accio', 'Depulso', 'Diffindo'], correctIndex: 0 }
+  ],
+  defensa: [
+    { question: '¿Qué hechizo se utiliza para transformar a un Boggart en algo cómico?', options: ['Riddikulus', 'Expecto Patronum', 'Stupefy'], correctIndex: 0 },
+    { question: '¿Cuál es el conjuro de desarme más famoso en un duelo mágico?', options: ['Expelliarmus', 'Impedimenta', 'Reducto'], correctIndex: 0 },
+    { question: '¿Qué encantamiento crea un escudo mágico para desviar hechizos?', options: ['Protego', 'Lumos Solem', 'Silencio'], correctIndex: 0 }
+  ],
+  herbologia: [
+    { question: '¿Qué protección deben usar los alumnos al trasplantar Mandrágoras?', options: ['Orejeras protectoras', 'Gafas de sol', 'Capa de invisibilidad'], correctIndex: 0 },
+    { question: '¿Qué debilidad tiene la planta Lazo del Diablo?', options: ['La luz y el calor del fuego', 'El agua helada', 'La oscuridad total'], correctIndex: 0 },
+    { question: '¿Para qué se utiliza el pus diluido de los Bubotubérculos?', options: ['Para curar el acné severo', 'Para respirar bajo el agua', 'Para volar sin escoba'], correctIndex: 0 }
+  ],
+  criaturas: [
+    { question: '¿Qué gesto debes hacer siempre antes de acercarte a un Hipogrifo?', options: ['Una reverencia manteniendo el contacto visual', 'Ofrecerle una varita', 'Aplaudir tres veces'], correctIndex: 0 },
+    { question: '¿Qué pequeña criatura con aspecto de rama protege los árboles para varitas?', options: ['Bowtruckle', 'Escarbato', 'Puffskein'], correctIndex: 0 },
+    { question: '¿Qué criatura siente fascinación por cualquier objeto brillante o moneda de oro?', options: ['Escarbato (Niffler)', 'Hipogrifo', 'Thestral'], correctIndex: 0 }
+  ],
+  historia: [
+    { question: '¿Qué particularidad tiene el profesor Cuthbert Binns?', options: ['Es el único profesor fantasma de Hogwarts', 'Es un centauro', 'Es el fundador de Ravenclaw'], correctIndex: 0 },
+    { question: '¿En qué año se firmó el Estatuto Internacional del Secreto Mágico?', options: ['1689', '1066', '1945'], correctIndex: 0 },
+    { question: '¿Quién escribió el libro clásico "Historia de la Magia"?', options: ['Bathilda Bagshot', 'Gilderoy Lockhart', 'Newt Scamander'], correctIndex: 0 }
+  ],
+  vuelo: [
+    { question: '¿Qué orden debes decir con firmeza para que la escoba suba a tu mano?', options: ['¡Arriba!', '¡Vuela!', '¡Accio!'], correctIndex: 0 },
+    { question: '¿Cuántos puntos vale atrapar la Snitch Dorada en un partido de Quidditch?', options: ['150 puntos', '50 puntos', '10 puntos'], correctIndex: 0 },
+    { question: '¿Cómo se llaman las bolas que los Golpeadores desvían con sus bates?', options: ['Bludgers', 'Quaffles', 'Snitches'], correctIndex: 0 }
+  ],
+  astronomia: [
+    { question: '¿En qué lugar de Hogwarts se imparten las clases nocturnas de Astronomía?', options: ['En la Torre de Astronomía', 'En las Mazmorras', 'En la Cabaña de Hagrid'], correctIndex: 0 },
+    { question: '¿Qué instrumento mágico utilizan los alumnos de 1.º para observar los planetas?', options: ['Un telescopio de latón', 'Un giratiempo', 'Un pensadero'], correctIndex: 0 },
+    { question: '¿Qué fase lunar es determinante para la transformación de un hombre lobo?', options: ['Luna llena', 'Luna nueva', 'Cuarto menguante'], correctIndex: 0 }
+  ],
+  runas: [
+    { question: '¿A partir de qué curso pueden elegir los alumnos la asignatura de Runas Antiguas?', options: ['3.er curso', '1.er curso', '7.º curso'], correctIndex: 0 },
+    { question: '¿Qué criatura mágica representa el número cero en el alfabeto rúnico?', options: ['Demiguise', 'Unicornio', 'Basilisco'], correctIndex: 0 },
+    { question: '¿Qué objeto utiliza un estudiante de Runas Antiguas para consultar significados?', options: ['El Silabario de Spellman', 'El Mapa del Merodeador', 'El Espejo de Oesed'], correctIndex: 0 }
+  ]
+};
+
+function pickFallbackTrivia(subjectKey) {
+  const list = FALLBACK_CLASS_TRIVIA[subjectKey] || FALLBACK_CLASS_TRIVIA.encantamientos;
+  const item = list[Math.floor(Math.random() * list.length)];
+  // Mezclar las opciones manteniendo el índice correcto
+  const pairs = item.options.map((opt, idx) => ({ opt, isCorrect: idx === item.correctIndex }));
+  for (let i = pairs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+  }
+  return {
+    question: item.question,
+    options: pairs.map(p => p.opt),
+    correctIndex: pairs.findIndex(p => p.isCorrect)
+  };
+}
+
+app.post('/api/class-trivia', async (req, res) => {
+  const subjectKey = String((req.body && req.body.subjectKey) || 'encantamientos').trim().toLowerCase();
+  const subjectName = String((req.body && req.body.subjectName) || 'Encantamientos').trim().slice(0, 80);
+  const topic = String((req.body && req.body.topic) || subjectName).trim().slice(0, 120);
+  const year = clampSchoolYear(req.body && req.body.year);
+
+  if (!AI_ENABLED) {
+    return res.json({ ok: true, ...pickFallbackTrivia(subjectKey), fallback: true });
+  }
+
+  const systemPrompt = `Eres un profesor de Hogwarts examinando en clase. Genera una pregunta de trivia sobre ${subjectName} para ${year}er año (tema: ${topic}) dentro del canon de Harry Potter en español. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"question":"¿...?","options":["Opción 1","Opción 2","Opción 3"],"correctIndex":0}`;
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: 220,
+    temperature: 0.7,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Genera una pregunta de trivia sobre ${subjectName} para ${year}er año, devuelve un JSON con la pregunta y 3 opciones.` }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${AI_KEY}`
+      },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      raw = raw.slice(firstBrace, lastBrace + 1);
+    }
+    const parsed = JSON.parse(raw);
+    const question = String(parsed.question || parsed.pregunta || '').trim();
+    const rawOpts = Array.isArray(parsed.options) ? parsed.options : (Array.isArray(parsed.opciones) ? parsed.opciones : []);
+    const options = rawOpts.slice(0, 3).map(o => String(o || '').trim()).filter(Boolean);
+    let correctIndex = Number(parsed.correctIndex ?? parsed.respuestaCorrecta ?? 0);
+    if (!question || options.length !== 3 || !Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex > 2) {
+      throw new Error('JSON de trivia incompleto');
+    }
+    return res.json({ ok: true, question, options, correctIndex, fallback: false });
+  } catch (err) {
+    console.error('Error generando trivia de clase (usando respaldo local):', err.message);
+    return res.json({ ok: true, ...pickFallbackTrivia(subjectKey), fallback: true });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+app.use((err, req, res, next) => {
+  if (err && (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || (err.message && err.message.includes('buffering timed out')))) {
+    console.warn('[AI Studio] Database offline — returning mock empty response');
+    if (req.method === 'GET') {
+      return res.json(req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {});
+    }
+    return res.status(503).json({ error: 'Service temporarily unavailable (database offline)' });
+  }
+  next(err);
+});
+
 const uri = process.env.MONGODB_URI;
 let client = null;
 let db = null;
@@ -303,6 +443,8 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset: Number(yearOffset) || 0,
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
+  attrValentia: 0, attrEmpatia: 0, attrSabiduria: 0,
+  spells: [],
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
   quidditch_approved: false,
   look: { facialHair: 'none', ...(look || {}) },
@@ -470,6 +612,10 @@ function sanitizeState(state) {
     if (typeof u.petLastPlay === 'undefined') u.petLastPlay = null;
     if (typeof u.petLove !== 'number' || Number.isNaN(u.petLove)) u.petLove = 50;
     else u.petLove = Math.max(0, Math.min(100, u.petLove));
+    if (typeof u.attrValentia !== 'number' || Number.isNaN(u.attrValentia)) u.attrValentia = 0;
+    if (typeof u.attrEmpatia !== 'number' || Number.isNaN(u.attrEmpatia)) u.attrEmpatia = 0;
+    if (typeof u.attrSabiduria !== 'number' || Number.isNaN(u.attrSabiduria)) u.attrSabiduria = 0;
+    if (!Array.isArray(u.spells)) u.spells = [];
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
@@ -884,6 +1030,8 @@ async function startServer() {
   if (uri) {
     try {
       client = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 3000,
+        connectTimeoutMS: 3000,
         serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true }
       });
       await client.connect();
@@ -896,8 +1044,8 @@ async function startServer() {
     console.log('⚠️ Variable MONGODB_URI no detectada: funcionando en modo local con db.json.');
   }
 
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => console.log(`🏰 Servidor en http://localhost:${PORT}`));
+  const PORT = Number(process.env.PORT) || 3000;
+  server.listen(PORT, '0.0.0.0', () => console.log(`🏰 Servidor en http://0.0.0.0:${PORT}`));
 }
 
 startServer();
