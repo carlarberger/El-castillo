@@ -627,6 +627,32 @@ function mergeFriendRequests(serverList, incomingList, doneList, users) {
   return sanitizeFriendRequests({ users: users || [], friendRequestsDone: doneList }, [...map.values()]);
 }
 
+/* ===== MIGRACIÓN DE RELACIONES (amistad / romance) ===== */
+// Las relaciones antiguas solo guardaban `score`. Se migran al esquema nuevo:
+//   friendshipScore -> afinidad de amistad (hereda el score antiguo)
+//   romanceScore    -> afinidad romántica (siempre 0 en relaciones antiguas)
+//   rival           -> rivalidad (se conserva)
+// El campo `score` desaparece para evitar confusiones futuras.
+function migrateRelations(relations) {
+  const out = {};
+  if (!relations || typeof relations !== 'object') return out;
+  Object.keys(relations).forEach(key => {
+    const r = relations[key];
+    if (!r || typeof r !== 'object') return;
+    const oldScore = Number(r.score);
+    const friendship = Number.isFinite(r.friendshipScore)
+      ? Number(r.friendshipScore)
+      : (Number.isFinite(oldScore) ? oldScore : 0);
+    const romance = Number.isFinite(Number(r.romanceScore)) ? Number(r.romanceScore) : 0;
+    out[key] = {
+      friendshipScore: Math.max(0, Math.min(100, friendship)),
+      romanceScore: Math.max(0, Math.min(100, romance)),
+      rival: !!r.rival
+    };
+  });
+  return out;
+}
+
 function sanitizeState(state) {
   if (!state || !Array.isArray(state.users)) return defaultDb();
   if (!state.schoolYear || state.schoolYear < 1 || state.schoolYear > 7) state.schoolYear = 1;
@@ -703,6 +729,7 @@ function sanitizeState(state) {
     });
   }
   if (!state.relations || typeof state.relations !== 'object') state.relations = {};
+  state.relations = migrateRelations(state.relations);
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
   if (!Array.isArray(state.friendRequests)) state.friendRequests = [];
   if (!Array.isArray(state.friendRequestsDone)) state.friendRequestsDone = [];

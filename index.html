@@ -1048,6 +1048,27 @@ function ensureDbIntegrity(){
     if(db.apps.length!==prevApps) changed=true;
   }
   if(!db.relations || typeof db.relations!=='object') db.relations={};
+  // Migración de relaciones: el esquema antiguo solo guardaba `score`.
+  //   friendshipScore -> hereda el score antiguo
+  //   romanceScore    -> arranca en 0 (nunca se hereda del score antiguo)
+  //   rival           -> se conserva
+  // El campo `score` desaparece para evitar confusiones futuras.
+  Object.keys(db.relations).forEach(k=>{
+    const r=db.relations[k];
+    if(!r||typeof r!=='object'){delete db.relations[k];changed=true;return;}
+    const oldScore=Number(r.score);
+    const friendship=Number.isFinite(Number(r.friendshipScore))?Number(r.friendshipScore):(Number.isFinite(oldScore)?oldScore:0);
+    const romance=Number.isFinite(Number(r.romanceScore))?Number(r.romanceScore):0;
+    const migrated={
+      friendshipScore:Math.max(0,Math.min(100,friendship)),
+      romanceScore:Math.max(0,Math.min(100,romance)),
+      rival:!!r.rival
+    };
+    if(r.friendshipScore!==migrated.friendshipScore||r.romanceScore!==migrated.romanceScore||r.rival!==migrated.rival||('score'in r)){
+      db.relations[k]=migrated;
+      changed=true;
+    }
+  });
   if(!Array.isArray(db.friendRequests)){db.friendRequests=[];changed=true;}
   else{
     const prevReqs=db.friendRequests.length;
@@ -1203,16 +1224,23 @@ function classStatus(key){
 }
 
 function relKey(id1,id2){const a=Math.min(Number(id1),Number(id2)),b=Math.max(Number(id1),Number(id2));return `${a}_${b}`;}
+// Relación normalizada: amistad y romance son métricas separadas.
+function emptyRel(){return {friendshipScore:0,romanceScore:0,rival:false};}
 function getRel(id1,id2){
   db.relations=db.relations||{};
-  return db.relations[relKey(id1,id2)]||{score:0,rival:false};
+  const r=db.relations[relKey(id1,id2)];
+  if(!r) return emptyRel();
+  if(typeof r.friendshipScore!=='number'||Number.isNaN(r.friendshipScore)) r.friendshipScore=0;
+  if(typeof r.romanceScore!=='number'||Number.isNaN(r.romanceScore)) r.romanceScore=0;
+  return r;
 }
 function relTier(rel){
   if(!rel) return {label:'🌱 Conocido',col:'off',bonus:0};
-  if(rel.rival) return {label:`⚔️ Rival (${rel.score} pts)`,col:'warn',bonus:1};
-  if(rel.score>=80) return {label:'💖 Vínculo Inquebrantable',col:'gold',bonus:3};
-  if(rel.score>=50) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
-  if(rel.score>=20) return {label:'🤝 Amigo',col:'good',bonus:1};
+  const s=Number(rel.friendshipScore)||0;
+  if(rel.rival) return {label:`⚔️ Rival (${s} pts)`,col:'warn',bonus:1};
+  if(s>=80) return {label:'💖 Vínculo Inquebrantable',col:'gold',bonus:3};
+  if(s>=50) return {label:'🌟 Mejor Amigo',col:'good',bonus:2};
+  if(s>=20) return {label:'🤝 Amigo',col:'good',bonus:1};
   return {label:'🌱 Conocido',col:'off',bonus:0};
 }
 function friendBonusFor(uid){
@@ -1220,7 +1248,8 @@ function friendBonusFor(uid){
   let b=0;
   Object.entries(db.relations).forEach(([k,r])=>{
     const [x,y]=k.split('_').map(Number);
-    if((x===uid||y===uid)&&!r.rival&&r.score>=20) b+=r.score>=80?2:1;
+    const s=Number(r&&r.friendshipScore)||0;
+    if((x===uid||y===uid)&&!r.rival&&s>=20) b+=s>=80?2:1;
   });
   return Math.min(4,b);
 }
@@ -1826,7 +1855,7 @@ const API={
       candidates.forEach(a=>{
         let score=0;
         const rel=getRel(npc.id,a.user_id);
-        score+=rel.score;
+        score+=Number(rel.friendshipScore)||0;
         if(a.traits){
           a.traits.forEach(t=>{
             if((npc.personality||[]).includes(TRAIT_MAP[t]||t.toLowerCase())) score+=20;
@@ -1872,8 +1901,9 @@ const API={
 
     db.relations=db.relations||{};
     const rk=relKey(u.id,npc.id);
-    const curRel=db.relations[rk]||{score:0,rival:false};
-    curRel.score=Math.min(100,curRel.score+15);
+    const curRel=db.relations[rk]||emptyRel();
+    curRel.friendshipScore=Math.min(100,(Number(curRel.friendshipScore)||0)+15);
+    if(typeof curRel.romanceScore!=='number') curRel.romanceScore=0;
     db.relations[rk]=curRel;
 
     if(decision==='quidditch'){
@@ -3791,7 +3821,7 @@ function renderNpcChatHistory(){
   const affEl=$('npcChatAff');
   const meNow=me();
   const tNow=npcChatNpcId!=null?npcChatTarget(npcChatNpcId):null;
-  if(affEl&&meNow&&tNow) affEl.textContent='Afinidad: '+(tNow.prof?(((db.profAffinity||{})[meNow.id]||{})[tNow.id]||0):getRel(meNow.id,tNow.id).score);
+  if(affEl&&meNow&&tNow) affEl.textContent='Afinidad: '+(tNow.prof?(((db.profAffinity||{})[meNow.id]||{})[tNow.id]||0):(Number(getRel(meNow.id,tNow.id).friendshipScore)||0));
   const msgs=(db.aiChats||{})[npcChatKey]||[];
   if(!msgs.length){
     box.innerHTML='<p class="muted" style="font-size:13px;margin:0">Todavía no han hablado. Escribe abajo para iniciar la conversación.</p>';
@@ -3813,7 +3843,7 @@ function openNpcChatModal(npcId){
   npcChatNpcId=target.id;npcChatNpcName=target.name;npcChatKey=u.id+'_'+target.id;
   db.aiChats=db.aiChats||{};
   db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
-  const aff=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):getRel(u.id,target.id).score;
+  const aff=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(getRel(u.id,target.id).friendshipScore)||0);
   openModal(`<div style="width:100%;text-align:left">
     <div class="row" style="justify-content:space-between">
       <div class="row"><span class="pawn">${avatar(target.look,target.house,40)}</span><div><h4 style="margin:0">${esc(target.name)}</h4><small class="muted">${esc(target.trait)}</small></div></div>
@@ -3847,7 +3877,7 @@ function sendNpcChatMessage(message){
   db.aiChats=db.aiChats||{};
   const hist=db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
   hist.push({role:'player',text,time:npcChatTime()});
-  const relationship=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):getRel(u.id,target.id).score;
+  const relationship=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(getRel(u.id,target.id).friendshipScore)||0);
   socket.emit('npc_chat',{
     npcId:target.id,
     npcName:target.name,
@@ -3897,8 +3927,10 @@ socket.on('npc_reply',(data)=>{
     }else{
       db.relations=db.relations||{};
       const k=relKey(u.id,target.id);
-      const cur=db.relations[k]||{score:0,rival:false};
-      cur.score=Math.min(100,cur.score+3);
+      const cur=db.relations[k]||emptyRel();
+      // Chatear solo refuerza la amistad: el romance requiere cortejos o regalos especiales.
+      cur.friendshipScore=Math.min(100,(Number(cur.friendshipScore)||0)+3);
+      if(typeof cur.romanceScore!=='number') cur.romanceScore=0;
       db.relations[k]=cur;
     }
     commit(`${u.username} habló con ${target.name}`);
@@ -4067,13 +4099,14 @@ function renderRelations(){
       : `<button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
          <button class="btn sm" type="button" data-do="relAct" data-id="${o.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
          <button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
+         ${Number(rel.friendshipScore)>=50?`<button class="btn sm gold" type="button" data-do="relAct" data-id="${o.id}" data-t="romance" ${cd>0?'disabled':''} title="Cortejo (+8 romance)">💕 Cortejo</button>`:''}
          <button class="btn sm danger" type="button" data-do="relAct" data-id="${o.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>`;
     return `<div class="arcade-card h-${o.house}">
       <div class="row" style="justify-content:space-between">
         <div class="row"><span class="pawn">${av(o,30)}</span><div><h4 style="margin:0">${esc(o.username)}</h4><div class="row" style="gap:4px;margin-top:2px">${hbadge(o.house)}${yearBadge(o)}</div></div></div>
         <span class="pill ${tier.col}">${tier.label}</span>
       </div>
-      <div class="bar" style="margin:6px 0"><i style="width:${Math.min(100,rel.score)}%"></i></div>
+      <div class="bar" style="margin:6px 0"><i style="width:${Math.min(100,Number(rel.friendshipScore)||0)}%"></i></div>
       <div class="row" style="gap:6px;margin-top:auto">${actions}</div>
     </div>`;
   }).join('')}</div>`;
@@ -4088,11 +4121,13 @@ function interactRelation(targetId,type){
 
   db.relations=db.relations||{};
   const k=relKey(u.id,t.id);
-  const cur=db.relations[k]||{score:0,rival:false};
+  const cur=db.relations[k]||emptyRel();
+  if(typeof cur.friendshipScore!=='number'||Number.isNaN(cur.friendshipScore)) cur.friendshipScore=0;
+  if(typeof cur.romanceScore!=='number'||Number.isNaN(cur.romanceScore)) cur.romanceScore=0;
 
   // 🧙‍♂️ Jugador real y todavía no sois amigos: hace falta consentimiento mutuo,
   // así que la interacción se convierte en una SOLICITUD de amistad.
-  if(!t.is_npc && !(Number(cur.score)>0)){
+  if(!t.is_npc && !(Number(cur.friendshipScore)>0)){
     sendFriendRequest(t.id,type);
     return;
   }
@@ -4102,24 +4137,42 @@ function interactRelation(targetId,type){
 
   if(type==='rival'){
     cur.rival=true;
-    cur.score=Math.min(100,cur.score+15);
+    cur.friendshipScore=Math.min(100,cur.friendshipScore+15);
     pts=8+fBonus;
     u.points+=pts;t.points+=4;
     u.pride = Math.min(100, u.pride + 5);
     msg=`⚔️ ¡Retaste a ${t.username} a un duelo de rivalidad! Ganaste +${pts} pts para tu casa.`;
+  }else if(type==='romance'){
+    // 💕 Cortejo: solo es posible con una amistad ya consolidada.
+    must(cur.friendshipScore>=50,`Necesitas una amistad sólida (50+) para cortejar con ${t.username}`);
+    cur.rival=false;
+    cur.romanceScore=Math.min(100,cur.romanceScore+8);
+    cur.friendshipScore=Math.min(100,cur.friendshipScore+4);
+    pts=5+fBonus;
+    u.points+=pts;t.points+=4;
+    u.happiness = Math.min(100, u.happiness + 8);
+    const rt=romanceTier(cur);
+    msg=`💕 Cortejaste a ${t.username} (${rt.label} · ${cur.romanceScore}/100) y sumaste +${pts} pts.`;
   }else{
     cur.rival=false;
     const gain=type==='gift'?22:type==='study'?16:12;
-    cur.score=Math.min(100,cur.score+gain);
+    cur.friendshipScore=Math.min(100,cur.friendshipScore+gain);
+    // 🎁 Un regalo con amistad consolidada también enciende el romance.
+    let romanceBonus=0;
+    if(type==='gift'&&cur.friendshipScore>=50){
+      cur.romanceScore=Math.min(100,cur.romanceScore+3);
+      romanceBonus=3;
+    }
     pts=(type==='gift'?6:5)+fBonus;
     u.points+=pts;t.points+=4;
     u.happiness = Math.min(100, u.happiness + 5);
     const tier=relTier(cur);
-    msg=`🤝 Pasaste tiempo con ${t.username} (${tier.label} · ${cur.score}/100) y sumaste +${pts} pts.`;
+    msg=`🤝 Pasaste tiempo con ${t.username} (${tier.label} · ${cur.friendshipScore}/100) y sumaste +${pts} pts.`;
+    if(romanceBonus) msg+=` 💕 Tu regalo despertó el romance (+${romanceBonus}).`;
   }
   db.relations[k]=cur;
   (db.cooldowns[u.id]=db.cooldowns[u.id]||{})[cdKey]=Date.now();
-  db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:type==='rival'?'Duelo de Rivalidad':'Vínculo de Amistad',p:pts,x:0});
+  db.log.unshift({u:`${u.username} & ${t.username}`,h:u.house,a:type==='rival'?'Duelo de Rivalidad':(type==='romance'?'Cortejo':'Vínculo de Amistad'),p:pts,x:0});
   db.log.length=Math.min(db.log.length,15);
   chime();
   commit(`${u.username} fortaleció su vínculo con ${t.username}`);
@@ -4151,10 +4204,10 @@ function pendingRequestsFor(uid){
 function sentRequestsFor(uid){
   return friendRequests().filter(r=>Number(r.from)===Number(uid));
 }
-// ¿Son ya amigos? (relación positiva y sin rivalidad)
+// ¿Son ya amigos? (afinidad de amistad positiva y sin rivalidad)
 function areFriends(idA,idB){
   const rel=getRel(idA,idB);
-  return !!rel && Number(rel.score)>0 && !rel.rival;
+  return !!rel && (Number(rel.friendshipScore)||0)>0 && !rel.rival;
 }
 // Solicitud abierta entre dos jugadores (en cualquier dirección).
 function requestBetween(idA,idB){
@@ -4170,12 +4223,27 @@ function charLevelProgress(u){
   const p=Math.max(0,Number(u&&u.points)||0);
   return p%100;
 }
-// Etiqueta del vínculo romántico según la afinidad.
+// Etiqueta del vínculo romántico según el romanceScore (nunca según la amistad).
 function romanceTier(rel){
-  if(!rel||Number(rel.score)<50) return {label:'🤝 Aún sois amigos',col:'off'};
-  if(rel.score>=80) return {label:'💖 Enamorados',col:'gold'};
-  if(rel.score>=65) return {label:'💘 Novios',col:'good'};
-  return {label:'💕 Hay chispa',col:'warn'};
+  const s=rel?(Number(rel.romanceScore)||0):0;
+  if(s<=0) return {label:'Sin romance todavía',col:'off'};
+  if(s<25) return {label:'💗 Hay un roce',col:'off'};
+  if(s<50) return {label:'💕 Hay chispa',col:'warn'};
+  if(s<65) return {label:'💘 Novios',col:'good'};
+  if(s<80) return {label:'💖 Enamorados',col:'good'};
+  return {label:'💖 Vínculo Inquebrantable',col:'gold'};
+}
+// Nivel de vínculo de la pestaña activa (0-5), calculado sobre su propia métrica.
+// El nivel de romance es 0 si romanceScore es 0: nunca se deduce de la amistad.
+function relLevel(score){return Math.floor(Math.max(0,Number(score)||0)/20);}
+// Métrica de la pestaña activa: amistad o romance.
+function relMetric(rel){
+  if(!rel) return 0;
+  return socialTab==='romance'?(Number(rel.romanceScore)||0):(Number(rel.friendshipScore)||0);
+}
+// Etiqueta y color de la métrica de la pestaña activa.
+function relMetricTier(rel){
+  return socialTab==='romance'?romanceTier(rel):relTier(rel);
 }
 // Badge rojo del botón Social con el número de solicitudes pendientes.
 function updateSocialBadge(){
@@ -4238,12 +4306,13 @@ function acceptFriendRequest(reqId){
   const other=db.users.find(x=>x.id===Number(req.from));
   // Se elimina la solicitud del array.
   db.friendRequests=db.friendRequests.filter(r=>String(r.id)!==String(reqId));
-  // Se crea la relación con score 10.
+  // Se crea la relación: amistad 10 y romance 0.
   db.relations=db.relations||{};
   const k=relKey(u.id,req.from);
-  const cur=db.relations[k]||{score:0,rival:false};
+  const cur=db.relations[k]||emptyRel();
   cur.rival=false;
-  cur.score=Math.max(10,Number(cur.score)||0);
+  cur.friendshipScore=Math.max(10,Number(cur.friendshipScore)||0);
+  if(typeof cur.romanceScore!=='number'||Number.isNaN(cur.romanceScore)) cur.romanceScore=0;
   db.relations[k]=cur;
 
   db.log.unshift({u:`${u.username} & ${other?other.username:'un alumno'}`,h:u.house,a:'Amistad sellada',p:0,x:0});
@@ -4287,12 +4356,15 @@ function socialContacts(tab){
   const others=db.users.filter(x=>x.id!==u.id && isEnrolled(x));
   return others.filter(o=>{
     const rel=getRel(u.id,o.id);
+    // En la pestaña de Romance solo aparecen quienes tienen romanceScore > 0.
+    if(tab==='romance') return !rel.rival && (Number(rel.romanceScore)||0)>0;
     if(o.is_npc) return true;                       // los NPCs del canon siempre están
-    if(tab==='romance') return !rel.rival && Number(rel.score)>=50;
-    return Number(rel.score)>0 || !!rel.rival;       // amistades y rivales
+    return (Number(rel.friendshipScore)||0)>0 || !!rel.rival;  // amistades y rivales
   }).sort((a,b)=>{
     const ra=getRel(u.id,a.id),rb=getRel(u.id,b.id);
-    return (Number(rb.score)-Number(ra.score)) || String(a.username).localeCompare(String(b.username));
+    const ma=tab==='romance'?(Number(ra.romanceScore)||0):(Number(ra.friendshipScore)||0);
+    const mb=tab==='romance'?(Number(rb.romanceScore)||0):(Number(rb.friendshipScore)||0);
+    return (mb-ma) || String(a.username).localeCompare(String(b.username));
   });
 }
 
@@ -4305,12 +4377,23 @@ function socialCandidates(){
     .sort((a,b)=>String(a.username).localeCompare(String(b.username)));
 }
 
+// Amigos con amistad ya consolidada (>=50) y romance todavía en 0.
+// Su nivel de romance es 0: solo sube con cortejos o regalos especiales.
+function socialRomanceCandidates(){
+  const u=me();
+  if(!u) return [];
+  return db.users.filter(x=>x.id!==u.id && isEnrolled(x)
+      && (Number(getRel(u.id,x.id).friendshipScore)||0)>=50
+      && (Number(getRel(u.id,x.id).romanceScore)||0)===0)
+    .sort((a,b)=>String(a.username).localeCompare(String(b.username)));
+}
+
 // Todos los personajes que se pueden seleccionar en la pestaña actual.
 function socialSelectionPool(tab){
   const u=me();
   if(!u) return [];
   if(tab==='requests') return pendingRequestsFor(u.id).map(r=>Number(r.from));
-  if(tab==='romance') return socialContacts('romance').map(c=>c.id);
+  if(tab==='romance') return socialContacts('romance').map(c=>c.id).concat(socialRomanceCandidates().map(c=>c.id));
   const ids=socialContacts('friends').map(c=>c.id);
   socialCandidates().forEach(c=>ids.push(c.id));
   // También son seleccionables quienes tienen una solicitud en curso.
@@ -4373,19 +4456,23 @@ function socialListHTML(){
 
   const contacts=socialContacts(socialTab);
   const candidates=(socialTab==='friends')?socialCandidates():[];
-  if(!contacts.length&&!candidates.length){
+  // En la pestaña de Romance también se listan los amigos con amistad ya
+  // consolidada: su romanceScore sigue a 0 hasta que se corteje con ellos.
+  const romanceCandidates=(socialTab==='romance')?socialRomanceCandidates():[];
+  if(!contacts.length&&!candidates.length&&!romanceCandidates.length){
     return `<div class="soc-empty">${socialTab==='romance'
-      ? 'Todavía no hay ningún vínculo romántico.<br><small>Afianzad una amistad hasta llegar a 50 de afinidad.</small>'
+      ? 'Todavía no hay ningún vínculo romántico.<br><small>Afianzad una amistad hasta llegar a 50 de afinidad y luego corteja.</small>'
       : 'Aún no tienes amigos entre los jugadores.<br><small>Envía una solicitud para empezar.</small>'}</div>`;
   }
   const item=(c,extra='')=>{
     const rel=getRel(u.id,c.id);
-    const tier=socialTab==='romance'?romanceTier(rel):relTier(rel);
+    const tier=relMetricTier(rel);
+    const metric=relMetric(rel);
     return `<button class="soc-item ${Number(socialSelectedId)===Number(c.id)?'on':''}" type="button" data-do="socialSelect" data-id="${c.id}">
       <span class="pawn">${av(c,34)}</span>
       <span class="soc-item-txt"><strong>${esc(c.username)}</strong>
         <small>${hbadge(c.house)}${c.is_npc?'<span class="pill off" style="font-size:10px;padding:1px 6px">🤖 NPC</span>':''}<span class="pill ${tier.col}" style="font-size:10px;padding:1px 6px">${tier.label}</span>${extra}</small></span>
-      <span class="mono soc-note">${Number(rel.score)}</span>
+      <span class="mono soc-note">${metric}</span>
     </button>`;
   };
   let h='';
@@ -4393,6 +4480,10 @@ function socialListHTML(){
   if(candidates.length){
     h+=`<div class="soc-sec-title" style="margin-top:10px">Conectar con un alumno</div>`;
     h+=candidates.map(c=>item(c,'<span class="pill gold" style="font-size:10px;padding:1px 6px">＋ Solicitar</span>')).join('');
+  }
+  if(romanceCandidates.length){
+    h+=`<div class="soc-sec-title" style="margin-top:10px">Candidatos al romance</div>`;
+    h+=romanceCandidates.map(c=>item(c,'<span class="pill warn" style="font-size:10px;padding:1px 6px">💕 Cortejar</span>')).join('');
   }
   return h;
 }
@@ -4402,9 +4493,14 @@ function socialCardHTML(){
   const sel=(socialSelectedId!=null)?db.users.find(x=>x.id===Number(socialSelectedId)):null;
   if(!sel) return `<div class="soc-empty">Elige a alguien de la lista<br>para ver su ficha.</div>`;
   const rel=getRel(u.id,sel.id);
-  const tier=socialTab==='romance'?romanceTier(rel):relTier(rel);
+  const tier=relMetricTier(rel);
   const lvl=charLevel(sel);
   const prog=charLevelProgress(sel);
+  // Cada pestaña usa su propia métrica: amistad (friendshipScore) o romance (romanceScore).
+  const metric=relMetric(rel);
+  const isRomance=socialTab==='romance';
+  // Nivel de romance: 0 si romanceScore es 0; si hay romance, al menos nivel 1.
+  const metricLvl=isRomance?(metric>0?Math.max(1,relLevel(metric)):0):relLevel(metric);
   return `<div class="soc-card soc-panel-box">
     <span class="pawn big">${av(sel,72)}</span>
     <h4>${esc(sel.username)}</h4>
@@ -4412,8 +4508,9 @@ function socialCardHTML(){
     <div class="soc-lvl">Nivel ${lvl}</div>
     <div class="bar"><i style="width:${prog}%"></i></div>
     <div class="soc-note">${prog}% para el nivel ${lvl+1} · ${sel.points||0} pts</div>
-    <div class="soc-lvl" style="font-size:13px;color:#f3e3b3">Afinidad: ${Number(rel.score)}/100</div>
-    <div class="bar"><i style="width:${Math.min(100,Number(rel.score))}%"></i></div>
+    <div class="soc-lvl" style="font-size:13px;color:#f3e3b3">${isRomance?'Romance':'Afinidad'}: ${metric}/100</div>
+    <div class="bar"><i style="width:${Math.min(100,metric)}%"></i></div>
+    <div class="soc-lvl">Nivel de ${isRomance?'romance':'amistad'}: ${metricLvl}/5</div>
     <span class="pill ${tier.col}">${tier.label}</span>
   </div>`;
 }
@@ -4443,19 +4540,24 @@ function socialActionsHTML(){
           <button class="btn sm gold" type="button" data-do="socialRequest" data-id="${sel.id}">🤝 Enviar solicitud de amistad</button>`;
     }
   }else{
+    const fScore=Number(getRel(u.id,sel.id).friendshipScore)||0;
     h+=`<div class="row">
       <button class="btn sm" type="button" data-do="relAct" data-id="${sel.id}" data-t="chat" ${cd>0?'disabled':''} title="Charlar (+12 afinidad)">💬 Charlar</button>
       <button class="btn sm" type="button" data-do="relAct" data-id="${sel.id}" data-t="study" ${cd>0?'disabled':''} title="Estudiar juntos (+16 afinidad)">📚 Estudiar</button>
       <button class="btn sm gold" type="button" data-do="relAct" data-id="${sel.id}" data-t="gift" ${cd>0?'disabled':''} title="Regalar Rana de Chocolate (+22 afinidad)">🍫 Regalo</button>
+      ${fScore>=50?`<button class="btn sm gold" type="button" data-do="relAct" data-id="${sel.id}" data-t="romance" ${cd>0?'disabled':''} title="Cortejo (+8 romance)">💕 Cortejo</button>`:''}
       <button class="btn sm danger" type="button" data-do="relAct" data-id="${sel.id}" data-t="rival" ${cd>0?'disabled':''} title="Duelo de Rivalidad">⚔️</button>
     </div>`;
     if(cd>0) h+=`<div class="soc-note">Espera ${Math.ceil(cd/1000)} s para otra interacción social.</div>`;
+    if(fScore<50) h+=`<div class="soc-note">El romance se desbloquea con 50 de amistad.</div>`;
   }
+  const relNow=getRel(u.id,sel.id);
   h+=`<div class="soc-sec-title" style="margin-top:10px">Ficha</div>
       <div class="soc-note">Casa: ${sel.house?esc(HOUSE(sel.house).name):'—'}<br>
       Curso: ${esc(yearBadge(sel).replace(/<[^>]*>/g,''))}<br>
       Puntos: ${sel.points||0} · Galeones: ${sel.galeones||0}<br>
-      Afinidad contigo: ${Number(getRel(u.id,sel.id).score)}/100</div>`;
+      Amistad contigo: ${Number(relNow.friendshipScore)||0}/100<br>
+      Romance contigo: ${Number(relNow.romanceScore)||0}/100</div>`;
   return h;
 }
 
