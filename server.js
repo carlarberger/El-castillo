@@ -68,14 +68,14 @@ const s3Client = R2_ENABLED ? new S3Client({
   }
 }) : null;
 
-async function uploadImageToR2(base64Image) {
+async function uploadImageToR2(base64Image, prefix = 'cromo') {
   if (!R2_ENABLED || !s3Client) {
     throw new Error('Cloudflare R2 no está configurado (faltan variables de entorno).');
   }
   // Limpiar prefijo data: si existe
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const buffer = Buffer.from(cleanBase64, 'base64');
-  const fileName = `cromo-${Date.now()}.jpg`;
+  const fileName = `${prefix}-${Date.now()}.jpg`;
   const command = new PutObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME,
     Key: fileName,
@@ -279,6 +279,45 @@ app.post('/api/generate-cromo', async (req, res) => {
     const msg = /no está configurado|no configurado/i.test(err.message)
       ? 'La generación de imágenes no está configurada en el servidor.'
       : 'No se pudo generar el retrato. Intenta de nuevo.';
+    res.status(500).json({ ok: false, error: msg, detail: err.message });
+  }
+});
+
+// Patronus / Animago: genera un retrato con IA (Flux Schnell) y lo sube a R2.
+// Cachea por (tipo, forma, género) en db.spiritCache para no repetir generaciones.
+app.post('/api/generate-spirit', async (req, res) => {
+  try {
+    const type = String((req.body && req.body.type) || '').trim().toLowerCase();
+    const formName = String((req.body && req.body.formName) || '').trim().slice(0, 80);
+    const formId = slugify((req.body && req.body.formId) || formName);
+    const gender = normGender(String((req.body && req.body.gender) || '').trim().toLowerCase());
+    if (type !== 'patronus' && type !== 'animagus') {
+      return res.status(400).json({ ok: false, error: 'Tipo inválido: debe ser "patronus" o "animagus".' });
+    }
+    if (!formName) return res.status(400).json({ ok: false, error: 'Falta el nombre de la forma.' });
+
+    const state = await loadState();
+    if (!state.spiritCache || typeof state.spiritCache !== 'object') state.spiritCache = {};
+    const cacheKey = `${type}_${formId}_${gender}`;
+    if (state.spiritCache[cacheKey]) {
+      return res.json({ ok: true, image: state.spiritCache[cacheKey], type, cached: true });
+    }
+
+    const genderWord = gender === 'f' ? 'female' : 'male';
+    const prompt = type === 'patronus'
+      ? `Ethereal, glowing silver-blue Patronus in the shape of a ${genderWord} ${formName}, made of pure magical light, floating in a dark enchanted forest, Harry Potter style, cinematic lighting, masterpiece, 8k, translucent, luminous, spirit animal`
+      : `A majestic ${genderWord} ${formName} with a magical golden aura, realistic but slightly mystical, in the Forbidden Forest, Harry Potter style, cinematic lighting, 8k`;
+
+    const base64Image = await generateImageWithAI(prompt);
+    const image = await uploadImageToR2(base64Image, type === 'patronus' ? 'patronus' : 'animagus');
+    state.spiritCache[cacheKey] = image;
+    await saveState(state);
+    res.json({ ok: true, image, type, cached: false });
+  } catch (err) {
+    console.error('Error generando espíritu (HTTP):', err.message);
+    const msg = /no está configurado|no configurado/i.test(err.message)
+      ? 'La generación de imágenes no está configurada en el servidor.'
+      : 'No se pudo invocar el espíritu. Intenta de nuevo.';
     res.status(500).json({ ok: false, error: msg, detail: err.message });
   }
 });
@@ -506,6 +545,15 @@ const uri = process.env.MONGODB_URI;
 let client = null;
 let db = null;
 
+// Género y preferencia romántica del personaje (creador). Se normalizan siempre.
+const FEMALES = ['Hermione Granger', 'Ginny Weasley', 'Luna Lovegood', 'Cho Chang', 'Pansy Parkinson', 'Hannah Abbott', 'Nymphadora Tonks', 'Lyra M.', 'Seraphina K.'];
+const GENDER_IDS = ['m', 'f'];
+const ROMANCE_PREF_IDS = ['chicos', 'chicas', 'ambos', 'ninguno'];
+const normGender = v => GENDER_IDS.includes(v) ? v : 'm';
+const normRomancePref = v => ROMANCE_PREF_IDS.includes(v) ? v : 'todos';
+const slugify = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+
 const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc = false, pass = '', loc = 'comedor', npc_trait = '', is_canon = false, yearOffset = 0) => ({
   id, username, house, points, flight_xp, role, is_admin,
   is_npc: !!is_npc,
@@ -526,7 +574,9 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   spells: [],
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
   classStars: {}, lastClassDate: null, classStreak: 0, badges: [],
-  patronus: null,
+  patronus: null, patronusImage: null, animagusImage: null,
+  gender: FEMALES.includes(username) ? 'f' : 'm',
+  romancePref: 'todos',
   quidditch_approved: false,
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
@@ -622,7 +672,9 @@ function defaultDb() {
     ],
     matches: [],
     cooldowns: {},
-    missions: {}
+    missions: {},
+    // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
+    spiritCache: {}
   };
 }
 
@@ -783,6 +835,10 @@ function sanitizeState(state) {
     if (typeof u.classStreak !== 'number') { u.classStreak = 0; }
     if (!Array.isArray(u.badges)) { u.badges = []; }
     if (u.patronus !== null && !PATRONUS_IDS.includes(u.patronus)) u.patronus = null;
+    if (typeof u.patronusImage !== 'string') u.patronusImage = null;
+    if (typeof u.animagusImage !== 'string') u.animagusImage = null;
+    if (!GENDER_IDS.includes(u.gender)) u.gender = FEMALES.includes(u.username) ? 'f' : 'm';
+    if (!ROMANCE_PREF_IDS.includes(u.romancePref)) u.romancePref = 'todos';
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
@@ -824,6 +880,16 @@ function sanitizeState(state) {
   state.friendRequestsDone = state.friendRequestsDone.map(id => String(id)).slice(-200);
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
+  // Caché global de imágenes: descarta entradas corruptas y limita su tamaño.
+  if (!state.spiritCache || typeof state.spiritCache !== 'object' || Array.isArray(state.spiritCache)) {
+    state.spiritCache = {};
+  } else {
+    Object.keys(state.spiritCache).forEach(k => {
+      if (typeof state.spiritCache[k] !== 'string' || !state.spiritCache[k]) delete state.spiritCache[k];
+    });
+    const keys = Object.keys(state.spiritCache);
+    if (keys.length > 500) keys.slice(0, keys.length - 500).forEach(k => delete state.spiritCache[k]);
+  }
 
   if (Array.isArray(state.matches)) {
     state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
