@@ -446,6 +446,7 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   attrValentia: 0, attrEmpatia: 0, attrSabiduria: 0,
   spells: [],
   galeones: 15, inv: {}, cromos: {}, inmunidadFilchHasta: 0, buffDobleGaleon: false,
+  classStars: {}, lastClassDate: null, classStreak: 0, badges: [],
   quidditch_approved: false,
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
@@ -696,6 +697,10 @@ function sanitizeState(state) {
     if (typeof u.attrEmpatia !== 'number' || Number.isNaN(u.attrEmpatia)) u.attrEmpatia = 0;
     if (typeof u.attrSabiduria !== 'number' || Number.isNaN(u.attrSabiduria)) u.attrSabiduria = 0;
     if (!Array.isArray(u.spells)) u.spells = [];
+    if (!u.classStars || typeof u.classStars !== 'object') { u.classStars = {}; }
+    if (typeof u.lastClassDate === 'undefined') { u.lastClassDate = null; }
+    if (typeof u.classStreak !== 'number') { u.classStreak = 0; }
+    if (!Array.isArray(u.badges)) { u.badges = []; }
 
     if (u.is_npc && !u.npc_decided) {
       u.flight_xp = 0;
