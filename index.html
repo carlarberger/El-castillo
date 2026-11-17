@@ -154,6 +154,24 @@ select{width:auto}
 .room.filch{outline:2px solid var(--bad); background:repeating-linear-gradient(45deg, #2a1418, #2a1418 10px, #1c0d10 10px, #1c0d10 20px);}
 .room-furn{position:absolute;bottom:4px;right:6px;font-size:28px;opacity:.18;pointer-events:none;z-index:0;line-height:1}
 .room .rn,.room .dots,.room .rc{position:relative;z-index:1}
+/* Marcadores de exploración (Pruebas de Merlín y Estatuas Demiguise) */
+.explore-mark{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;display:grid;place-items:center;font-size:15px;line-height:1;border:2px solid var(--gold);background:rgba(11,13,23,.82);box-shadow:0 0 10px var(--glow);pointer-events:auto;cursor:pointer}
+.explore-mark.merlin.pending{border-color:#8fd0ff;color:#bfe4ff;box-shadow:0 0 12px rgba(143,208,255,.65);animation:merlinPulse 1.8s ease-in-out infinite}
+.explore-mark.merlin.done{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(227,187,78,.5)}
+.explore-mark.demiguise.day{border-color:#7d8aa3;color:#aab4c8;filter:grayscale(.7);opacity:.85}
+.explore-mark.demiguise.night{border-color:#7fb2ff;color:#dbe8ff;box-shadow:0 0 14px rgba(127,178,255,.8);animation:moonPulse 1.6s ease-in-out infinite}
+@keyframes merlinPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.16);filter:brightness(1.4)}}
+@keyframes moonPulse{0%,100%{box-shadow:0 0 10px rgba(127,178,255,.6)}50%{box-shadow:0 0 22px rgba(127,178,255,1)}}
+/* Modal de exploración (minijuegos en canvas) */
+.explore-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(11,13,23,.9);backdrop-filter:blur(6px)}
+.explore-modal.open{display:flex}
+.explore-card{background:#0b0d17;border:2px solid #d4af37;border-radius:16px;box-shadow:0 0 46px rgba(212,175,55,.28);max-width:560px;width:100%;padding:18px;display:grid;gap:12px;text-align:center;font-family:'Cinzel',var(--display),Georgia,serif}
+.explore-card h3{font-family:'Cinzel',var(--display),Georgia,serif;color:#d4af37;font-size:22px;letter-spacing:.04em;margin:0}
+.explore-card p{margin:0;color:#c9b98a;font-family:'Source Sans 3',system-ui,sans-serif;font-size:13px}
+.explore-card canvas{background:#070a14;border:1px solid #d4af37;border-radius:12px;width:460px;max-width:100%;height:auto;touch-action:none;margin:0 auto}
+.explore-reward{color:#e3bb4e;font-weight:700;font-size:14px}
+.explore-hud{display:flex;justify-content:space-between;gap:10px;font-family:'Source Sans 3',system-ui,sans-serif;font-size:12px;color:#c9b98a}
+.explore-hud b{color:#d4af37}
 .tex-grass{background:radial-gradient(circle at 20% 30%, #2d6a3f 0%, transparent 40%), radial-gradient(circle at 70% 60%, #3f8a4f 0%, transparent 35%), linear-gradient(180deg,#1f4a2a,#2d6a3f);background-size:100% 100%}
 .tex-grass::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.04) 18px 19px);pointer-events:none}
 .tex-wood{background:linear-gradient(180deg,#5a3a1a 0%,#7a5a3a 50%,#5a3a1a 100%)}
@@ -641,6 +659,18 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </div>
 </div>
 <div id="modalRoot" hidden></div>
+<div id="explorationModal" class="explore-modal" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="explore-card">
+    <h3 id="exploreTitle">Prueba de Merlín</h3>
+    <p id="exploreSub">Supera la prueba para ganar recompensas.</p>
+    <div class="explore-hud"><span id="exploreHudLeft">—</span><span id="exploreHudRight">—</span></div>
+    <canvas id="exploreCanvas" width="460" height="300"></canvas>
+    <div id="exploreMsg" class="explore-reward" aria-live="polite"></div>
+    <div class="row" style="justify-content:center;gap:10px">
+      <button class="btn sm" type="button" data-do="closeExploration">Cerrar</button>
+    </div>
+  </div>
+</div>
 <div id="minigameModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(6,5,18,0.92); backdrop-filter:blur(6px); z-index:1000; display:none; flex-direction:column; align-items:center; justify-content:center; padding:16px;">
   <div class="row" style="justify-content:space-between; width:800px; max-width:95%; margin-bottom:10px;">
     <div>
@@ -898,6 +928,27 @@ const ROOMS=[
  ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠']];
 const PREFECT_TRAITS=['Liderazgo','Responsabilidad','Justicia','Valentía','Astucia','Lealtad','Sabiduría','Empatía'];
 const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador','Guardián'];
+/* ===== EXPLORACIÓN: Pruebas de Merlín (exteriores) y Estatuas Demiguise (interiores) =====
+   x/y son fracciones (0-1) dentro de la sala del mapa donde se dibuja el marcador.
+   type: 'brazier' (3 pebeteros), 'sphere' (esfera al pedestal), 'reparo' (4 fragmentos en orden). */
+const MERLIN_TRIALS=[
+  { id:'merlin_patio',        name:'Patio de la Torre',         zone:'patio',        room:'patio',        x:0.34, y:0.72, type:'brazier' },
+  { id:'merlin_lago',         name:'Orilla del Lago Negro',     zone:'terrenos',     room:'terrenos',     x:0.5,  y:0.72, type:'sphere'  },
+  { id:'merlin_bosque',       name:'Borde del Bosque Prohibido',zone:'cabana',       room:'cabana',       x:0.34, y:0.72, type:'reparo'  },
+  { id:'merlin_quidditch',    name:'Campo de Quidditch',        zone:'quidditch',    room:'quidditch',    x:0.66, y:0.72, type:'sphere'  },
+  { id:'merlin_invernaderos', name:'Invernaderos',              zone:'invernaderos', room:'invernaderos', x:0.34, y:0.72, type:'brazier' },
+  { id:'merlin_puente',       name:'Puente de Piedra',          zone:'escalera',     room:'escalera',     x:0.34, y:0.72, type:'reparo'  }
+];
+const DEMIGUISE_STATUES=[
+  { id:'demi_biblioteca',     name:'Biblioteca',            room:'biblioteca',      x:0.72, y:0.7 },
+  { id:'demi_astronomia',     name:'Torre de Astronomía',   room:'astronomia',      x:0.72, y:0.7 },
+  { id:'demi_pociones',       name:'Aula de Pociones',      room:'mazmorras',       x:0.72, y:0.7 },
+  { id:'demi_pasillo3',       name:'Pasillo del 3er Piso',  room:'encantamientos',  x:0.72, y:0.7 },
+  { id:'demi_comedor',        name:'Gran Comedor',          room:'comedor',         x:0.72, y:0.7 },
+  { id:'demi_encantamientos', name:'Aula de Encantamientos',room:'defensa',         x:0.72, y:0.7 },
+  { id:'demi_enfermeria',     name:'Enfermería',            room:'enfermeria',      x:0.72, y:0.7 },
+  { id:'demi_mazmorras',      name:'Mazmorras',             room:'transformaciones',x:0.72, y:0.7 }
+];
 const COOLDOWN=20000,ROUND_MS=15000;
 const DAYS=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 const DAYL={domingo:'Domingo',lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado'};
@@ -966,6 +1017,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   unlockedCosmetics:[], mcGonagallWarned:false, patronus:null, patronusImage:null, animagusImage:null,
   birthDay:null, birthMonth:null, lastBirthdayYear:null,
   personality: personality,
+  merlinTrials: [], demiguiseCollected: [], demiguiseCarrying: [], alohomoraLevel: 1, bagCapacity: 5,
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
   look:{facialHair:'none',...(look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length])},created_at:id
@@ -1201,6 +1253,12 @@ function ensureDbIntegrity(){
     else if (u.patronus !== null && !PATRONUS_ICONS[u.patronus]) { u.patronus = null; changed = true; }
     if (typeof u.patronusImage !== 'string') { u.patronusImage = null; changed = true; }
     if (typeof u.animagusImage !== 'string') { u.animagusImage = null; changed = true; }
+    // Exploración: Pruebas de Merlín y Estatuas Demiguise.
+    if (!Array.isArray(u.merlinTrials)) { u.merlinTrials = []; changed = true; }
+    if (!Array.isArray(u.demiguiseCollected)) { u.demiguiseCollected = []; changed = true; }
+    if (!Array.isArray(u.demiguiseCarrying)) { u.demiguiseCarrying = []; changed = true; }
+    if (typeof u.alohomoraLevel !== 'number' || isNaN(u.alohomoraLevel)) { u.alohomoraLevel = 1; changed = true; }
+    if (typeof u.bagCapacity !== 'number' || isNaN(u.bagCapacity)) { u.bagCapacity = 5; changed = true; }
     const _bm = Math.floor(Number(u.birthMonth)), _bd = Math.floor(Number(u.birthDay));
     const _nm = (_bm >= 1 && _bm <= 12) ? _bm : null;
     const _nd = (_nm !== null && _bd >= 1 && _bd <= 31) ? _bd : null;
@@ -2039,8 +2097,14 @@ const API={
       // El toque de queda lo vigila Snape: con afinidad baja el castigo es doble.
       const res = applyCatchConsequence(u, {id:'snape',name:'Severus Snape'}, 10);
       u.happiness = Math.max(0, u.happiness - 10);
+      // Al huir de Filch se puede caer una Luna de Demiguise que llevabas encima.
+      let moonMsg = '';
+      if (Array.isArray(u.demiguiseCarrying) && u.demiguiseCarrying.length > 0) {
+        u.demiguiseCarrying.pop();
+        moonMsg = ' ¡Se te cayó una Luna de Demiguise al huir!';
+      }
       u.loc = u.house;
-      toast(`¡Filch y la Sra. Norris te atraparon! -${res.pts} pts${res.doubled?' (Snape te tiene en su punto de mira: castigo doble)':''}, -10 Felicidad y de vuelta a tu Sala Común.`);
+      toast(`¡Filch y la Sra. Norris te atraparon! -${res.pts} pts${res.doubled?' (Snape te tiene en su punto de mira: castigo doble)':''}, -10 Felicidad y de vuelta a tu Sala Común.${moonMsg}`);
     }else{
       const msg = petProtected ? '🐱 ¡Tu gato distrajo a la Sra. Norris!' : '¡Esquivaste a Filch y encontraste un secreto!';
       u.points += 8;
@@ -2817,6 +2881,35 @@ function renderGlasses(){
       <div class="bar"><i style="width:${Math.round(h.points/max*100)}%"></i></div></div>`}).join('');
   $('copaTotal').textContent=`${db.houses.reduce((a,h)=>a+h.points,0).toLocaleString('es-ES')} puntos repartidos entre las cuatro casas en este curso.`;
 }
+/* Marcadores de exploración dentro de cada sala del mapa. */
+function explorationMarksFor(roomId,u){
+  if(!u||!u.house) return '';
+  const myTrials=Array.isArray(u.merlinTrials)?u.merlinTrials:[];
+  const collected=Array.isArray(u.demiguiseCollected)?u.demiguiseCollected:[];
+  const carrying=Array.isArray(u.demiguiseCarrying)?u.demiguiseCarrying:[];
+  const night=isCurfew()&&!db.free;
+  const pos=m=>`left:${(m.x*100).toFixed(1)}%;top:${(m.y*100).toFixed(1)}%`;
+  let h='';
+  MERLIN_TRIALS.filter(t=>t.room===roomId).forEach(t=>{
+    const done=myTrials.includes(t.id);
+    const title=done
+      ? `Prueba de Merlín completada · ${esc(t.name)}`
+      : `Prueba de Merlín: ${esc(t.name)} · ${esc(t.type)}`;
+    h+=`<span class="explore-mark merlin ${done?'done':'pending'}" style="${pos(t)}" title="${title}" ${done?'':`data-do="openMerlin" data-id="${t.id}"`}>${done?'🌿':'🌀'}</span>`;
+  });
+  DEMIGUISE_STATUES.filter(s=>s.room===roomId).forEach(s=>{
+    const done=collected.includes(s.id)||carrying.includes(s.id);
+    if(done){
+      h+=`<span class="explore-mark demiguise day" style="${pos(s)};opacity:.35" title="${esc(s.name)} · Luna Demiguise ya entregada">🪨</span>`;
+    }else if(night){
+      h+=`<span class="explore-mark demiguise night" style="${pos(s)}" title="Estatua Demiguise: ${esc(s.name)} · Recógela ahora" data-do="openDemiguise" data-id="${s.id}">🌙</span>`;
+    }else{
+      h+=`<span class="explore-mark demiguise day" style="${pos(s)}" title="Estatua inactiva: vuelve en toque de queda 22:00-07:00">🪨</span>`;
+    }
+  });
+  return h;
+}
+
 function renderMap(){
   const slot=curSlot(),u=me(),myLoc=userLoc(u),roam=!!(u&&u.house);
   const term=mapTerm.trim().toLowerCase();
@@ -2841,7 +2934,7 @@ function renderMap(){
     const furn = emoji ? `<span class="room-furn">${emoji}</span>` : '';
     return `<div class="room ${texClass} ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''} ${hasFilch?'filch':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
       ${furn}<div class="rn">${name}</div><div class="dots">${pawns}${filchHtml}</div>
-      <div class="rc">${foot}</div></div>`}).join('');
+      <div class="rc">${foot}</div>${explorationMarksFor(id,u)}</div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
   const enrolled=db.users.filter(isEnrolled), npcCount=enrolled.filter(x=>x.is_npc).length, humCount=enrolled.length-npcCount;
@@ -2867,7 +2960,13 @@ function renderYou(){
     return;
   }
   const loc=userLoc(u),ev=activeEvent(),mult=ev?ev.mult:1;
+  const carrying=Array.isArray(u.demiguiseCarrying)?u.demiguiseCarrying.length:0;
   let h=`<span class="pawn big me">${av(u,34)}</span><div style="min-width:0"><strong>${esc(u.username)}</strong><div class="hint">${canRoam()?`En ${esc(roomName(loc))}`:`${esc(s?slotLabel(s):'Recreo libre')}`}</div></div>`;
+  // Entrega de Lunas Demiguise: solo en la propia Sala Común.
+  if(carrying>0){
+    const inCommonRoom=u.house&&loc===u.house;
+    h+=`<button class="btn gold sm" type="button" data-do="turnInDemiguise" ${inCommonRoom?'':'disabled'} title="${inCommonRoom?'Entrega las Lunas de Demiguise a tus prefectos':'Vuelve a tu Sala Común para entregar las lunas'}">🌙 Entregar Lunas Demiguise (${carrying})</button>`;
+  }
   if(isCurfew()&&!db.free){
     h+=`<button class="btn gold sm" type="button" data-do="sneak" style="background:var(--bad);border-color:var(--bad);color:#fff">🥷 Escabullirme por los pasillos</button>`;
   } else if(canRoam()&&u.house){
@@ -4849,6 +4948,280 @@ socket.on('cromo_image_error',(data)=>{
     if(btn){btn.disabled=false;btn.textContent='🪄 Generar Retrato IA';}
   }
 });
+
+/* ===== EXPLORACIÓN: Pruebas de Merlín y Estatuas Demiguise (cliente) =====
+   Los minijuegos se resuelven en canvas local; el servidor valida y premia. */
+socket.on('exploration:update',(data)=>{
+  if(!data) return;
+  const u=db.users.find(x=>Number(x.id)===Number(data.userId));
+  if(!u) return;
+  if(Array.isArray(data.merlinTrials)) u.merlinTrials=data.merlinTrials;
+  if(Array.isArray(data.demiguiseCollected)) u.demiguiseCollected=data.demiguiseCollected;
+  if(Array.isArray(data.demiguiseCarrying)) u.demiguiseCarrying=data.demiguiseCarrying;
+  if(typeof data.alohomoraLevel==='number') u.alohomoraLevel=data.alohomoraLevel;
+  if(typeof data.bagCapacity==='number') u.bagCapacity=data.bagCapacity;
+  if(typeof data.galeones==='number') u.galeones=data.galeones;
+  if(typeof data.points==='number') u.points=data.points;
+  if(typeof data.attrSabiduria==='number') u.attrSabiduria=data.attrSabiduria;
+  if(typeof data.attrValentia==='number') u.attrValentia=data.attrValentia;
+  if(data.event==='pickup') toast(`🌙 Luna de Demiguise recogida (llevas ${data.carrying}). Entrégala en tu Sala Común.`);
+  if(data.event==='turnIn') toast(`🪄 ¡Entregaste ${data.delivered} Luna(s)! +${data.reward.galeones} Galeones · +${data.reward.valentia} Valentía · Alohomora Nv. ${u.alohomoraLevel}`);
+  renderYou(); renderMap();
+});
+socket.on('exploration:error',(data)=>{ if(data&&data.message) toast(data.message); });
+
+const exploreCanvas=$('exploreCanvas');
+const exploreCtx=exploreCanvas?exploreCanvas.getContext('2d'):null;
+let exploreState=null;
+const exploreIsNight=()=>isCurfew()&&!db.free;
+
+function openExplorationModal(title,sub,hudLeft,hudRight){
+  const m=$('explorationModal'); if(!m) return;
+  $('exploreTitle').textContent=title;
+  $('exploreSub').textContent=sub;
+  $('exploreHudLeft').innerHTML=hudLeft||'';
+  $('exploreHudRight').innerHTML=hudRight||'';
+  $('exploreMsg').textContent='';
+  m.classList.add('open'); m.setAttribute('aria-hidden','false');
+}
+function closeExplorationModal(){
+  const m=$('explorationModal'); if(!m) return;
+  if(exploreState){
+    if(exploreState.raf) cancelAnimationFrame(exploreState.raf);
+    if(typeof exploreState.cleanup==='function') exploreState.cleanup();
+  }
+  exploreState=null;
+  m.classList.remove('open'); m.setAttribute('aria-hidden','true');
+  if(exploreCtx) exploreCtx.clearRect(0,0,exploreCanvas.width,exploreCanvas.height);
+}
+function exploreRun(draw){
+  const loop=()=>{ if(!exploreState) return; draw(exploreCtx,exploreCanvas.width,exploreCanvas.height); exploreState.raf=requestAnimationFrame(loop); };
+  exploreState.raf=requestAnimationFrame(loop);
+}
+function explorePos(ev){
+  const rect=exploreCanvas.getBoundingClientRect();
+  return { x:(ev.clientX-rect.left)*(exploreCanvas.width/rect.width), y:(ev.clientY-rect.top)*(exploreCanvas.height/rect.height) };
+}
+if(exploreCanvas){
+  exploreCanvas.addEventListener('pointerdown',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onClick){ e.preventDefault(); exploreState.onClick(p.x,p.y); } });
+  exploreCanvas.addEventListener('pointermove',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onMove) exploreState.onMove(p.x,p.y); });
+  exploreCanvas.addEventListener('pointerup',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onUp) exploreState.onUp(p.x,p.y); });
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&exploreState) closeExplorationModal(); });
+
+function exploreWin(trialId){
+  if(exploreState) exploreState.done=true;
+  socket.emit('exploration:completeMerlin',{ trialId });
+  const msg=$('exploreMsg'); if(msg) msg.textContent='✅ ¡Prueba superada! +25 Galeones · +15 Sabiduría · +10 pts para tu Casa';
+  fanfare();
+  setTimeout(closeExplorationModal,1900);
+}
+function demiguiseWin(statueId){
+  if(exploreState) exploreState.done=true;
+  socket.emit('exploration:pickupDemiguise',{ statueId });
+  const msg=$('exploreMsg'); if(msg) msg.textContent='🌙 ¡Luna de Demiguise recogida! Entrégala en tu Sala Común.';
+  chime();
+  setTimeout(closeExplorationModal,1700);
+}
+
+function startMerlinTrial(trialId){
+  const t=MERLIN_TRIALS.find(x=>x.id===trialId);
+  const u=me();
+  must(u&&u.house,'Inicia sesión con tu personaje para explorar');
+  must(t,'Prueba de Merlín desconocida');
+  must(!(Array.isArray(u.merlinTrials)&&u.merlinTrials.includes(t.id)),'Ya completaste esta Prueba de Merlín');
+  if(t.type==='brazier') return startBrazierTrial(t);
+  if(t.type==='sphere') return startSphereTrial(t);
+  return startReparoTrial(t);
+}
+function startDemiguiseStatue(statueId){
+  const s=DEMIGUISE_STATUES.find(x=>x.id===statueId);
+  const u=me();
+  must(u&&u.house,'Inicia sesión con tu personaje para explorar');
+  must(s,'Estatua desconocida');
+  must(exploreIsNight(),'Las estatuas Demiguise solo despiertan en el toque de queda (22:00-07:00)');
+  const coll=Array.isArray(u.demiguiseCollected)?u.demiguiseCollected:[];
+  const carr=Array.isArray(u.demiguiseCarrying)?u.demiguiseCarrying:[];
+  must(!coll.includes(s.id)&&!carr.includes(s.id),'Ya conseguiste esta Luna de Demiguise');
+  return startAlohomora(s);
+}
+
+/* --- Minijuego 1: Pebeteros (brazier) — enciende 3 antes de 6 s --- */
+function startBrazierTrial(t){
+  const braziers=[{x:110,y:150},{x:230,y:150},{x:350,y:150}].map(b=>({...b,lit:false}));
+  const total=6000, start=performance.now();
+  let failed=false;
+  exploreState={ mode:'brazier', onClick:(x,y)=>{
+    if(failed) return;
+    for(const b of braziers){
+      if(!b.lit && Math.hypot(b.x-x,b.y-y)<=46){ b.lit=true; tone([520,780],'sine',.05,.18,.1); break; }
+    }
+    if(braziers.every(b=>b.lit)) exploreWin(t.id);
+  }};
+  openExplorationModal('🔥 Prueba de Merlín · Pebeteros',`${esc(t.name)} — Enciende los 3 pebeteros antes de que se hundan (6 s).`,'Pebeteros encendidos: <b>0/3</b>','⏳ <b>6.0</b> s');
+  exploreRun((ctx,w,h)=>{
+    const el=performance.now()-start, rem=Math.max(0,total-el);
+    if(rem<=0 && !failed && !braziers.every(b=>b.lit)){
+      failed=true; const m=$('exploreMsg'); if(m) m.textContent='❌ Los pebeteros se hundieron. ¡Inténtalo de nuevo!';
+      setTimeout(closeExplorationModal,1500);
+    }
+    $('exploreHudLeft').innerHTML=`Pebeteros encendidos: <b>${braziers.filter(b=>b.lit).length}/3</b>`;
+    $('exploreHudRight').innerHTML=`⏳ <b>${(rem/1000).toFixed(1)}</b> s`;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#070a14'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#12162a'; ctx.fillRect(0,h-70,w,70);
+    const sink=1-(rem/total);
+    braziers.forEach(b=>{
+      const yy=b.y+(b.lit?0:sink*40);
+      ctx.fillStyle='#2a2f4a'; ctx.fillRect(b.x-16,yy+18,32,26);
+      ctx.beginPath(); ctx.arc(b.x,yy,20,0,Math.PI*2);
+      ctx.fillStyle=b.lit?'#3a2a12':'#1a1f33'; ctx.fill();
+      ctx.strokeStyle='#d4af37'; ctx.lineWidth=2; ctx.stroke();
+      if(b.lit){
+        const fl=7+Math.sin(performance.now()/90+b.x)*3;
+        ctx.beginPath(); ctx.arc(b.x,yy-14-fl/2,fl,0,Math.PI*2); ctx.fillStyle='#ffb347'; ctx.fill();
+        ctx.beginPath(); ctx.arc(b.x,yy-12-fl/2,fl*0.5,0,Math.PI*2); ctx.fillStyle='#ffe08a'; ctx.fill();
+      }
+    });
+    ctx.fillStyle='#2a2f4a'; ctx.fillRect(20,h-24,w-40,8);
+    ctx.fillStyle='#d4af37'; ctx.fillRect(20,h-24,(w-40)*(rem/total),8);
+  });
+}
+
+/* --- Minijuego 2: Esfera (sphere) — lanza la esfera al pedestal --- */
+function startSphereTrial(t){
+  const origin={x:60,y:230};
+  const pedestal={x:390,y:200,r:26};
+  const GRAV=0.30, SCALE=0.05;
+  let dragging=false, aim={x:170,y:120}, proj=null, won=false;
+  const velocity=()=>({ vx:(aim.x-origin.x)*SCALE, vy:(aim.y-origin.y)*SCALE });
+  const launch=()=>{ if(won) return; const v=velocity(); proj={x:origin.x,y:origin.y,vx:v.vx,vy:v.vy,trail:[]}; tone([300,520],'triangle',.05,.2,.12); };
+  exploreState={
+    mode:'sphere',
+    onClick:(x,y)=>{ if(won) return; dragging=true; aim={x,y}; },
+    onMove:(x,y)=>{ if(dragging&&!won) aim={x,y}; },
+    onUp:()=>{ if(dragging){ dragging=false; launch(); } }
+  };
+  openExplorationModal('🌀 Prueba de Merlín · Esfera',`${esc(t.name)} — Arrastra desde la varita para apuntar (verás la trayectoria) y suelta para lanzar.`,'Pedestal: <b>1</b>','Arrastra y suelta');
+  exploreRun((ctx,w,h)=>{
+    if(proj && !won){
+      proj.trail.push({x:proj.x,y:proj.y}); if(proj.trail.length>60) proj.trail.shift();
+      proj.vy+=GRAV; proj.x+=proj.vx; proj.y+=proj.vy;
+      if(Math.hypot(proj.x-pedestal.x,proj.y-pedestal.y)<=pedestal.r){ won=true; proj=null; exploreWin(t.id); }
+      else if(proj.x<-60||proj.x>w+60||proj.y>h+60){ proj=null; const m=$('exploreMsg'); if(m) m.textContent='Fallo… ajusta el ángulo y la potencia.'; }
+    }
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#070a14'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#12162a'; ctx.fillRect(0,h-70,w,70);
+    // pedestal
+    ctx.beginPath(); ctx.arc(pedestal.x,pedestal.y,pedestal.r,0,Math.PI*2);
+    ctx.fillStyle='rgba(212,175,55,.15)'; ctx.fill(); ctx.strokeStyle='#d4af37'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='16px serif'; ctx.fillText('🏛️',pedestal.x-8,pedestal.y+6);
+    // origen (varita)
+    ctx.beginPath(); ctx.arc(origin.x,origin.y,10,0,Math.PI*2); ctx.fillStyle='#8fd0ff'; ctx.fill();
+    // trayectoria prevista al arrastrar
+    if(dragging&&!won){
+      const v=velocity(); let px=origin.x, py=origin.y, pvx=v.vx, pvy=v.vy;
+      ctx.fillStyle='rgba(143,208,255,.55)';
+      for(let i=0;i<80;i++){ pvy+=GRAV; px+=pvx; py+=pvy; if(px>w||py>h) break; if(i%3===0){ ctx.beginPath(); ctx.arc(px,py,2,0,Math.PI*2); ctx.fill(); } }
+      ctx.strokeStyle='rgba(143,208,255,.5)'; ctx.beginPath(); ctx.moveTo(origin.x,origin.y); ctx.lineTo(aim.x,aim.y); ctx.stroke();
+    }
+    // proyectil
+    if(proj){
+      ctx.strokeStyle='rgba(227,187,78,.6)'; ctx.beginPath();
+      proj.trail.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); }); ctx.stroke();
+      ctx.beginPath(); ctx.arc(proj.x,proj.y,8,0,Math.PI*2); ctx.fillStyle='#e3bb4e'; ctx.fill();
+    }
+  });
+}
+
+/* --- Minijuego 3: Reparo (reparo) — 4 fragmentos en orden antes de 8 s --- */
+function startReparoTrial(t){
+  const RUNES=['ᚠ','ᚢ','ᚦ','ᚨ'];
+  const slots=[{x:90,y:90},{x:200,y:215},{x:320,y:80},{x:375,y:205}];
+  const frags=RUNES.map((rune,i)=>({rune,idx:i,...slots[i]})).sort(()=>Math.random()-0.5);
+  const required=[...RUNES];
+  let step=0, failed=false;
+  const total=8000, start=performance.now();
+  exploreState={ mode:'reparo', onClick:(x,y)=>{
+    if(failed) return;
+    const hit=frags.find(f=>Math.hypot(f.x-x,f.y-y)<=40);
+    if(!hit) return;
+    if(hit.rune===required[step]){ step++; tone([600,820],'sine',.04,.16,.1); if(step>=required.length) exploreWin(t.id); }
+    else { failed=true; buzzSnd(); const m=$('exploreMsg'); if(m) m.textContent='❌ Orden incorrecto. Los fragmentos se reajustan…'; setTimeout(closeExplorationModal,1500); }
+  }};
+  openExplorationModal('📜 Prueba de Merlín · Reparo',`${esc(t.name)} — Toca los 4 fragmentos rúnicos en el orden mostrado antes de 8 s.`,`Orden: <b>${required.join(' ')}</b>`,'⏳ <b>8.0</b> s');
+  exploreRun((ctx,w,h)=>{
+    const el=performance.now()-start, rem=Math.max(0,total-el);
+    if(rem<=0 && !failed && step<required.length){
+      failed=true; const m=$('exploreMsg'); if(m) m.textContent='❌ Se agotó el tiempo. ¡Reparo otra vez!';
+      setTimeout(closeExplorationModal,1500);
+    }
+    $('exploreHudLeft').innerHTML=`Orden: <b>${required.join(' ')}</b> · <b>${step}/4</b>`;
+    $('exploreHudRight').innerHTML=`⏳ <b>${(rem/1000).toFixed(1)}</b> s`;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#070a14'; ctx.fillRect(0,0,w,h);
+    frags.forEach(f=>{
+      const next=f.rune===required[step];
+      ctx.beginPath(); ctx.arc(f.x,f.y,34,0,Math.PI*2);
+      ctx.fillStyle='#12162a'; ctx.fill();
+      ctx.strokeStyle=next?'#8fd0ff':'#d4af37'; ctx.lineWidth=next?3:2; ctx.stroke();
+      ctx.fillStyle=next?'#bfe4ff':'#e3bb4e'; ctx.font='26px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(f.rune,f.x,f.y);
+    });
+    ctx.fillStyle='#2a2f4a'; ctx.fillRect(20,h-24,w-40,8);
+    ctx.fillStyle='#d4af37'; ctx.fillRect(20,h-24,(w-40)*(rem/total),8);
+  });
+}
+
+/* --- Minijuego 4: Alohomora — alinea los anillos giratorios --- */
+function startAlohomora(s){
+  const cx=230, cy=140;
+  const rings=[
+    { r:110, speed:0.9,  a:Math.random()*Math.PI*2, locked:false },
+    { r:76,  speed:-1.35,a:Math.random()*Math.PI*2, locked:false },
+    { r:44,  speed:1.75, a:Math.random()*Math.PI*2, locked:false }
+  ];
+  const TOL=0.30;
+  let active=0, done=false;
+  const top=Math.PI*1.5;
+  exploreState={ mode:'alohomora', onClick:()=>{
+    if(done||active>=rings.length) return;
+    const ring=rings[active];
+    const a=((ring.a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+    let d=Math.abs(a-top); d=Math.min(d,Math.PI*2-d);
+    if(d<=TOL){
+      ring.locked=true; active++; tone([700,940],'sine',.04,.15,.1);
+      if(active>=rings.length){ done=true; demiguiseWin(s.id); }
+    } else {
+      rings.forEach(r=>r.locked=false); active=0; buzzSnd();
+      const m=$('exploreMsg'); if(m) m.textContent='❌ Anillo desalineado: se reinicia la cerradura. ¡Otra vez!';
+    }
+  }};
+  openExplorationModal('🔓 Alohomora · Estatua Demiguise',`${esc(s.name)} — Toca para encajar cada anillo cuando su marca pase por la flecha superior.`,'Anillos: <b>0/3</b>','Alinea y toca');
+  let last=performance.now();
+  exploreRun((ctx,w,h)=>{
+    const now=performance.now(), dt=Math.min(50,now-last)/16.7; last=now;
+    rings.forEach((ring,i)=>{ if(!ring.locked && i===active) ring.a+=ring.speed*0.04*dt; });
+    $('exploreHudLeft').innerHTML=`Anillos: <b>${active}/3</b> · Alohomora Nv. <b>${(me()&&me().alohomoraLevel)||1}</b>`;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#070a14'; ctx.fillRect(0,0,w,h);
+    // flecha objetivo (arriba)
+    ctx.fillStyle='#e3bb4e'; ctx.beginPath();
+    ctx.moveTo(cx,cy-130); ctx.lineTo(cx-12,cy-146); ctx.lineTo(cx+12,cy-146); ctx.closePath(); ctx.fill();
+    rings.forEach((ring,i)=>{
+      ctx.beginPath(); ctx.arc(cx,cy,ring.r,0,Math.PI*2);
+      ctx.strokeStyle=ring.locked?'#e3bb4e':(i===active?'#8fd0ff':'#3a4160');
+      ctx.lineWidth=ring.locked?5:3; ctx.stroke();
+      const mx=cx+Math.cos(ring.a)*ring.r, my=cy+Math.sin(ring.a)*ring.r;
+      ctx.beginPath(); ctx.arc(mx,my,7,0,Math.PI*2);
+      ctx.fillStyle=ring.locked?'#ffe08a':'#8fd0ff'; ctx.fill();
+    });
+    ctx.beginPath(); ctx.arc(cx,cy,14,0,Math.PI*2); ctx.fillStyle='#d4af37'; ctx.fill();
+    ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔑',cx,cy);
+  });
+}
+
 
 function studentSheet(id){
   const u=db.users.find(x=>x.id===id);if(!u)return;
@@ -7030,6 +7403,10 @@ document.addEventListener('click',e=>{
     }
     case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));break;
     case 'sneak':API.sneak();break;
+    case 'openMerlin':startMerlinTrial(d.id);break;
+    case 'openDemiguise':startDemiguiseStatue(d.id);break;
+    case 'turnInDemiguise':{const u=me();must(u&&u.house,'Inicia sesión primero');must(userLoc(u)===u.house,'Solo puedes entregar las lunas en tu Sala Común');socket.emit('exploration:turnInDemiguise');break;}
+    case 'closeExploration':closeExplorationModal();break;
     case 'freeact':{const r=API.freeAct();toast(`+${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);break}
     case 'pickHouse':houseConfirm(d.id);break;
     case 'confirmHouse':API.chooseHouse(d.id);closeModal();toast('Bienvenido a '+HOUSE(d.id).name);break;
