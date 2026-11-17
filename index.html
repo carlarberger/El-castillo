@@ -1082,7 +1082,7 @@ let db = {
  apps:[], votes:[],
  events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
  period:'application',schoolYear:1,clockMode:'real',mockTime:null,mockDay:null,free:false,npcAi:true,
- relations:{}, profAffinity:{}, raidShield:100, friendRequests:[], friendRequestsDone:[],
+ relations:{}, officialCouples:[], profAffinity:{}, raidShield:100, friendRequests:[], friendRequestsDone:[],
  chat:[
   {id:1,u:'🤖 Hermione Granger',h:'gryffindor',role:'student',ch:'global',text:'¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!',time:'20:40'},
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
@@ -1264,6 +1264,7 @@ function ensureDbIntegrity(){
       changed=true;
     }
   });
+  db.officialCouples=sanitizeOfficialCouples(db.officialCouples,db.users);
   if(!Array.isArray(db.friendRequests)){db.friendRequests=[];changed=true;}
   else{
     const prevReqs=db.friendRequests.length;
@@ -1491,6 +1492,51 @@ function classStatus(key){
 }
 
 function relKey(id1,id2){const a=Math.min(Number(id1),Number(id2)),b=Math.max(Number(id1),Number(id2));return `${a}_${b}`;}
+/* ===== RELACIONES OFICIALES Y POLIAMOR ===== */
+// Normaliza las parejas oficiales: ids reales, sin duplicados, mínimo 2 miembros
+// y un jugador nunca aparece en dos relaciones a la vez.
+function sanitizeOfficialCouples(list,users){
+  const arr=Array.isArray(list)?list:[];
+  const valid=new Set((users||[]).map(u=>Number(u.id)));
+  const out=[];
+  arr.forEach(c=>{
+    if(!c||!Array.isArray(c.members))return;
+    const members=[...new Set(c.members.map(Number).filter(id=>valid.has(id)))].slice(0,6);
+    if(members.length<2)return;
+    if(members.some(id=>out.some(o=>o.members.includes(id))))return;
+    out.push({members,type:c.type==='polyamorous'?'polyamorous':'monogamous',at:Number(c.at)||Date.now()});
+  });
+  return out.slice(0,200);
+}
+// Relación oficial a la que pertenece un usuario (o null si está soltero).
+function coupleOf(userId){
+  const id=Number(userId);
+  return (db.officialCouples||[]).find(c=>c.members.includes(id))||null;
+}
+// Pareja oficial (el "otro" en una relación de dos). Con poliamor devuelve el
+// primer miembro distinto del usuario, que es suficiente para la UI.
+function getPartnerId(userId){
+  const c=coupleOf(userId);
+  if(!c)return null;
+  const other=c.members.find(id=>id!==Number(userId));
+  return other!=null?other:null;
+}
+// Todos los miembros de la relación salvo el propio usuario.
+function getPartnerIds(userId){
+  const c=coupleOf(userId);
+  if(!c)return [];
+  return c.members.filter(id=>id!==Number(userId));
+}
+function userNameById(id){const u=db.users.find(x=>Number(x.id)===Number(id));return u?u.username:'Alguien';}
+// Etiqueta "❤️ En una relación con X" para perfiles de NPC.
+function relationshipBadge(userId){
+  const c=coupleOf(userId);
+  if(!c)return '';
+  const others=c.members.filter(id=>id!==Number(userId)).map(userNameById);
+  if(!others.length)return '';
+  const poly=c.type==='polyamorous';
+  return `<span class="pill gold" title="Relación oficial ${poly?'poliamorosa':'monógama'}">❤️ En una relación con ${esc(others.join(' y '))}${poly?' (poliamor)':''}</span>`;
+}
 // Relación normalizada: amistad y romance son métricas separadas.
 function emptyRel(){return {friendshipScore:0,romanceScore:0,rival:false};}
 function getRel(id1,id2){
@@ -2870,6 +2916,19 @@ function renderPrefects(){
       ${myVote&&myVote.app===a.id?'<p class="pill good" style="margin-top:10px">Tu voto</p>':''}</div>`}).join('')}</div>`:'<p class="muted">No hay postulaciones activas.</p>';
   box.innerHTML=h;
 }
+// Estado propio del jugador: "Soltero" o "En una relación con X".
+function ownRelationshipStatusHTML(u){
+  if(!u)return '';
+  const c=coupleOf(u.id);
+  if(!c){
+    return `<p style="font-size:12px;margin-top:6px"><span class="pill off" title="Sin relación oficial">💔 Soltero</span></p>`;
+  }
+  const others=c.members.filter(id=>id!==Number(u.id)).map(userNameById);
+  if(!others.length)return '';
+  const poly=c.type==='polyamorous';
+  return `<p style="font-size:12px;margin-top:6px"><span class="pill gold" title="Relación oficial ${poly?'poliamorosa':'monógama'}">❤️ ${poly?'En una relación poliamorosa con':'En una relación con'} ${esc(others.join(' y '))}</span></p>`;
+}
+
 function renderPlay(){
   const u=me(),sel=$('userSwitch');
   if (session.isAdmin) {
@@ -2932,6 +2991,7 @@ function renderPlay(){
   </div>`:''}
   ${birthdayLabel(u)?`<p style="font-size:12px;margin-top:6px"><span class="pill gold">🎂 Cumpleaños: ${esc(birthdayLabel(u))}</span></p>`:''}
   ${tradeOffersHTML(u)}
+  ${ownRelationshipStatusHTML(u)}
   ${reputationHTML(u)}`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
@@ -4517,7 +4577,9 @@ function openNpcChatModal(npcId){
     <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
       ${impressButton(target)}
       ${!target.prof?`<button class="btn sm" type="button" data-do="openSandwich" data-id="${target.id}">🥪 Comer sándwiches</button>`:''}
+      ${romanceInterventionButtons(target)}
     </div>
+    ${relationshipBadge(target.id)?`<div class="row" style="margin-top:6px">${relationshipBadge(target.id)}</div>`:''}
   </div>`,true);
   renderNpcChatHistory();
   const form=$('npcChatForm');
@@ -4528,6 +4590,130 @@ function openNpcChatModal(npcId){
     try{sendNpcChatMessage(text)}catch(err){toast(err.message)}
   });
   setTimeout(()=>{const i=$('npcChatInput');if(i)i.focus()},30);
+}
+
+/* ===== INTERVENCIÓN ROMÁNTICA Y POLIAMOR (con IA árbitro) ===== */
+// Botones de intervención para el modal de chat/perfil. Solo aparecen si el NPC
+// tiene pareja oficial y el jugador cumple los umbrales de romance exigidos.
+function romanceInterventionButtons(target){
+  const u=me();
+  if(!u||!target||target.prof||!Number.isFinite(Number(target.id)))return '';
+  const npc=db.users.find(x=>Number(x.id)===Number(target.id));
+  if(!npc||!npc.is_npc)return '';
+  const partnerId=getPartnerId(target.id);
+  if(partnerId==null)return '';
+  const partner=db.users.find(x=>Number(x.id)===Number(partnerId));
+  if(!partner)return '';
+  // Si el jugador ya pertenece a una relación oficial no puede intervenir en otra.
+  if(coupleOf(u.id))return '';
+  const rT=Number(getRel(u.id,target.id).romanceScore)||0;
+  const rP=Number(getRel(u.id,partnerId).romanceScore)||0;
+  let html='';
+  if(rT>=30) html+=`<button class="btn sm" type="button" data-do="openRomanceIntervention" data-id="${target.id}" data-p="${partnerId}" data-t="break" title="Intenta separar a ${esc(target.name)} de ${esc(partner.username)}">💔 Intervenir en su relación</button>`;
+  if(rT>=50&&rP>=50) html+=`<button class="btn sm gold" type="button" data-do="openRomanceIntervention" data-id="${target.id}" data-p="${partnerId}" data-t="poly" title="Propón un poliamor con ${esc(target.name)} y ${esc(partner.username)}">💕 Proponer Poliamor</button>`;
+  return html;
+}
+
+function openRomanceInterventionModal(targetId,partnerId,type){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const target=db.users.find(x=>Number(x.id)===Number(targetId));must(target&&target.is_npc,'NPC no encontrado');
+  const partner=db.users.find(x=>Number(x.id)===Number(partnerId));must(partner,'Pareja no encontrada');
+  const isPoly=type==='poly';
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px">${isPoly?'💕 Proponer Poliamor':'💔 Intervenir en su relación'}</h3>
+    <p class="muted" style="font-size:13px">${isPoly
+      ? `Quieres proponer a ${esc(target.username)} y ${esc(partner.username)} que compartan su relación contigo.`
+      : `Quieres intentar separar a ${esc(target.username)} de ${esc(partner.username)} y quedarte con ${esc(target.username)}.`}</p>
+    <p class="muted" style="font-size:12px;margin-top:6px">La IA juzgará tus palabras según la personalidad de ambos. Un mensaje egoísta o frío puede enfadarlos y costarte amistad.</p>
+    <textarea id="romanceMsg" maxlength="500" rows="4" style="width:100%;margin-top:8px" placeholder="Escribe tu mensaje persuasivo… (ej: merecéis ser felices, y yo puedo haceros felices a los dos)"></textarea>
+    <div class="row" style="margin-top:8px;gap:6px">
+      <button class="btn gold" type="button" data-do="sendRomanceIntervention" data-id="${targetId}" data-p="${partnerId}" data-t="${type}">Enviar propuesta</button>
+      <button class="btn" type="button" data-do="closeModal">Cancelar</button>
+    </div>
+  </div>`,true);
+  setTimeout(()=>{const t=$('romanceMsg');if(t)t.focus()},30);
+}
+
+async function sendRomanceIntervention(targetId,partnerId,type){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  // Un jugador solo puede pertenecer a una relación oficial: primero debe romper la suya.
+  const myCouple=coupleOf(u.id);
+  if(myCouple&&!myCouple.members.includes(Number(targetId))){
+    must(false,`Ya estás en una relación con ${myCouple.members.filter(id=>id!==Number(u.id)).map(userNameById).join(' y ')}. Rompe esa relación antes de intervenir en otra.`);
+  }
+  const box=$('romanceMsg');const message=box?String(box.value).trim():'';
+  must(message,'Escribe un mensaje persuasivo.');
+  const btn=document.querySelector('[data-do="sendRomanceIntervention"]');
+  if(btn){btn.disabled=true;btn.textContent='⏳ La IA delibera…';}
+  try{
+    const res=await fetch('/api/romance-intervention',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({playerId:u.id,targetId:Number(targetId),partnerId:Number(partnerId),message,type,year:Number(db.schoolYear)||1})
+    });
+    const data=await res.json();
+    if(!res.ok||data.error)throw new Error(data.error||'La intervención no se pudo completar');
+    applyRomanceIntervention(u.id,Number(targetId),Number(partnerId),type,data);
+  }catch(err){
+    if(btn){btn.disabled=false;btn.textContent='Enviar propuesta';}
+    toast(err.message||'Los ánimos se calmaron… inténtalo más tarde');
+  }
+}
+
+// Aplica el veredicto de la IA al estado del juego y persiste con commit().
+function applyRomanceIntervention(playerId,targetId,partnerId,type,data){
+  const u=db.users.find(x=>Number(x.id)===Number(playerId));
+  const target=db.users.find(x=>Number(x.id)===Number(targetId));
+  const partner=db.users.find(x=>Number(x.id)===Number(partnerId));
+  db.officialCouples=db.officialCouples||[];
+  const cons=data.consequences||{};
+  const fLoss=Number.isFinite(Number(cons.playerFriendshipLoss))?Number(cons.playerFriendshipLoss):20;
+  const rLoss=Number.isFinite(Number(cons.playerRomanceLoss))?Number(cons.playerRomanceLoss):10;
+
+  const adjust=(a,b,{f=0,r=0}={})=>{
+    const rel=getRel(a,b);
+    if(f) rel.friendshipScore=Math.max(0,Math.min(100,(Number(rel.friendshipScore)||0)+f));
+    if(r) rel.romanceScore=Math.max(0,Math.min(100,(Number(rel.romanceScore)||0)+r));
+    db.relations[relKey(a,b)]=rel;
+  };
+
+  if(data.success&&data.resultType==='break'){
+    // El NPC deja a su pareja y forma una relación monógama con el jugador.
+    db.officialCouples=db.officialCouples.filter(c=>!c.members.includes(targetId)&&!c.members.includes(partnerId));
+    db.officialCouples.push({members:[playerId,targetId].sort((a,b)=>a-b),type:'monogamous',at:Date.now()});
+    // El ex-pareja pierde mucha amistad con el jugador; el objetivo se acerca.
+    adjust(playerId,partnerId,{f:-30});
+    adjust(playerId,targetId,{f:5,r:10});
+    adjust(targetId,partnerId,{f:-40,r:-30});
+  }else if(data.success&&data.resultType==='poly'){
+    const existing=db.officialCouples.find(c=>c.members.includes(targetId)&&c.members.includes(partnerId));
+    if(existing){
+      if(!existing.members.includes(playerId))existing.members.push(playerId);
+      existing.type='polyamorous';
+      existing.members=[...new Set(existing.members)].sort((a,b)=>a-b);
+    }else{
+      db.officialCouples.push({members:[playerId,targetId,partnerId].sort((a,b)=>a-b),type:'polyamorous',at:Date.now()});
+    }
+    // Todos ganan +10 de romance (y algo de amistad) con el jugador.
+    adjust(playerId,targetId,{f:5,r:10});
+    adjust(playerId,partnerId,{f:5,r:10});
+    adjust(targetId,partnerId,{f:5,r:10});
+  }else{
+    // Rechazo: penalización de amistad y romance con el NPC objetivo.
+    adjust(playerId,targetId,{f:-fLoss,r:-rLoss});
+  }
+
+  if(cons.npcAnger){
+    if(target)target.happiness=Math.max(0,(Number(target.happiness)||50)-5);
+    if(partner)partner.happiness=Math.max(0,(Number(partner.happiness)||50)-5);
+  }
+  db.officialCouples=sanitizeOfficialCouples(db.officialCouples,db.users);
+
+  closeModal();
+  toast(`${data.success?'✅':'❌'} ${data.message||''}`);
+  commit(`${u?u.username:'Alguien'} ${type==='poly'?'propuso poliamor':'intervino en una relación'} entre ${target?target.username:'?'} y ${partner?partner.username:'?'}`);
+  chime();
+  renderAll();
+  if(socialModalOpen)renderSocialModal();
 }
 
 function sendNpcChatMessage(message){
@@ -4651,6 +4837,7 @@ function studentSheet(id){
   openModal(`<span class="pawn big">${av(u,84)}</span><h3 style="font-size:24px">${esc(u.username)}</h3><div class="row">${hbadge(u.house)}${yearBadge(u)}${u.is_npc&&enrolled?npcPathBadge(u):(!u.is_npc?'<span class="pill gold">👤 Jugador real</span>':'')}</div>
    ${u.is_npc&&u.npc_trait?`<p class="muted" style="font-size:13px">“${esc(u.npc_trait)}”</p>`:''}
    ${u.is_npc&&u.personality&&u.personality.length?`<p style="font-size:12px;margin-top:4px"><span class="muted">Personalidad:</span> ${u.personality.map(t=>`<span class="pill" style="font-size:10px;padding:1px 6px">${t}</span>`).join(' ')}</p>` : ''}
+   ${relationshipBadge(u.id)?`<p style="font-size:12px;margin-top:6px">${relationshipBadge(u.id)}</p>`:''}
    <div class="grid g2" style="width:100%;text-align:left;gap:8px;margin-top:8px">${[['Curso en Hogwarts',yr===0?`Aún no ingresa (entra en Año ${1-(u.yearOffset||0)})`:yr===8?'Graduado':`${yr}.º curso`],['Puntos',enrolled?u.points:'—'],['XP de vuelo',enrolled?u.flight_xp:'—'],['Rango en su casa',(enrolled&&rank)?'#'+rank:'—'],['Quidditch',q?q.pos+' #'+q.rank:'Fuera del equipo'],['Ubicación actual',yr===0?'La Madriguera / Fuera de Hogwarts':yr===8?'Ministerio / Graduado':loc]].map(([k,v])=>`<div class="box"><span class="muted" style="font-size:12px;display:block">${k}</span><strong class="mono">${esc(v)}</strong></div>`).join('')}</div>
    <div class="row" style="margin-top:8px">
      ${enrolled?`<button class="btn" data-do="showOnMap" data-id="${id}" type="button">Verlo en el castillo</button>`:''}
@@ -4658,6 +4845,7 @@ function studentSheet(id){
      ${(u.is_npc&&u.is_canon)?`<button class="btn" data-do="openNpcChat" data-id="${id}" type="button">💬 Hablar</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn gold" data-do="openComposeLetter" data-id="${id}" type="button">✉️ Enviar Lechuza</button>`:''}
      ${(!u.is_npc && (!cur || cur.id!==u.id))?`<button class="btn" data-do="loginAsStu" data-name="${esc(u.username)}" type="button">🔑 Es mi personaje</button>`:''}
+     ${u.is_npc?romanceInterventionButtons({id:u.id,name:u.username,prof:false}):''}
      <button class="btn" data-do="closeModal" type="button">Cerrar</button>
    </div>`);
 }
@@ -5097,14 +5285,27 @@ function interactRelation(targetId,type){
   }else if(type==='romance'){
     // 💕 Cortejo: solo es posible con una amistad ya consolidada.
     must(cur.friendshipScore>=50,`Necesitas una amistad sólida (50+) para cortejar con ${t.username}`);
+    // 🔒 Regla de Oro: la relación oficial pesa más que cualquier cortejo.
+    //  - Monógamo: no puede subir el romance con alguien que no sea su pareja.
+    //  - Poliamoroso: puede, pero el cortejo cunde la mitad (hay más vínculos que atender).
+    const myCouple=coupleOf(u.id);
+    if(myCouple&&myCouple.type==='monogamous'&&!myCouple.members.includes(t.id)){
+      must(false,`Estás en una relación monógama con ${userNameById(getPartnerId(u.id))}. Rompe esa relación para poder cortejar a otra persona.`);
+    }
+    const tCouple=coupleOf(t.id);
+    if(tCouple&&tCouple.type==='monogamous'&&!tCouple.members.includes(u.id)){
+      must(false,`${t.username} ya está en una relación monógama con ${userNameById(getPartnerId(t.id))}.`);
+    }
     cur.rival=false;
-    cur.romanceScore=Math.min(100,cur.romanceScore+8);
+    const romanceGain=(myCouple&&myCouple.type==='polyamorous')?4:8;
+    cur.romanceScore=Math.min(100,cur.romanceScore+romanceGain);
     cur.friendshipScore=Math.min(100,cur.friendshipScore+4);
     pts=5+fBonus;
     u.points+=pts;t.points+=4;
     u.happiness = Math.min(100, u.happiness + 8);
     const rt=romanceTier(cur);
     msg=`💕 Cortejaste a ${t.username} (${rt.label} · ${cur.romanceScore}/100) y sumaste +${pts} pts.`;
+    if(myCouple&&myCouple.type==='polyamorous') msg+=` (Poliamor: +${romanceGain} en lugar de +8)`;
   }else{
     cur.rival=false;
     const gain=type==='gift'?22:type==='study'?16:12;
@@ -6917,6 +7118,8 @@ document.addEventListener('click',e=>{
     case 'houseFilter':stuHouse=d.id;renderStudents();break;
     case 'openNpcChat':openNpcChatModal(/^\d+$/.test(String(d.id))?Number(d.id):d.id);break;
     case 'closeNpcChat':npcChatKey=null;npcChatNpcId=null;npcChatNpcName='';closeModal();break;
+    case 'openRomanceIntervention':openRomanceInterventionModal(Number(d.id),Number(d.p),d.t==='poly'?'poly':'break');break;
+    case 'sendRomanceIntervention':sendRomanceIntervention(Number(d.id),Number(d.p),d.t==='poly'?'poly':'break');break;
     case 'openStu':studentSheet(Number(d.id));break;
     case 'showOnMap':{const u=db.users.find(x=>x.id===Number(d.id));mapTerm=u.username;$('mapSearch').value=u.username;closeModal();renderMap();$('directo').scrollIntoView({behavior:'smooth'});break}
   }}catch(err){toast(err.message)}
