@@ -451,6 +451,183 @@ function pickFallbackGossip() {
   return FALLBACK_GOSSIP[Math.floor(Math.random() * FALLBACK_GOSSIP.length)];
 }
 
+// Llama a Groq pidiendo un JSON, con timeout y limpieza de bloques markdown.
+// Reutilizable por los endpoints editoriales (El Profeta, etc.).
+async function aiChatJSON({ systemPrompt, userPrompt, maxTokens = 900, temperature = 0.8, reasoning = 'low' }) {
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: maxTokens,
+    temperature,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = reasoning;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const firstBrace = raw.indexOf('{'), lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) raw = raw.slice(firstBrace, lastBrace + 1);
+    return JSON.parse(raw);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ===== EL PROFETA: PERIÓDICO EDITORIAL GENERADO CON IA ===== */
+// Caché de 10 minutos para no golpear Groq en cada apertura del periódico.
+const PROPHET_CACHE_TTL_MS = 10 * 60 * 1000;
+let prophetCache = { at: 0, key: '', issue: null };
+
+const asStr = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
+
+// Baraja un array (Fisher-Yates) sin mutar el original.
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Normaliza cualquier JSON editorial (de Groq o de respaldo) al esquema esperado
+// por el modal. Devuelve null si falta lo esencial para no servir un periódico roto.
+function normalizeProphetIssue(raw, ctx) {
+  if (!raw || typeof raw !== 'object') return null;
+  const leadRaw = raw.lead && typeof raw.lead === 'object' ? raw.lead : {};
+  const lead = {
+    category: asStr(leadRaw.category, 40) || 'NOTICIA',
+    headline: asStr(leadRaw.headline, 140),
+    subheadline: asStr(leadRaw.subheadline, 200),
+    byline: asStr(leadRaw.byline, 90) || 'POR EL EQUIPO DE REDACCIÓN DE EL PROFETA',
+    paragraphs: (Array.isArray(leadRaw.paragraphs) ? leadRaw.paragraphs : [])
+      .map(p => asStr(p, 900)).filter(Boolean).slice(0, 4)
+  };
+  if (!lead.headline || !lead.paragraphs.length) return null;
+
+  const sections = (Array.isArray(raw.sections) ? raw.sections : [])
+    .map(s => s && typeof s === 'object' ? {
+      category: asStr(s.category, 40) || 'HOGWARTS',
+      title: asStr(s.title, 120),
+      subtitle: asStr(s.subtitle, 160),
+      text: asStr(s.text, 600)
+    } : null)
+    .filter(s => s && s.title && s.text).slice(0, 4);
+
+  const classifiedRaw = raw.classified && typeof raw.classified === 'object' ? raw.classified : {};
+  const classified = {
+    category: asStr(classifiedRaw.category, 60) || 'MINISTERIO · CLASIFICADO',
+    title: asStr(classifiedRaw.title, 120) || 'INFORME SELLADO POR EL MINISTERIO',
+    hint: asStr(classifiedRaw.hint, 200) || 'Este informe ha sido sellado con runas estándar del Ministerio.',
+    secretText: asStr(classifiedRaw.secretText, 700) || pickFallbackProphetSecret(ctx.year)
+  };
+
+  const notices = (Array.isArray(raw.notices) ? raw.notices : [])
+    .map(n => n && typeof n === 'object' ? { title: asStr(n.title, 60), text: asStr(n.text, 400) } : null)
+    .filter(n => n && n.title && n.text).slice(0, 4);
+
+  return {
+    masthead: asStr(raw.masthead, 60) || 'El Profeta',
+    tagline: asStr(raw.tagline, 90) || 'EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO',
+    dateline: asStr(raw.dateline, 60) || `LONDRES — ${new Date().getFullYear()}`,
+    weather: asStr(raw.weather, 110) || 'CLIMA: LLOVIZNAS ENCANTADAS EN LAS TIERRAS ALTAS',
+    lead,
+    sections,
+    classified,
+    noticesTitle: asStr(raw.noticesTitle, 70) || 'AVISOS Y ANUNCIOS CLASIFICADOS',
+    notices: notices.length ? notices : fallbackProphetNotices(ctx),
+    footer: asStr(raw.footer, 120) || 'ENVIAR LECHUZAS A: EL PROFETA, CALLEJÓN DIAGON, LONDRES',
+    generatedAt: Date.now()
+  };
+}
+
+// Pista secreta canónica según el año escolar (sin spoilers de años posteriores).
+const FALLBACK_PROPHET_SECRETS = [
+  'Un guardabosques jura haber oído pisadas enormes junto al Bosque Prohibido. Los centauros guardan silencio.',
+  'Las estatuas de búho repartidas por el castillo esconden Lunas de Demiguise… pero solo se ven de noche.',
+  'En los Invernaderos brota díctamo más rápido de lo normal. Los profesores no saben por qué.',
+  'Un alumno de primer año asegura que la escalera del ala este cambia de sentido cuando nadie la mira.',
+  'Las armaduras del tercer piso amanecieron con las viseras abolladas. Nadie quiere hablar del asunto.',
+  'Se han visto luces extrañas sobre el lago al filo de la medianoche. Los más veteranos callan.'
+];
+function pickFallbackProphetSecret(year) {
+  const i = (clampSchoolYear(year) + FALLBACK_PROPHET_SECRETS.length) % FALLBACK_PROPHET_SECRETS.length;
+  return FALLBACK_PROPHET_SECRETS[i];
+}
+
+// Avisos clasificados de respaldo: siempre con datos reales del servidor.
+function fallbackProphetNotices(ctx) {
+  const lead = ctx.leadingHouse || 'Gryffindor';
+  const pts = Number(ctx.leadingPoints) || 0;
+  return [
+    { title: 'COPA DE LAS CASAS:', text: `${lead} encabeza la tabla con ${pts} puntos. Las demás casas acechan en los pasillos.` },
+    { title: 'OLLIVANDERS:', text: 'Fabricantes de varitas de calidad desde el 382 a.C. La varita elige al mago. Callejón Diagon.' },
+    { title: 'HONEYDUKES:', text: 'Ranas de Chocolate con cromos coleccionables y Grageas Bertie Bott de todos los sabores. ¡Cuidado con el de vómito!' }
+  ];
+}
+
+// Periódico de respaldo si Groq falla o tarda: estructura completa y datos reales.
+function buildFallbackProphet(ctx) {
+  const lead = ctx.leadingHouse || 'Gryffindor';
+  const pts = Number(ctx.leadingPoints) || 0;
+  const names = (ctx.playerNames && ctx.playerNames.length) ? ctx.playerNames.slice(0, 3) : [];
+  const roster = names.length ? names.join(', ') : 'los alumnos del castillo';
+  const coupleLine = (ctx.couples && ctx.couples.length)
+    ? ` Los pasillos murmuran sobre el romance entre ${ctx.couples[0]}.`
+    : '';
+  return normalizeProphetIssue({
+    masthead: 'El Profeta',
+    tagline: 'EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO',
+    dateline: `LONDRES — ${new Date().getFullYear()}`,
+    weather: 'CLIMA: LLOVIZNAS ENCANTADAS EN LAS TIERRAS ALTAS',
+    lead: {
+      category: 'VIDA EN EL CASTILLO',
+      headline: `${lead.toUpperCase()} DOMINA LA COPA DE LAS CASAS`,
+      subheadline: `Con ${pts} puntos, ${lead} mira a sus rivales desde lo alto de la tabla.`,
+      byline: 'POR EL EQUIPO DE REDACCIÓN DE EL PROFETA',
+      paragraphs: [
+        `La actividad no se detiene en Hogwarts. Entre clases, exploraciones y partidas en el patio, ${roster} acaparan las miradas de profesores y prefectos. La Copa de las Casas sigue apretada y ningún punto se da por perdido.`,
+        `En ${lead} celebran el liderazgo con ${pts} puntos, aunque los prefectos avisan: en el castillo una buena racha puede deshacerse en una sola clase. Las casas perseguidoras afilan las varitas para el próximo torneo.`
+      ]
+    },
+    sections: [
+      {
+        category: 'HOGWARTS',
+        title: 'El curso avanza a paso firme',
+        subtitle: 'Actividad intensa en aulas y terrenos',
+        text: 'Las clases se suceden entre encantamientos, pociones y defensa. Los alumnos reparten su tiempo entre el estudio en la biblioteca y las exploraciones nocturnas.'
+      },
+      {
+        category: 'QUIDDITCH',
+        title: 'Los favoritos para la Copa',
+        subtitle: 'La disputa por los puntos está al rojo vivo',
+        text: `${lead} lidera la clasificación con ${pts} puntos. En el estadio, los equipos entrenan jugadas nuevas a la espera del próximo partido.`
+      }
+    ],
+    classified: {
+      category: 'MINISTERIO · CLASIFICADO',
+      title: 'INFORME SELLADO POR EL MINISTERIO',
+      hint: 'Este informe ha sido sellado con runas estándar del Ministerio.',
+      secretText: pickFallbackProphetSecret(ctx.year)
+    },
+    noticesTitle: 'AVISOS Y ANUNCIOS CLASIFICADOS',
+    notices: fallbackProphetNotices(ctx),
+    footer: 'ENVIAR LECHUZAS A: EL PROFETA, CALLEJÓN DIAGON, LONDRES'
+  }, ctx);
+}
+
 app.post('/api/class-trivia', async (req, res) => {
   const subjectKey = String((req.body && req.body.subjectKey) || 'encantamientos').trim().toLowerCase();
   const subjectName = String((req.body && req.body.subjectName) || 'Encantamientos').trim().slice(0, 80);
@@ -609,6 +786,213 @@ app.post('/api/gossip', async (req, res) => {
   } catch (err) {
     console.error('Error generando chisme (usando respaldo local):', err.message);
     return res.json({ ok: true, rumor: pickFallbackGossip(), fallback: true });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// 📰 El Profeta: editorial vivo generado con IA a partir de lo que ocurre en el
+// servidor (casas, registros recientes, jugadores y parejas). Caché de 10 minutos
+// y respaldo local con datos reales si Groq tarda o falla.
+app.post('/api/daily-prophet', async (req, res) => {
+  const body = req.body || {};
+  const year = clampSchoolYear(body.year);
+
+  const leadingHouse = String(body.leadingHouse || 'Gryffindor').trim().slice(0, 40);
+  const leadingPoints = Number(body.leadingPoints) || 0;
+  const rawSummary = Array.isArray(body.housesSummary) ? body.housesSummary : [];
+  const housesSummary = rawSummary
+    .map(h => h && typeof h === 'object'
+      ? `${String(h.name || h.id || 'Casa').trim().slice(0, 30)}: ${Number(h.points) || 0} pts`
+      : String(h || '').trim().slice(0, 60))
+    .filter(Boolean).slice(0, 4);
+  const rawLogs = Array.isArray(body.recentLogs) ? body.recentLogs : [];
+  const recentLogs = rawLogs.map(l => {
+    if (l && typeof l === 'object') {
+      const who = String(l.u || l.user || '').trim().slice(0, 40);
+      const act = String(l.a || l.action || '').trim().slice(0, 80);
+      const pts = Number(l.p) || 0;
+      return [who, act, pts ? `(+${pts} pts)` : ''].filter(Boolean).join(' · ').slice(0, 140);
+    }
+    return String(l || '').trim().slice(0, 140);
+  }).filter(Boolean).slice(0, 12);
+  const rawNames = Array.isArray(body.playerNames) ? body.playerNames : [];
+  const playerNames = rawNames.map(n => String(n || '').trim().slice(0, 40)).filter(Boolean).slice(0, 12);
+  const rawCouples = Array.isArray(body.couples) ? body.couples : [];
+  const couples = rawCouples.map(c => {
+    if (c && typeof c === 'object') {
+      const members = Array.isArray(c.members) ? c.members.map(m => String(m).trim().slice(0, 40)).filter(Boolean) : [];
+      return members.join(' y ');
+    }
+    return String(c || '').trim().slice(0, 90);
+  }).filter(Boolean).slice(0, 4);
+
+  const ctx = { year, leadingHouse, leadingPoints, housesSummary, recentLogs, playerNames, couples };
+  const fallbackIssue = () => buildFallbackProphet(ctx);
+
+  // Caché: misma "foto" del castillo dentro de los 10 minutos -> misma edición.
+  const cacheKey = JSON.stringify([year, leadingHouse, leadingPoints, housesSummary, recentLogs, playerNames, couples]);
+  const now = Date.now();
+  if (prophetCache.issue && prophetCache.key === cacheKey && (now - prophetCache.at) < PROPHET_CACHE_TTL_MS) {
+    return res.json({ ok: true, issue: prophetCache.issue, cached: true, fallback: !!prophetCache.issue.__fallback });
+  }
+
+  if (!AI_ENABLED) {
+    const issue = fallbackIssue();
+    if (issue) issue.__fallback = true;
+    prophetCache = { at: now, key: cacheKey, issue };
+    return res.json({ ok: true, issue, cached: false, fallback: true });
+  }
+
+  const systemPrompt = `Eres el redactor jefe de "El Profeta", el periódico sensacionalista del mundo mágico de Harry Potter. Escribes SIEMPRE en español, con tono editorial exagerado, elegante y algo amarillista (como Rita Skeeter), pero sin inventar personajes reales fuera del canon de Harry Potter ni mencionar el mundo real, internet o IA. Están en el Año ${year} de Hogwarts: NO menciones ni des por sabidos hechos, criaturas o personajes que aparezcan en años posteriores del canon. Usa los datos del castillo que te doy (casa líder, registros recientes, nombres de alumnos y parejas) para que la edición se sienta viva y actual. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con esta forma exacta: {"masthead":"El Profeta","tagline":"EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO","dateline":"LONDRES — ${new Date().getFullYear()}","weather":"CLIMA: ...","lead":{"category":"ESCÁNDALO","headline":"...","subheadline":"...","byline":"POR EL EQUIPO DE REDACCIÓN DE EL PROFETA","paragraphs":["...","..."]},"sections":[{"category":"HOGWARTS","title":"...","subtitle":"...","text":"..."},{"category":"QUIDDITCH","title":"...","subtitle":"...","text":"..."}],"classified":{"category":"MINISTERIO · CLASIFICADO","title":"INFORME SELLADO POR EL MINISTERIO","hint":"Este informe ha sido sellado con runas estándar del Ministerio.","secretText":"..."},"noticesTitle":"AVISOS Y ANUNCIOS CLASIFICADOS","notices":[{"title":"COPA DE LAS CASAS:","text":"..."},{"title":"OLLIVANDERS:","text":"..."}],"footer":"ENVIAR LECHUZAS A: EL PROFETA, CALLEJÓN DIAGON, LONDRES"}. El "secretText" debe ser una pista sobre criaturas del Bosque Prohibido, Estatuas Demiguise o amenazas oscuras del año actual, apta para revelarse con el hechizo LUMOS.`;
+
+  const userPrompt = `Datos actuales del castillo:
+- Año escolar: ${year}
+- Casa líder: ${leadingHouse} (${leadingPoints} puntos)
+- Resumen de casas: ${housesSummary.join(' | ') || 'sin datos'}
+- Registros recientes: ${recentLogs.join(' | ') || 'sin registros recientes'}
+- Alumnos activos: ${playerNames.join(', ') || 'varios alumnos'}
+- Parejas oficiales: ${couples.join(' | ') || 'ninguna conocida'}
+
+Redacta la edición de hoy de El Profeta en JSON.`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const parsed = await aiChatJSON({ systemPrompt, userPrompt, maxTokens: 1600, temperature: 0.9, reasoning: 'low' });
+    const issue = normalizeProphetIssue(parsed, ctx);
+    if (!issue) throw new Error('JSON editorial incompleto');
+    issue.__fallback = false;
+    prophetCache = { at: now, key: cacheKey, issue };
+    return res.json({ ok: true, issue, cached: false, fallback: false });
+  } catch (err) {
+    console.error('Error generando El Profeta (usando respaldo local):', err.message);
+    const issue = fallbackIssue();
+    if (issue) issue.__fallback = true;
+    prophetCache = { at: now, key: cacheKey, issue };
+    return res.json({ ok: true, issue, cached: false, fallback: true });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+/* ===== CUESTIONARIOS CANON (Cerveza de Mantequilla y Almuerzo de Amistad) ===== */
+// Banco local de preguntas canónicas por personaje (respaldo si Groq no está).
+const CANON_QUIZ_BANK = {
+  'harry potter': [
+    { q: '¿Qué posición juega Harry en el equipo de Quidditch de Gryffindor?', options: ['Buscador', 'Guardián', 'Golpeador'], correctIndex: 0 },
+    { q: '¿Cómo se llama la lechuza de Harry?', options: ['Hedwig', 'Pigwidgeon', 'Errol'], correctIndex: 0 },
+    { q: '¿Qué criatura acompaña siempre a Harry como Patronus?', options: ['Un ciervo', 'Una nutria', 'Un lobo'], correctIndex: 0 }
+  ],
+  'hermione granger': [
+    { q: '¿De qué casa es Hermione Granger?', options: ['Gryffindor', 'Ravenclaw', 'Slytherin'], correctIndex: 0 },
+    { q: '¿Qué criatura defiende Hermione con su activismo?', options: ['Los elfos domésticos', 'Los gnomos de jardín', 'Los dragones'], correctIndex: 0 },
+    { q: '¿Qué asignatura favorita tiene Hermione por su rigor lógico?', options: ['Aritmancia', 'Adivinación', 'Vuelo'], correctIndex: 0 }
+  ],
+  'ron weasley': [
+    { q: '¿Cuál es el mayor miedo de Ron?', options: ['Las arañas', 'Los dragones', 'Los fantasmas'], correctIndex: 0 },
+    { q: '¿Qué animal es la mascota de Ron?', options: ['Una rata (Scabbers)', 'Un búho', 'Un gato'], correctIndex: 0 },
+    { q: '¿Qué juego de ingenio domina Ron?', options: ['El ajedrez mágico', 'Las cartas explosivas', 'El Gobstones'], correctIndex: 0 }
+  ],
+  'draco malfoy': [
+    { q: '¿De qué casa es Draco Malfoy?', options: ['Slytherin', 'Gryffindor', 'Ravenclaw'], correctIndex: 0 },
+    { q: '¿Cómo se llama el padre de Draco?', options: ['Lucius', 'Abraxas', 'Narcissa'], correctIndex: 0 },
+    { q: '¿Qué deporte le apasiona a Draco?', options: ['El Quidditch', 'El duelo de hechizos', 'La esgrima mágica'], correctIndex: 0 }
+  ],
+  'luna lovegood': [
+    { q: '¿De qué casa es Luna Lovegood?', options: ['Ravenclaw', 'Hufflepuff', 'Gryffindor'], correctIndex: 0 },
+    { q: '¿Qué criatura improbable defiende Luna?', options: ['Los nargles', 'Los hipogrifos', 'Los basilisco'], correctIndex: 0 },
+    { q: '¿Qué revista dirige el padre de Luna?', options: ['El Quisquilloso', 'El Profeta', 'El Correo de las Brujas'], correctIndex: 0 }
+  ],
+  'neville longbottom': [
+    { q: '¿En qué asignatura destaca Neville?', options: ['Herbología', 'Pociones', 'Adivinación'], correctIndex: 0 },
+    { q: '¿Quién es la abuela que cría a Neville?', options: ['Augusta Longbottom', 'Minerva McGonagall', 'Pomona Sprout'], correctIndex: 0 },
+    { q: '¿De qué casa es Neville?', options: ['Gryffindor', 'Hufflepuff', 'Ravenclaw'], correctIndex: 0 }
+  ],
+  'cho chang': [
+    { q: '¿Qué posición juega Cho Chang en Quidditch?', options: ['Buscadora', 'Guardiana', 'Golpeadora'], correctIndex: 0 },
+    { q: '¿De qué casa es Cho Chang?', options: ['Ravenclaw', 'Gryffindor', 'Slytherin'], correctIndex: 0 },
+    { q: '¿A qué equipo pertenece Cho en el torneo?', options: ['Ravenclaw', 'Hufflepuff', 'Gryffindor'], correctIndex: 0 }
+  ],
+  'cedric diggory': [
+    { q: '¿De qué casa es Cedric Diggory?', options: ['Hufflepuff', 'Gryffindor', 'Slytherin'], correctIndex: 0 },
+    { q: '¿Qué posición juega Cedric en Quidditch?', options: ['Buscador', 'Guardián', 'Golpeador'], correctIndex: 0 },
+    { q: '¿Cómo describen todos a Cedric?', options: ['Justo y ejemplar', 'Astuto y frío', 'Tímido y torpe'], correctIndex: 0 }
+  ],
+  'snape': [
+    { q: '¿Qué asignatura imparte el profesor Snape?', options: ['Pociones', 'Encantamientos', 'Herbología'], correctIndex: 0 },
+    { q: '¿De qué casa es jefe Snape?', options: ['Slytherin', 'Ravenclaw', 'Gryffindor'], correctIndex: 0 },
+    { q: '¿En qué lugar da clase Snape?', options: ['En las mazmorras', 'En la torre de Astronomía', 'En los invernaderos'], correctIndex: 0 }
+  ],
+  'dumbledore': [
+    { q: '¿Qué cargo tiene Albus Dumbledore en Hogwarts?', options: ['Director', 'Subdirector', 'Jefe de casa'], correctIndex: 0 },
+    { q: '¿Qué ave acompaña a Dumbledore?', options: ['Un fénix', 'Un hipogrifo', 'Una lechuza'], correctIndex: 0 },
+    { q: '¿De qué casa fue Dumbledore?', options: ['Gryffindor', 'Ravenclaw', 'Slytherin'], correctIndex: 0 }
+  ]
+};
+
+// Elige 3 preguntas del banco para un personaje (o las genéricas si no está).
+function pickFallbackCanonQuiz(npcName) {
+  const key = normalizeLoreText(npcName).replace(/[^a-z ]/g, '').trim();
+  let bank = CANON_QUIZ_BANK[key];
+  if (!bank) {
+    const hit = Object.keys(CANON_QUIZ_BANK).find(k => key.includes(k) || k.includes(key.split(' ')[0] || ''));
+    bank = hit ? CANON_QUIZ_BANK[hit] : null;
+  }
+  if (!bank) {
+    bank = [
+      { q: '¿Cómo se llama el castillo donde estudian los alumnos?', options: ['Hogwarts', 'Beauxbatons', 'Durmstrang'], correctIndex: 0 },
+      { q: '¿Cuántas casas tiene Hogwarts?', options: ['Cuatro', 'Tres', 'Cinco'], correctIndex: 0 },
+      { q: '¿Qué asignatura enseña las defensas contra la magia oscura?', options: ['Defensa contra las Artes Oscuras', 'Pociones', 'Historia de la Magia'], correctIndex: 0 }
+    ];
+  }
+  // Baraja y devuelve 3, mezclando también el orden de las opciones.
+  const picks = shuffleArray(bank).slice(0, 3).map(item => {
+    const pairs = item.options.map((opt, idx) => ({ opt, isCorrect: idx === item.correctIndex }));
+    const mixed = shuffleArray(pairs);
+    return { q: item.q, options: mixed.map(p => p.opt), correctIndex: mixed.findIndex(p => p.isCorrect) };
+  });
+  return picks;
+}
+
+app.post('/api/canon-quiz', async (req, res) => {
+  const body = req.body || {};
+  const npcName = String(body.npcName || 'un alumno').trim().slice(0, 60);
+  const house = String(body.house || '').trim().slice(0, 30);
+  const trait = String(body.trait || '').trim().slice(0, 200);
+  const mode = body.mode === 'butterbeer' ? 'butterbeer' : 'lunch';
+  const year = clampSchoolYear(body.year);
+
+  if (!AI_ENABLED) {
+    return res.json({ ok: true, questions: pickFallbackCanonQuiz(npcName), fallback: true });
+  }
+
+  const focus = mode === 'butterbeer'
+    ? 'historia personal, hazañas y anécdotas del personaje'
+    : 'su casa, su varita, su familia o su mascota';
+  const systemPrompt = `Eres un redactor de cuestionarios sobre el canon de Harry Potter en español. Genera EXACTAMENTE 3 preguntas de trivia de dificultad media sobre ${npcName}${house ? ` (casa ${house})` : ''}, centradas en ${focus}. Cada pregunta debe tener 3 opciones y una sola respuesta correcta. Datos del personaje: ${trait || 'alumno de Hogwarts'}. Están en el Año ${year}: no uses hechos posteriores del canon. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con esta forma exacta: {"questions":[{"q":"¿...?","options":["A","B","C"],"correctIndex":0},{"q":"...","options":["A","B","C"],"correctIndex":1},{"q":"...","options":["A","B","C"],"correctIndex":2}]}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const parsed = await aiChatJSON({
+      systemPrompt,
+      userPrompt: `Genera las 3 preguntas sobre ${npcName} y devuelve el JSON.`,
+      maxTokens: 700, temperature: 0.7, reasoning: 'low'
+    });
+    const list = Array.isArray(parsed.questions) ? parsed.questions : [];
+    const questions = list.map(item => {
+      const q = asStr(item && item.q, 240);
+      const options = (Array.isArray(item && item.options) ? item.options : []).map(o => asStr(o, 90)).filter(Boolean);
+      let correctIndex = Number(item && item.correctIndex);
+      if (!q || options.length !== 3 || !Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex > 2) return null;
+      return { q, options, correctIndex };
+    }).filter(Boolean);
+    if (questions.length < 3) throw new Error('Cuestionario canon incompleto');
+    return res.json({ ok: true, questions: questions.slice(0, 3), fallback: false });
+  } catch (err) {
+    console.error('Error generando cuestionario canon (usando respaldo local):', err.message);
+    return res.json({ ok: true, questions: pickFallbackCanonQuiz(npcName), fallback: true });
   } finally {
     clearTimeout(timer);
   }
