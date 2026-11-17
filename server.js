@@ -806,6 +806,12 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   gender: FEMALES.includes(username) ? 'f' : 'm',
   romancePref: 'todos',
   quidditch_approved: false,
+  // Exploración: Pruebas de Merlín y Caza Nocturna de Estatuas Demiguise.
+  merlinTrials: [],
+  demiguiseCollected: [],
+  demiguiseCarrying: [],
+  alohomoraLevel: 1,
+  bagCapacity: 5,
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
 });
@@ -1334,6 +1340,15 @@ function sanitizeState(state) {
     if (u.patronus !== null && !PATRONUS_IDS.includes(u.patronus)) u.patronus = null;
     if (typeof u.patronusImage !== 'string') u.patronusImage = null;
     if (typeof u.animagusImage !== 'string') u.animagusImage = null;
+    // Exploración: arrays de IDs (strings) y contadores acotados.
+    const cleanIds = v => Array.isArray(v) ? [...new Set(v.map(String).filter(Boolean))].slice(0, 64) : [];
+    u.merlinTrials = cleanIds(u.merlinTrials);
+    u.demiguiseCollected = cleanIds(u.demiguiseCollected);
+    u.demiguiseCarrying = cleanIds(u.demiguiseCarrying).filter(id => !u.demiguiseCollected.includes(id));
+    const _alo = Math.floor(Number(u.alohomoraLevel));
+    u.alohomoraLevel = (_alo >= 1 && _alo <= 3) ? _alo : 1;
+    const _bag = Math.floor(Number(u.bagCapacity));
+    u.bagCapacity = (_bag >= 5 && _bag <= 99) ? _bag : 5;
     // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
     const bm = Math.floor(Number(u.birthMonth));
     const bd = Math.floor(Number(u.birthDay));
@@ -1835,6 +1850,26 @@ function runNpcLetterTick(state, now = Date.now()) {
   return created;
 }
 
+/* ===== EXPLORACIÓN: Pruebas de Merlín y Estatuas Demiguise =====
+   Deben coincidir con MERLIN_TRIALS / DEMIGUISE_STATUES de index.html.
+   El servidor solo valida IDs; el minijuego se juega en el cliente. */
+const MERLIN_TRIAL_IDS = ['merlin_patio', 'merlin_lago', 'merlin_bosque', 'merlin_quidditch', 'merlin_invernaderos', 'merlin_puente'];
+const DEMIGUISE_STATUE_IDS = ['demi_biblioteca', 'demi_astronomia', 'demi_pociones', 'demi_pasillo3', 'demi_comedor', 'demi_encantamientos', 'demi_enfermeria', 'demi_mazmorras'];
+
+// Hora del reloj del juego (coincide con la lógica del turno autónomo de NPCs).
+function gameHour(state) {
+  if (state && state.clockMode === 'mock' && state.mockTime) {
+    const h = Number(String(state.mockTime).split(':')[0]);
+    if (Number.isFinite(h)) return h;
+  }
+  return new Date().getHours();
+}
+// Toque de queda: 22:00 a 06:59 (sin sistema de energía ni esperas).
+function isCurfewHour(state) {
+  const h = gameHour(state);
+  return h >= 22 || h < 7;
+}
+
 io.on('connection', async (socket) => {
   try {
     const currentState = await loadState();
@@ -1937,6 +1972,105 @@ io.on('connection', async (socket) => {
         }
       } catch (err) {
         console.error('Error avisando de lechuzas de NPC pendientes:', err.message);
+      }
+    });
+
+    // ⬅️ EXPLORACIÓN: emite solo al socket del jugador y marca dirty para persistir.
+    const explorationUser = () => {
+      const uid = Number(socket.data && socket.data.userId);
+      if (!uid) return null;
+      return memoryState.users.find(u => u.id === uid) || null;
+    };
+    const emitExplorationUpdate = (user, extra) => {
+      socket.emit('exploration:update', {
+        userId: user.id,
+        merlinTrials: user.merlinTrials,
+        demiguiseCollected: user.demiguiseCollected,
+        demiguiseCarrying: user.demiguiseCarrying,
+        alohomoraLevel: user.alohomoraLevel,
+        bagCapacity: user.bagCapacity,
+        galeones: user.galeones,
+        points: user.points,
+        attrSabiduria: user.attrSabiduria,
+        attrValentia: user.attrValentia,
+        ...(extra || {})
+      });
+    };
+    // Persistencia ligera: guarda el estado global sin emitir broadcast masivo.
+    const persistExploration = async () => {
+      try { await saveState(memoryState); } catch (err) { console.error('Error guardando exploración:', err.message); }
+    };
+
+    socket.on('exploration:completeMerlin', async (data) => {
+      try {
+        const trialId = String((data && data.trialId) || '');
+        if (!MERLIN_TRIAL_IDS.includes(trialId)) return;
+        const user = explorationUser();
+        if (!user) return;
+        user.merlinTrials = Array.isArray(user.merlinTrials) ? user.merlinTrials : [];
+        if (user.merlinTrials.includes(trialId)) return;
+
+        user.merlinTrials.push(trialId);
+        user.galeones = (Number(user.galeones) || 0) + 25;
+        user.attrSabiduria = (Number(user.attrSabiduria) || 0) + 15;
+        user.points = (Number(user.points) || 0) + 10;
+        user.bagCapacity = 5 + Math.floor(user.merlinTrials.length / 2);
+
+        await persistExploration();
+        emitExplorationUpdate(user, { event: 'merlin', trialId, reward: { galeones: 25, sabiduria: 15, housePoints: 10 } });
+      } catch (err) {
+        console.error('Error completando Prueba de Merlín:', err.message);
+      }
+    });
+
+    socket.on('exploration:pickupDemiguise', async (data) => {
+      try {
+        const statueId = String((data && data.statueId) || '');
+        if (!DEMIGUISE_STATUE_IDS.includes(statueId)) return;
+        const user = explorationUser();
+        if (!user) return;
+        if (!isCurfewHour(memoryState)) {
+          socket.emit('exploration:error', { message: 'Las estatuas Demiguise solo despiertan en el toque de queda (22:00–07:00).' });
+          return;
+        }
+        user.demiguiseCollected = Array.isArray(user.demiguiseCollected) ? user.demiguiseCollected : [];
+        user.demiguiseCarrying = Array.isArray(user.demiguiseCarrying) ? user.demiguiseCarrying : [];
+        if (user.demiguiseCollected.includes(statueId) || user.demiguiseCarrying.includes(statueId)) return;
+
+        user.demiguiseCarrying.push(statueId);
+        await persistExploration();
+        emitExplorationUpdate(user, { event: 'pickup', statueId, carrying: user.demiguiseCarrying.length });
+      } catch (err) {
+        console.error('Error recogiendo Luna Demiguise:', err.message);
+      }
+    });
+
+    socket.on('exploration:turnInDemiguise', async () => {
+      try {
+        const user = explorationUser();
+        if (!user) return;
+        user.demiguiseCarrying = Array.isArray(user.demiguiseCarrying) ? user.demiguiseCarrying : [];
+        if (!user.demiguiseCarrying.length) return;
+
+        user.demiguiseCollected = Array.isArray(user.demiguiseCollected) ? user.demiguiseCollected : [];
+        const delivered = user.demiguiseCarrying.slice();
+        delivered.forEach(id => { if (!user.demiguiseCollected.includes(id)) user.demiguiseCollected.push(id); });
+        user.demiguiseCarrying = [];
+
+        const total = user.demiguiseCollected.length;
+        user.galeones = (Number(user.galeones) || 0) + 40 * delivered.length;
+        user.attrValentia = (Number(user.attrValentia) || 0) + 20 * delivered.length;
+        user.alohomoraLevel = total >= 6 ? 3 : (total >= 3 ? 2 : 1);
+
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'turnIn',
+          delivered: delivered.length,
+          total,
+          reward: { galeones: 40 * delivered.length, valentia: 20 * delivered.length }
+        });
+      } catch (err) {
+        console.error('Error entregando Lunas Demiguise:', err.message);
       }
     });
 
