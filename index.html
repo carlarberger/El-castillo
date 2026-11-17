@@ -8,7 +8,7 @@
 <script>window.io=window.io||function(){const c=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('el_castillo_v2'):null,h={};if(c)c.onmessage=e=>{if(e.data&&h[e.data.ev])h[e.data.ev](e.data.p)};return{on(ev,fn){h[ev]=fn},emit(ev,p){if(c)c.postMessage({ev,p})}}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* Layout: sticky anchor nav, compact hero, then stacked sections on one 1120px column. Dark night sky first, gold as the single accent. */
 :root{
@@ -172,44 +172,6 @@ select{width:auto}
 .explore-reward{color:#e3bb4e;font-weight:700;font-size:14px}
 .explore-hud{display:flex;justify-content:space-between;gap:10px;font-family:'Source Sans 3',system-ui,sans-serif;font-size:12px;color:#c9b98a}
 .explore-hud b{color:#d4af37}
-/* ===== MAPA MACRO DEL UNIVERSO MÁGICO (pergamino antiguo, estilo Mapa del Merodeador) ===== */
-.macro-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(20,12,4,.86);backdrop-filter:blur(5px)}
-.macro-modal.open{display:flex}
-.macro-parchment{position:relative;max-width:920px;width:100%;max-height:92vh;overflow-y:auto;padding:26px 24px 22px;border-radius:14px;border:3px solid #3b2313;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(59,35,19,.10) 0%, transparent 45%),
-    radial-gradient(circle at 82% 88%, rgba(59,35,19,.12) 0%, transparent 45%),
-    linear-gradient(135deg,#f4e4bc 0%,#e9d3a3 48%,#d8be8a 100%);
-  box-shadow:inset 0 0 60px rgba(90,58,26,.35), inset 0 0 18px rgba(59,35,19,.28), 0 24px 60px rgba(0,0,0,.55);
-  color:#3b2313;font-family:'Cormorant',Georgia,serif}
-.macro-parchment::before{content:'';position:absolute;inset:8px;border:1px solid #3b2313;border-radius:9px;pointer-events:none;opacity:.55}
-.macro-parchment::after{content:'';position:absolute;inset:13px;border:1px dashed rgba(59,35,19,.4);border-radius:6px;pointer-events:none;opacity:.5}
-.macro-head{text-align:center;position:relative;z-index:1;margin-bottom:16px}
-.macro-head h3{font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:clamp(22px,4.4vw,32px);letter-spacing:.1em;color:#3b2313;margin:0 0 4px;text-transform:uppercase}
-.macro-head .macro-oath{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:clamp(14px,2.6vw,18px);color:#5a3a1a;margin:0}
-.macro-head .macro-rule{height:2px;margin:12px auto 0;width:78%;background:linear-gradient(90deg,transparent,#3b2313 18%,#d4af37 50%,#3b2313 82%,transparent)}
-.macro-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.macro-region{position:relative;text-align:left;cursor:pointer;padding:16px 16px 14px;border-radius:10px;border:2px solid #3b2313;background:linear-gradient(150deg,rgba(255,250,235,.55),rgba(216,190,138,.5));
-  box-shadow:inset 0 0 24px rgba(90,58,26,.22), 0 4px 14px rgba(59,35,19,.25);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
-.macro-region:hover{transform:translateY(-3px);border-color:#d4af37;box-shadow:inset 0 0 24px rgba(90,58,26,.22),0 10px 26px rgba(59,35,19,.4)}
-.macro-region:focus-visible{outline:3px solid #d4af37;outline-offset:2px}
-.macro-region .mr-top{display:flex;align-items:center;gap:12px}
-.macro-region .mr-icon{font-size:38px;line-height:1;filter:drop-shadow(0 2px 2px rgba(59,35,19,.35))}
-.macro-region .mr-name{font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:19px;letter-spacing:.04em;color:#3b2313}
-.macro-region .mr-sub{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#5a3a1a}
-.macro-region .mr-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px;font-family:'Cinzel',Georgia,serif;font-size:12px;letter-spacing:.06em;color:#5a3a1a}
-.macro-region .mr-count{background:#3b2313;color:#f4e4bc;border-radius:999px;padding:2px 10px;font-size:11px}
-.macro-region .mr-list{font-family:'Cormorant',Georgia,serif;font-size:13.5px;color:#5a3a1a;line-height:1.5}
-.macro-foot{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:12px;border-top:1px solid rgba(59,35,19,.4)}
-.macro-foot .mf-tip{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#5a3a1a}
-.macro-btn{cursor:pointer;font-family:'Cinzel',Georgia,serif;font-weight:700;letter-spacing:.06em;font-size:13px;padding:8px 16px;border-radius:8px;border:2px solid #3b2313;background:linear-gradient(180deg,#f4e4bc,#d8be8a);color:#3b2313;transition:transform .14s ease,background .14s ease}
-.macro-btn:hover{transform:translateY(-1px);background:linear-gradient(180deg,#fbeed0,#e3cba0);border-color:#d4af37}
-.macro-btn.solid{background:#3b2313;color:#f4e4bc}
-.macro-btn.solid:hover{background:#5a3a1a}
-/* Barra de región activa sobre el mapa micro */
-.region-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--gold) 45%,var(--line));background:linear-gradient(90deg,var(--glow),transparent)}
-.region-bar .rb-name{font:700 14px var(--display);color:var(--gold);letter-spacing:.04em}
-@media (max-width:620px){.macro-grid{grid-template-columns:1fr}}
 .tex-grass{background:radial-gradient(circle at 20% 30%, #2d6a3f 0%, transparent 40%), radial-gradient(circle at 70% 60%, #3f8a4f 0%, transparent 35%), linear-gradient(180deg,#1f4a2a,#2d6a3f);background-size:100% 100%}
 .tex-grass::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.04) 18px 19px);pointer-events:none}
 .tex-wood{background:linear-gradient(180deg,#5a3a1a 0%,#7a5a3a 50%,#5a3a1a 100%)}
@@ -963,10 +925,7 @@ const ROOMS=[
  ['encantamientos','Encantamientos',1,3,1,1,'#7a4fa6','stone','✨'],['defensa','Defensa',4,3,1,1,'#7a3a3a','stone','🛡️'],['menesteres','Sala de los Menesteres',6,3,1,1,'#4f4aa0','stone','🚪'],
  ['biblioteca','Biblioteca',1,4,1,1,'#7a4030','wood','📚'],['profesores','Sala de Profesores',2,4,1,1,'#5a4a78','stone','📋'],['quidditch','Campo de Quidditch',3,4,2,1,'#3f8a4f','grass','🏏'],
  ['escalera','Gran Escalera',5,4,1,1,'#78808a','stone','🪜'],['invernaderos','Invernaderos',6,4,1,1,'#5f9a3f','grass','🌿'],
- ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠'],
- /* Hogsmeade y Callejón Diagon (fila 6 del mapa micro; también accesibles desde el Mapa del Mundo). */
- ['honeydukes','Honeydukes',1,6,1,1,'#c76aa0','wood','🍬'],['zonko','Zonko',2,6,1,1,'#b5622a','wood','💣'],['tresescobas','Las Tres Escobas',3,6,1,1,'#9a7a3a','wood','🍺'],
- ['gringotts','Gringotts',4,6,1,1,'#8a8a99','stone','🏦'],['ollivanders','Ollivanders',5,6,1,1,'#7a5a8a','wood','🪄'],['florean','Heladería Florean',6,6,1,1,'#c9a2c9','wood','🍨']];
+ ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠']];
 const PREFECT_TRAITS=['Liderazgo','Responsabilidad','Justicia','Valentía','Astucia','Lealtad','Sabiduría','Empatía'];
 const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador','Guardián'];
 /* ===== EXPLORACIÓN: Pruebas de Merlín (exteriores) y Estatuas Demiguise (interiores) =====
