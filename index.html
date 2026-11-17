@@ -4,11 +4,12 @@
 </audio>
 <title>El Castillo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<script>window.BACKEND_URL=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'':'https://site--el-castillo--n87f4t5x8xqh.code.run';document.write('<script src="'+(window.BACKEND_URL||'')+'/socket.io/socket.io.js"><\/script>');</script>
+<script>window.BACKEND_URL=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'':'https://site--el-castillo--n87f4t5x8xqh.code.run';</script>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
 <script>window.io=window.io||function(){const c=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('el_castillo_v2'):null,h={};if(c)c.onmessage=e=>{if(e.data&&h[e.data.ev])h[e.data.ev](e.data.p)};return{on(ev,fn){h[ev]=fn},emit(ev,p){if(c)c.postMessage({ev,p})}}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 /* Layout: sticky anchor nav, compact hero, then stacked sections on one 1120px column. Dark night sky first, gold as the single accent. */
 :root{
@@ -172,6 +173,44 @@ select{width:auto}
 .explore-reward{color:#e3bb4e;font-weight:700;font-size:14px}
 .explore-hud{display:flex;justify-content:space-between;gap:10px;font-family:'Source Sans 3',system-ui,sans-serif;font-size:12px;color:#c9b98a}
 .explore-hud b{color:#d4af37}
+/* ===== MAPA MACRO DEL UNIVERSO MÁGICO (pergamino antiguo, estilo Mapa del Merodeador) ===== */
+.macro-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(20,12,4,.86);backdrop-filter:blur(5px)}
+.macro-modal.open{display:flex}
+.macro-parchment{position:relative;max-width:920px;width:100%;max-height:92vh;overflow-y:auto;padding:26px 24px 22px;border-radius:14px;border:3px solid #3b2313;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(59,35,19,.10) 0%, transparent 45%),
+    radial-gradient(circle at 82% 88%, rgba(59,35,19,.12) 0%, transparent 45%),
+    linear-gradient(135deg,#f4e4bc 0%,#e9d3a3 48%,#d8be8a 100%);
+  box-shadow:inset 0 0 60px rgba(90,58,26,.35), inset 0 0 18px rgba(59,35,19,.28), 0 24px 60px rgba(0,0,0,.55);
+  color:#3b2313;font-family:'Cormorant',Georgia,serif}
+.macro-parchment::before{content:'';position:absolute;inset:8px;border:1px solid #3b2313;border-radius:9px;pointer-events:none;opacity:.55}
+.macro-parchment::after{content:'';position:absolute;inset:13px;border:1px dashed rgba(59,35,19,.4);border-radius:6px;pointer-events:none;opacity:.5}
+.macro-head{text-align:center;position:relative;z-index:1;margin-bottom:16px}
+.macro-head h3{font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:clamp(22px,4.4vw,32px);letter-spacing:.1em;color:#3b2313;margin:0 0 4px;text-transform:uppercase}
+.macro-head .macro-oath{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:clamp(14px,2.6vw,18px);color:#5a3a1a;margin:0}
+.macro-head .macro-rule{height:2px;margin:12px auto 0;width:78%;background:linear-gradient(90deg,transparent,#3b2313 18%,#d4af37 50%,#3b2313 82%,transparent)}
+.macro-grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.macro-region{position:relative;text-align:left;cursor:pointer;padding:16px 16px 14px;border-radius:10px;border:2px solid #3b2313;background:linear-gradient(150deg,rgba(255,250,235,.55),rgba(216,190,138,.5));
+  box-shadow:inset 0 0 24px rgba(90,58,26,.22), 0 4px 14px rgba(59,35,19,.25);transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
+.macro-region:hover{transform:translateY(-3px);border-color:#d4af37;box-shadow:inset 0 0 24px rgba(90,58,26,.22),0 10px 26px rgba(59,35,19,.4)}
+.macro-region:focus-visible{outline:3px solid #d4af37;outline-offset:2px}
+.macro-region .mr-top{display:flex;align-items:center;gap:12px}
+.macro-region .mr-icon{font-size:38px;line-height:1;filter:drop-shadow(0 2px 2px rgba(59,35,19,.35))}
+.macro-region .mr-name{font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:19px;letter-spacing:.04em;color:#3b2313}
+.macro-region .mr-sub{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:#5a3a1a}
+.macro-region .mr-meta{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px;font-family:'Cinzel',Georgia,serif;font-size:12px;letter-spacing:.06em;color:#5a3a1a}
+.macro-region .mr-count{background:#3b2313;color:#f4e4bc;border-radius:999px;padding:2px 10px;font-size:11px}
+.macro-region .mr-list{font-family:'Cormorant',Georgia,serif;font-size:13.5px;color:#5a3a1a;line-height:1.5}
+.macro-foot{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:12px;border-top:1px solid rgba(59,35,19,.4)}
+.macro-foot .mf-tip{font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:14px;color:#5a3a1a}
+.macro-btn{cursor:pointer;font-family:'Cinzel',Georgia,serif;font-weight:700;letter-spacing:.06em;font-size:13px;padding:8px 16px;border-radius:8px;border:2px solid #3b2313;background:linear-gradient(180deg,#f4e4bc,#d8be8a);color:#3b2313;transition:transform .14s ease,background .14s ease}
+.macro-btn:hover{transform:translateY(-1px);background:linear-gradient(180deg,#fbeed0,#e3cba0);border-color:#d4af37}
+.macro-btn.solid{background:#3b2313;color:#f4e4bc}
+.macro-btn.solid:hover{background:#5a3a1a}
+/* Barra de región activa sobre el mapa micro */
+.region-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--gold) 45%,var(--line));background:linear-gradient(90deg,var(--glow),transparent)}
+.region-bar .rb-name{font:700 14px var(--display);color:var(--gold);letter-spacing:.04em}
+@media (max-width:620px){.macro-grid{grid-template-columns:1fr}}
 .tex-grass{background:radial-gradient(circle at 20% 30%, #2d6a3f 0%, transparent 40%), radial-gradient(circle at 70% 60%, #3f8a4f 0%, transparent 35%), linear-gradient(180deg,#1f4a2a,#2d6a3f);background-size:100% 100%}
 .tex-grass::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 18px,rgba(255,255,255,.04) 18px 19px);pointer-events:none}
 .tex-wood{background:linear-gradient(180deg,#5a3a1a 0%,#7a5a3a 50%,#5a3a1a 100%)}
@@ -448,6 +487,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
     <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
     <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
+    <button class="btn sm gold" type="button" data-do="openMacroMap" title="Mapa del Mundo: regiones del universo mágico">🗺️ Mapa del Mundo</button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
     <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button>
@@ -485,7 +525,8 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <div class="panel">
       <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p><p id="skipWarn" style="color:var(--bad);font-weight:700;font-size:13px;margin:4px 0 0;display:none">⚠️ Saltándote la clase</p></div><span class="pill" id="nowCount"></span></div>
       <div class="youbar" id="youBar"></div>
-      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"><span id="gossipSlot"></span></div>
+      <div class="region-bar" id="regionBar" hidden></div>
+      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"><span id="gossipSlot"></span><button class="btn sm gold" type="button" data-do="openMacroMap" title="Abrir el Mapa del Mundo del universo mágico">🗺️ Mapa del Mundo</button></div>
       <div class="mapbox" id="mapbox" tabindex="0" aria-label="Mapa del castillo. En tiempo libre puedes tocar cualquier sala o usar las flechas para mover tu personaje."><div class="map" id="map"></div></div>
     </div>
     <div class="grid g2" style="margin-top:16px;align-items:start">
@@ -656,6 +697,20 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       <p class="canon-banner-text" id="canonEventText"></p>
     </div>
     <button class="btn sm" type="button" data-do="dismissCanonEvent" aria-label="Cerrar aviso">✕</button>
+  </div>
+</div>
+<div id="macroMapModal" class="macro-modal" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="macro-parchment">
+    <div class="macro-head">
+      <h3>El Mapa del Mundo</h3>
+      <p class="macro-oath">Juro solemnemente que mis intenciones no son buenas — Toca una región para explorar</p>
+      <div class="macro-rule"></div>
+    </div>
+    <div class="macro-grid" id="macroGrid"></div>
+    <div class="macro-foot">
+      <span class="mf-tip">Trazado por los Merodeadores · Luna llena y travesuras a la orden del día</span>
+      <button class="macro-btn solid" type="button" data-do="closeMacroMap">Cerrar el mapa</button>
+    </div>
   </div>
 </div>
 <div id="modalRoot" hidden></div>
@@ -925,7 +980,10 @@ const ROOMS=[
  ['encantamientos','Encantamientos',1,3,1,1,'#7a4fa6','stone','✨'],['defensa','Defensa',4,3,1,1,'#7a3a3a','stone','🛡️'],['menesteres','Sala de los Menesteres',6,3,1,1,'#4f4aa0','stone','🚪'],
  ['biblioteca','Biblioteca',1,4,1,1,'#7a4030','wood','📚'],['profesores','Sala de Profesores',2,4,1,1,'#5a4a78','stone','📋'],['quidditch','Campo de Quidditch',3,4,2,1,'#3f8a4f','grass','🏏'],
  ['escalera','Gran Escalera',5,4,1,1,'#78808a','stone','🪜'],['invernaderos','Invernaderos',6,4,1,1,'#5f9a3f','grass','🌿'],
- ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠']];
+ ['patio','Patio',1,5,1,1,'#8a8a96','stone','🌳'],['terrenos','Terrenos y el Lago',2,5,3,1,'#4f8a3a','grass','🌊'],['cocinas','Cocinas',5,5,1,1,'#8a6a3a','wood','🍳'],['cabana','Cabaña de Hagrid',6,5,1,1,'#6a4a2a','wood','🏠'],
+ /* Hogsmeade y Callejón Diagon (fila 6 del mapa micro; también accesibles desde el Mapa del Mundo). */
+ ['honeydukes','Honeydukes',1,6,1,1,'#c76aa0','wood','🍬'],['zonko','Zonko',2,6,1,1,'#b5622a','wood','💣'],['tresescobas','Las Tres Escobas',3,6,1,1,'#9a7a3a','wood','🍺'],
+ ['gringotts','Gringotts',4,6,1,1,'#8a8a99','stone','🏦'],['ollivanders','Ollivanders',5,6,1,1,'#7a5a8a','wood','🪄'],['florean','Heladería Florean',6,6,1,1,'#c9a2c9','wood','🍨']];
 const PREFECT_TRAITS=['Liderazgo','Responsabilidad','Justicia','Valentía','Astucia','Lealtad','Sabiduría','Empatía'];
 const POSITIONS=['Buscador','Cazador','Cazador','Cazador','Golpeador','Golpeador','Guardián'];
 /* ===== EXPLORACIÓN: Pruebas de Merlín (exteriores) y Estatuas Demiguise (interiores) =====
@@ -937,7 +995,7 @@ const MERLIN_TRIALS=[
   { id:'merlin_bosque',       name:'Borde del Bosque Prohibido',zone:'cabana',       room:'cabana',       x:0.34, y:0.72, type:'reparo'  },
   { id:'merlin_quidditch',    name:'Campo de Quidditch',        zone:'quidditch',    room:'quidditch',    x:0.66, y:0.72, type:'sphere'  },
   { id:'merlin_invernaderos', name:'Invernaderos',              zone:'invernaderos', room:'invernaderos', x:0.34, y:0.72, type:'brazier' },
-  { id:'merlin_puente',       name:'Puente de Piedra',          zone:'escalera',     room:'escalera',     x:0.34, y:0.72, type:'reparo'  }
+  { id:'merlin_puente',       name:'Puente de Piedra',          zone:'terrenos',     room:'terrenos',     x:0.82, y:0.72, type:'reparo'  }
 ];
 const DEMIGUISE_STATUES=[
   { id:'demi_biblioteca',     name:'Biblioteca',            room:'biblioteca',      x:0.72, y:0.7 },
@@ -949,6 +1007,62 @@ const DEMIGUISE_STATUES=[
   { id:'demi_enfermeria',     name:'Enfermería',            room:'enfermeria',      x:0.72, y:0.7 },
   { id:'demi_mazmorras',      name:'Mazmorras',             room:'transformaciones',x:0.72, y:0.7 }
 ];
+/* ===== MAPA MACRO DEL UNIVERSO MÁGICO =====
+   Regiones globales (pergamino del Mapa del Merodeador). La unión de `rooms` cubre
+   el 100% de ROOMS para que ninguna sala quede inaccesible. */
+const MACRO_REGIONS=[
+  { id:'hogwarts',  name:'El Castillo',                 icon:'🏰', subtitle:'Salas, torres y mazmorras de Hogwarts',
+    rooms:['gryffindor','slytherin','ravenclaw','hufflepuff','astronomia','lechuceria','mazmorras','comedor','transformaciones','enfermeria','historia','encantamientos','defensa','menesteres','biblioteca','profesores','escalera','cocinas'] },
+  { id:'lago',      name:'El Gran Lago y los Terrenos', icon:'🌊', subtitle:'Exteriores, bosque y campo de Quidditch',
+    rooms:['terrenos','patio','cabana','quidditch','invernaderos'] },
+  { id:'hogsmeade', name:'La Aldea de Hogsmeade',       icon:'🏘️', subtitle:'Dulces, bromas y Cerveza de Mantequilla',
+    rooms:['honeydukes','zonko','tresescobas'] },
+  { id:'diagon',    name:'El Callejón Diagon',          icon:'🛍️', subtitle:'Bóvedas, varitas y helados mágicos',
+    rooms:['gringotts','ollivanders','florean'] }
+];
+// Tiendas con comportamiento propio: al entrar en su sala se abre su modal.
+const SHOP_ROOMS={
+  honeydukes:{ name:'Honeydukes', icon:'🍬', open:()=>openHogsmeadeModal('Honeydukes') },
+  zonko:{ name:'Zonko', icon:'💣', open:()=>openHogsmeadeModal('Zonko') },
+  tresescobas:{ name:'Las Tres Escobas', icon:'🍺', open:()=>openShopRoomModal('tresescobas') },
+  gringotts:{ name:'Gringotts', icon:'🏦', open:()=>openShopRoomModal('gringotts') },
+  ollivanders:{ name:'Ollivanders', icon:'🪄', open:()=>openShopRoomModal('ollivanders') },
+  florean:{ name:'Heladería Florean Fortescue', icon:'🍨', open:()=>openShopRoomModal('florean') }
+};
+// Catálogo de tiendas del Mapa del Mundo (precios fijos; reutiliza objetos ya existentes).
+const MACRO_SHOPS={
+  honeydukes:{ id:'honeydukes', name:'Honeydukes', icon:'🍬', region:'hogsmeade', blurb:'La dulcería más famosa de Hogsmeade: Ranas de Chocolate y Grageas Bertie.',
+    items:[
+      { id:'rana_chocolate', price:12, desc:'+5 pts para tu Casa y revela un cromo aleatorio de mago.' },
+      { id:'grageas_bertie', price:8, desc:'Efecto sorpresa: +1 a +3 pts para tu Casa… o un sabor terrible.' },
+      { id:'cerveza_mantequilla', price:18, desc:'Duplica los Galeones que ganes en tu próximo minijuego.' }
+    ] },
+  zonko:{ id:'zonko', name:'Zonko', icon:'💣', region:'hogsmeade', blurb:'Tienda de bromas: distrae a Filch o desaparece en un parpadeo.',
+    items:[
+      { id:'bomba_fetida', price:15, desc:'Distrae a Filch: 60 s de inmunidad durante el toque de queda.' },
+      { id:'polvo_oscuridad', price:25, desc:'Escapa al instante a tu Sala Común durante el toque de queda.' }
+    ] },
+  tresescobas:{ id:'tresescobas', name:'Las Tres Escobas', icon:'🍺', region:'hogsmeade', blurb:'La taberna de Madam Rosmerta, punto de encuentro de magos y brujas.',
+    items:[
+      { id:'cerveza_mantequilla', price:16, desc:'Caliente y espumosa: duplica los Galeones de tu próximo minijuego.' },
+      { id:'pocion_curativa', price:20, desc:'Restaura el ánimo: +5 de Felicidad al usarla.' }
+    ] },
+  gringotts:{ id:'gringotts', name:'Gringotts', icon:'🏦', region:'diagon', blurb:'El banco de los duendes: aquí se guarda y se cambia el oro.',
+    items:[
+      { id:'objeto_brillante', price:22, desc:'Una chuchería reluciente que puedes revender por más Galeones.' },
+      { id:'pocion_prestigio', price:30, desc:'Poco útil, pero queda impresionante en la estantería.' }
+    ] },
+  ollivanders:{ id:'ollivanders', name:'Ollivanders', icon:'🪄', region:'diagon', blurb:'Varitas de Garrick Ollivander: la varita elige al mago.',
+    items:[
+      { id:'libro_hechizos', price:26, desc:'Estudia un hechizo nuevo: +1 de Sabiduría al usarlo.' },
+      { id:'apuntes_magicos', price:14, desc:'Repasa tus apuntes: +10 XP en tu próximo vuelo.' }
+    ] },
+  florean:{ id:'florean', name:'Heladería Florean Fortescue', icon:'🍨', region:'diagon', blurb:'Helados de todos los sabores, incluidos algunos muy extraños.',
+    items:[
+      { id:'grageas_bertie', price:10, desc:'Sabores de lo más variopinto: efecto sorpresa para tu Casa.' },
+      { id:'pocion_curativa', price:18, desc:'Un helado reconfortante: +5 de Felicidad al usarlo.' }
+    ] }
+};
 const COOLDOWN=20000,ROUND_MS=15000;
 const DAYS=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 const DAYL={domingo:'Domingo',lunes:'Lunes',martes:'Martes',miercoles:'Miércoles',jueves:'Jueves',viernes:'Viernes',sabado:'Sábado'};
@@ -1181,7 +1295,18 @@ function ensureDbIntegrity(){
   const legacyNames=['carla r.','vicente d.','matilde s.','joaquín p.','antonia v.','benjamín l.'];
   const beforeLen=db.users.length;
   db.users=db.users.filter(u=>{
-    if(u.id<=6 && !u.pass && !u.is_npc && legacyNames.includes((u.username||'').toLowerCase())) return false;
+    if(!u) return false;
+    // Nunca borrar una cuenta con progreso real: protegida por id, contraseña,
+    // puntos acumulados o cualquier avance guardado (XP, curso, inventario…).
+    if(u.id>6 || u.pass || u.is_npc) return true;
+    if((Number(u.points)||0)>0) return true;
+    if((Number(u.flight_xp)||0)>0) return true;
+    if((Number(u.galeones)||0)>15) return true;
+    if(u.inv&&Object.keys(u.inv).length) return true;
+    if(Array.isArray(u.merlinTrials)&&u.merlinTrials.length) return true;
+    if(Array.isArray(u.demiguiseCollected)&&u.demiguiseCollected.length) return true;
+    if(Array.isArray(u.demiguiseCarrying)&&u.demiguiseCarrying.length) return true;
+    if(legacyNames.includes((u.username||'').toLowerCase())) return false;
     return true;
   });
   if(db.users.length!==beforeLen) changed=true;
@@ -1362,22 +1487,41 @@ function syncHouseTotals(){
   });
 }
 
+// El cliente NO debe validar la sesión local ni tocar localStorage hasta que el
+// servidor haya enviado los datos reales (init_db). Si Northflank se reinicia o
+// tarda y responde con una base vacía/solo NPCs, borrar localStorage expulsaría
+// al jugador de su propio personaje.
+let serverDbLoaded=false;
+function dbHasRealPlayers(){
+  return !!(db&&Array.isArray(db.users)&&db.users.some(u=>u&&!u.is_npc&&(u.pass||u.house)));
+}
+function clearLocalSession(){
+  session.uid=null;session.passHash='';
+  localStorage.removeItem('castillo_uid');localStorage.removeItem('castillo_pass');
+}
 function validateLocalSession(){
+  if(!serverDbLoaded) return;
   if(!session.uid) return;
   const u=db.users.find(x=>x.id===session.uid);
-  if(!u || (!session.isAdmin && (u.is_npc || !u.pass || u.pass!==session.passHash))){
-    session.uid=null;session.passHash='';
-    localStorage.removeItem('castillo_uid');localStorage.removeItem('castillo_pass');
+  if(!u){
+    // Solo olvidamos la sesión si el servidor trae datos reales y el usuario
+    // definitivamente no existe. Si solo llegaron NPCs, no tocamos localStorage.
+    if(dbHasRealPlayers()) clearLocalSession();
+    return;
   }
+  if(!session.isAdmin && (u.is_npc || !u.pass || u.pass!==session.passHash)) clearLocalSession();
 }
 
 socket.on('init_db', (serverDb) => {
   if (serverDb && serverDb.users) {
     db = serverDb;
-    const migrated = ensureDbIntegrity();
+    serverDbLoaded = true;
+    ensureDbIntegrity();
     validateLocalSession();
     identifySocket();
-    if (migrated) socket.emit('sync_db', { db: db, reason: null });
+    // Un cliente recién conectado NUNCA reenvía sync_db automáticamente: si el
+    // servidor acaba de reiniciar, sobrescribiría los datos de MongoDB Atlas.
+    // sync_db solo se emite tras una acción explícita del jugador.
     renderAll();
   }
 });
@@ -1385,6 +1529,7 @@ socket.on('init_db', (serverDb) => {
 socket.on('sync_db', (data) => {
   if (data && data.db) {
     db = data.db;
+    serverDbLoaded = true;
     ensureDbIntegrity();
     validateLocalSession();
     if (data.reason) toast('En vivo: ' + data.reason);
@@ -2814,6 +2959,8 @@ function avatar(l,house,w=40,seed=null){
 const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
+// Región del Mapa del Mundo activa en el mapa micro (null = vista completa del Castillo).
+let macroRegion=null;
 let relFilterMode='all';
 let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
 
@@ -2910,7 +3057,8 @@ function explorationMarksFor(roomId,u){
   return h;
 }
 
-function renderMap(){
+function renderMap(regionFilter){
+  if(regionFilter!==undefined) macroRegion=regionFilter||null;
   const slot=curSlot(),u=me(),myLoc=userLoc(u),roam=!!(u&&u.house);
   const term=mapTerm.trim().toLowerCase();
   const byRoom={};
@@ -2923,18 +3071,29 @@ function renderMap(){
       filchRoom = db.filchLoc;
   }
 
-  $('map').innerHTML=ROOMS.map(([id,name,c,r,w,h,col,tex,emoji])=>{
+  // Región activa del Mapa del Mundo: filtra las salas y las recoloca en un grid compacto.
+  const region=macroRegion?MACRO_REGIONS.find(r=>r.id===macroRegion):null;
+  let visible=ROOMS;
+  if(region){
+    visible=ROOMS.filter(r=>region.rooms.includes(r[0]));
+    const minC=Math.min(...visible.map(r=>r[2])), minR=Math.min(...visible.map(r=>r[3]));
+    visible=visible.map(([id,name,c,r,w,h,col,tex,emoji])=>[id,name,c-minC+1,r-minR+1,w,h,col,tex,emoji]);
+  }
+
+  $('map').innerHTML=visible.map(([id,name,c,r,w,h,col,tex,emoji])=>{
     const isHouse=!!HOUSE(id),hereUsers=byRoom[id]||[],isMyRoom=u&&id===myLoc;
     const hasFilch = (filchRoom === id);
+    const isShop = !!SHOP_ROOMS[id];
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
     const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)} (${userYear(x)}.º curso)${x.is_npc?' · NPC':''}">${av(x,22)}</span>`).join('');
     const filchHtml = hasFilch ? `<span class="pawn" title="Argus Filch">${avatar({skin:1,hair:3,style:'corto',eyes:0},'',22)}</span>` : '';
     const foot=hereUsers.length||hasFilch?`${hereUsers.length?hereUsers.length+' alumnos':''}${hasFilch?' ⚠️ Filch':''}`:(isHouse?pts+' pts':'');
     const texClass = tex ? 'tex-'+tex : '';
     const furn = emoji ? `<span class="room-furn">${emoji}</span>` : '';
+    const roomFoot = isShop ? `<div class="rc" title="Entra para abrir la tienda">🛍️ Tienda</div>` : `<div class="rc">${foot}</div>`;
     return `<div class="room ${texClass} ${isHouse?'house h-'+id:''} ${isMyRoom?'here active':''} ${roam?'go':''} ${hasFilch?'filch':''}" ${roam?`role="button" tabindex="0" data-do="goto" data-id="${id}" aria-label="Ir a ${esc(name)}"`:''} style="grid-column:${c}/span ${w};grid-row:${r}/span ${h};${col?'--rc:'+col:''}">
       ${furn}<div class="rn">${name}</div><div class="dots">${pawns}${filchHtml}</div>
-      <div class="rc">${foot}</div>${explorationMarksFor(id,u)}</div>`}).join('');
+      ${roomFoot}${explorationMarksFor(id,u)}</div>`}).join('');
   $('nowTitle').textContent=slot?slotLabel(slot):'Recreo libre';
   $('nowSub').textContent=slot?`Hasta las ${fmt(slot.to)} · cambia en ${dur(toMin(slot.to)-curMin())}`:'';
   const enrolled=db.users.filter(isEnrolled), npcCount=enrolled.filter(x=>x.is_npc).length, humCount=enrolled.length-npcCount;
@@ -2950,6 +3109,29 @@ function renderMap(){
     } else if(u&&u.house&&(Number(u.attrEmpatia)||0)<3){
       gs.innerHTML=`<span class="hint" title="Necesitas Empatía Nv. 3">👂 Escuchar chismes (Empatía Nv. 3)</span>`;
     } else { gs.innerHTML=''; }
+  }
+  // Barra de la región activa + ajuste del grid para mostrar la región limpia y centrada.
+  const rb=$('regionBar'), mapEl=$('map');
+  if(rb){
+    if(region){
+      rb.hidden=false;
+      const n=region.rooms.length;
+      rb.innerHTML=`<button class="btn sm" type="button" data-do="openMacroMap" title="Volver a la vista del Mapa del Mundo">⬅️ Volver al Mundo</button>
+        <span class="rb-name">${region.icon} ${esc(region.name)}</span>
+        <span class="hint">${n} ubicaci${n===1?'ón':'ones'} en esta región</span>`;
+    } else {
+      rb.hidden=true; rb.innerHTML='';
+    }
+  }
+  if(mapEl){
+    if(region){
+      const cols=Math.max(...visible.map(r=>r[2]+r[4]-1));
+      mapEl.style.gridTemplateColumns=`repeat(${Math.max(cols,2)},minmax(120px,1fr))`;
+      mapEl.style.minWidth=`${Math.max(cols,2)*128}px`;
+    } else {
+      mapEl.style.gridTemplateColumns='';
+      mapEl.style.minWidth='';
+    }
   }
 }
 function renderYou(){
@@ -3432,6 +3614,88 @@ function openHogsmeadeModal(tab='Zonko') {
   });
   html += `</div><button class="btn sm" data-do="closeModal" type="button" style="margin-top:8px">Cerrar</button>`;
   openModal(html, true);
+}
+
+/* ===== MAPA MACRO DEL UNIVERSO MÁGICO (pergamino) ===== */
+function openMacroMapModal(){
+  const m=$('macroMapModal'); if(!m) return;
+  renderMacroRegions();
+  m.classList.add('open'); m.setAttribute('aria-hidden','false');
+}
+function closeMacroMapModal(){
+  const m=$('macroMapModal'); if(!m) return;
+  m.classList.remove('open'); m.setAttribute('aria-hidden','true');
+}
+function renderMacroRegions(){
+  const grid=$('macroGrid'); if(!grid) return;
+  const u=me();
+  grid.innerHTML=MACRO_REGIONS.map(r=>{
+    const names=r.rooms.map(id=>{const rm=ROOMS.find(x=>x[0]===id);return rm?rm[1]:id;});
+    const extra=u?r.rooms.filter(id=>id===userLoc(u)).length:0;
+    return `<button class="macro-region" type="button" data-do="openMacroRegion" data-id="${r.id}" aria-label="Explorar ${esc(r.name)}">
+      <div class="mr-top"><span class="mr-icon">${r.icon}</span><span class="mr-name">${esc(r.name)}</span></div>
+      <span class="mr-sub">${esc(r.subtitle)}</span>
+      <div class="mr-meta"><span>📍 ${r.rooms.length} ubicaciones</span><span class="mr-count">${r.rooms.length}</span></div>
+      <span class="mr-list">${names.map(esc).join(' · ')}</span>
+      ${extra?'<span class="mr-sub">✨ Estás aquí</span>':''}
+    </button>`;
+  }).join('');
+}
+function enterMacroRegion(regionId){
+  const r=MACRO_REGIONS.find(x=>x.id===regionId);
+  if(!r) return;
+  closeMacroMapModal();
+  renderMap(r.id);
+  toast(`${r.icon} Región: ${r.name} — toca una sala para ir`);
+  const mapbox=$('mapbox'); if(mapbox&&mapbox.scrollIntoView) mapbox.scrollIntoView({behavior:'smooth',block:'center'});
+}
+// Tiendas del Mapa del Mundo: compra con precios fijos reutilizando el sistema de objetos.
+function buyMacroItem(shopId,itemId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje primero');
+  const shop=MACRO_SHOPS[shopId]; must(shop,'Tienda desconocida');
+  const it=(shop.items||[]).find(i=>i.id===itemId); must(it,'Artículo no encontrado');
+  const def=itemDef(itemId); must(def,'Objeto no registrado');
+  must((u.galeones||0)>=it.price,`Te faltan Galeones (cuesta ${it.price} 🪙)`);
+  u.galeones=(Number(u.galeones)||0)-it.price;
+  u.inv=u.inv||{}; u.inv[itemId]=(u.inv[itemId]||0)+1;
+  chime(); commit(`${u.username} compró ${def.nombre} en ${shop.name}`);
+  toast(`Compraste ${def.nombre} (-${it.price} 🪙)`);
+  openShopRoomModal(shopId);
+}
+function openShopRoomModal(shopId){
+  const shop=MACRO_SHOPS[shopId];
+  const u=me();
+  if(!u||!u.house) return toast('Inicia sesión con tu personaje para entrar a la tienda');
+  if(!shop) return toast('Tienda no disponible');
+  const def=SHOP_ROOMS[shopId]||{name:shop.name,icon:shop.icon};
+  let html=`<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+    <h3 style="font-size:20px;color:var(--gold)">${def.icon} ${esc(shop.name)}</h3>
+    <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
+  </div>
+  <p class="muted" style="font-size:13px;text-align:left">${esc(shop.blurb)}</p>
+  <div class="grid g2" style="width:100%;text-align:left">`;
+  (shop.items||[]).forEach(it=>{
+    const d=itemDef(it.id); if(!d) return;
+    const qty=(u.inv||{})[it.id]||0;
+    html+=`<div class="box" style="display:flex;flex-direction:column;gap:8px">
+      <div class="row" style="justify-content:space-between"><strong>${d.icon||'📦'} ${esc(d.nombre)}</strong><span class="pill gold mono">${it.price} 🪙</span></div>
+      <p class="muted" style="font-size:12px;flex:1">${esc(it.desc||d.desc)}</p>
+      <div class="row">
+        <button class="btn sm gold" data-do="buyMacroItem" data-shop="${shop.id}" data-id="${it.id}">Comprar</button>
+        ${qty>0?`<button class="btn sm" data-do="useFromBackpack" data-id="${esc(it.id)}">Usar (${qty})</button>`:''}
+      </div>
+    </div>`;
+  });
+  html+=`</div><div class="row" style="margin-top:12px;justify-content:center">
+    <button class="btn sm" type="button" data-do="openBackpack">🎒 Mochila</button>
+    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+  </div>`;
+  openModal(html,true);
+}
+// Tras viajar: si la sala destino es una tienda, abre su modal (Hogsmeade / Callejón Diagon).
+function maybeOpenShopRoom(roomId){
+  const shop=SHOP_ROOMS[roomId]; if(!shop) return;
+  setTimeout(()=>{ try{ shop.open(); }catch(err){ /* modal ya abierto u otra causa */ } },0);
 }
 
 function openBackpackModal() {
@@ -5008,6 +5272,12 @@ if(exploreCanvas){
   exploreCanvas.addEventListener('pointerup',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onUp) exploreState.onUp(p.x,p.y); });
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&exploreState) closeExplorationModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMacroMapModal(); });
+// Click en el fondo del pergamino para cerrar el Mapa del Mundo.
+document.addEventListener('click',e=>{
+  const m=document.getElementById('macroMapModal');
+  if(m&&m.classList.contains('open')&&e.target===m) closeMacroMapModal();
+});
 
 function exploreWin(trialId){
   if(exploreState) exploreState.done=true;
@@ -7401,9 +7671,13 @@ document.addEventListener('click',e=>{
       else{API.editChar(draft);closeModal();toast('Personaje actualizado');}
       break;
     }
-    case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));break;
+    case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));maybeOpenShopRoom(d.id);break;
     case 'sneak':API.sneak();break;
     case 'openMerlin':startMerlinTrial(d.id);break;
+    case 'openMacroMap':openMacroMapModal();break;
+    case 'closeMacroMap':closeMacroMapModal();break;
+    case 'openMacroRegion':enterMacroRegion(d.id);break;
+    case 'buyMacroItem':buyMacroItem(d.shop,d.id);break;
     case 'openDemiguise':startDemiguiseStatue(d.id);break;
     case 'turnInDemiguise':{const u=me();must(u&&u.house,'Inicia sesión primero');must(userLoc(u)===u.house,'Solo puedes entregar las lunas en tu Sala Común');socket.emit('exploration:turnInDemiguise');break;}
     case 'closeExploration':closeExplorationModal();break;
@@ -7550,10 +7824,12 @@ $('mapbox').addEventListener('keydown',e=>{
   if(!dirs||!canRoam())return;
   const u=me();if(!u||!u.house)return;
   e.preventDefault();
-  const cur=ROOMS.find(r=>r[0]===userLoc(u))||ROOMS[7];
+  const region=macroRegion?MACRO_REGIONS.find(r=>r.id===macroRegion):null;
+  const pool=region?ROOMS.filter(r=>region.rooms.includes(r[0])):ROOMS;
+  const cur=pool.find(r=>r[0]===userLoc(u))||pool[0];
   const [dx,dy]=dirs;
   let best=null,bestDist=999;
-  for(const r of ROOMS){
+  for(const r of pool){
     if(r[0]===cur[0])continue;
     const vx=r[2]-cur[2],vy=r[3]-cur[3];
     if(dx!==0&&Math.sign(vx)!==dx)continue;
@@ -7561,7 +7837,7 @@ $('mapbox').addEventListener('keydown',e=>{
     const dist=Math.abs(vx)+Math.abs(vy);
     if(dist<bestDist){bestDist=dist;best=r}
   }
-  if(best){API.goTo(best[0]);toast('Fuiste a '+best[1])}
+  if(best){API.goTo(best[0]);toast('Fuiste a '+best[1]);maybeOpenShopRoom(best[0])}
 });
 
 /* ===== 10. Temporizadores e IA Autónoma de NPCs ===== */
