@@ -4,7 +4,7 @@
 </audio>
 <title>El Castillo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<script src="/socket.io/socket.io.js"></script>
+<script>window.BACKEND_URL=(window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1')?'':'https://site--el-castillo--n87f4t5x8xqh.code.run';document.write('<script src="'+(window.BACKEND_URL||'')+'/socket.io/socket.io.js"><\/script>');</script>
 <script>window.io=window.io||function(){const c=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('el_castillo_v2'):null,h={};if(c)c.onmessage=e=>{if(e.data&&h[e.data.ev])h[e.data.ev](e.data.p)};return{on(ev,fn){h[ev]=fn},emit(ev,p){if(c)c.postMessage({ev,p})}}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -664,6 +664,8 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 </div>
 
 <script>
+/* Backend (Express + Socket.IO + API). Vacío en local para usar el mismo origen. */
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '' : 'https://site--el-castillo--n87f4t5x8xqh.code.run';
 /* ===== 1. Sonido ===== */
 let soundOn=true,actx=null;
 function tone(freqs,type,step,dur,vol){
@@ -811,7 +813,7 @@ async function invokeSpirit(type){
   // instante: solo mostramos el estado "Generando…" si la espera se alarga.
   let loadTimer=setTimeout(()=>render(null,true,null),350);
   try{
-    const res=await fetch('/api/generate-spirit',{
+    const res=await fetch(`${BACKEND_URL}/api/generate-spirit`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({type,formId:form.id,formName:form.name,gender:normGender(u.gender)})
@@ -1069,7 +1071,7 @@ const TRAIT_MAP = {
   'Responsabilidad': 'responsabilidad'
 };
 
-const socket = io();
+const socket = BACKEND_URL ? io(BACKEND_URL, { transports: ['websocket', 'polling'] }) : io();
 let db = {
  users: BASE_NPCS.map(x=>({...x,look:{...x.look}})),
  houses:[{id:'gryffindor',points:297},{id:'ravenclaw',points:145},{id:'slytherin',points:193},{id:'hufflepuff',points:200}],
@@ -3435,7 +3437,7 @@ async function triggerProfessorInterruption(key) {
   `);
 
   try {
-    const res = await fetch('/api/class-trivia', {
+    const res = await fetch(`${BACKEND_URL}/api/class-trivia`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -4666,7 +4668,7 @@ async function sendRomanceIntervention(targetId,partnerId,type){
   const btn=document.querySelector('[data-do="sendRomanceIntervention"]');
   if(btn){btn.disabled=true;btn.textContent='⏳ La IA delibera…';}
   try{
-    const res=await fetch('/api/romance-intervention',{
+    const res=await fetch(`${BACKEND_URL}/api/romance-intervention`,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({playerId:u.id,targetId:Number(targetId),partnerId:Number(partnerId),message,type,year:Number(db.schoolYear)||1})
     });
@@ -5130,7 +5132,7 @@ async function answerSandwich(choiceIdx){
   if(feed)feed.innerHTML=`<span class="muted" style="font-size:13px">${esc(t.name)} está pensando mientras mastica…</span>`;
   let match=false, reply='';
   try{
-    const res=await fetch('/api/sandwich',{
+    const res=await fetch(`${BACKEND_URL}/api/sandwich`,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({npcName:t.name,phrase,trait:t.trait,year:Number(db.schoolYear)||1})
     });
@@ -6015,7 +6017,7 @@ async function listenGossip() {
   toast('👂 Prestando atención a los rumores…');
   const others = db.users.filter(x => Number(x.id) !== Number(u.id) && isEnrolled(x)).map(x => x.username);
   try {
-    const res = await fetch('/api/gossip', {
+    const res = await fetch(`${BACKEND_URL}/api/gossip`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ year: db.schoolYear || 1, names: others.slice(0, 12) })
