@@ -1059,6 +1059,115 @@ function mergeLetters(serverList, incomingList, users) {
   return sanitizeLetters({ users }, [...map.values()]);
 }
 
+// Aplica el efecto de un regalo de lechuza al usuario (único punto de entrega
+// de regalos de lechuza). Devuelve lo concedido o null si el regalo no es
+// válido (entonces no se aplica absolutamente nada).
+function applyLetterGiftToUser(user, gift) {
+  if (!user || !gift || typeof gift !== 'object') return null;
+  if (gift.type === 'galeones') {
+    const amount = Math.max(1, Math.min(LETTER_GIFT_GALEONES_MAX, Math.floor(Number(gift.amount) || 0)));
+    if (!amount) return null;
+    user.galeones = (Number(user.galeones) || 0) + amount;
+    return { type: 'galeones', amount };
+  }
+  if (gift.type === 'cromo') {
+    const cromoId = String(gift.cromoId || '').trim();
+    if (!cromoId) return null;
+    user.cromos = (user.cromos && typeof user.cromos === 'object') ? user.cromos : {};
+    const entry = user.cromos[cromoId];
+    const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
+    user.cromos[cromoId] = { count: count + 1, image: (entry && entry.image) || undefined };
+    return { type: 'cromo', cromoId };
+  }
+  if (gift.type === 'item') {
+    const itemId = String(gift.itemId || '').trim();
+    // Un objeto desconocido nunca se entrega: el jugador podrá reintentar.
+    if (!itemId || !LETTER_ITEM_IDS.has(itemId)) return null;
+    user.inv = (user.inv && typeof user.inv === 'object') ? user.inv : {};
+    user.inv[itemId] = (Number(user.inv[itemId]) || 0) + 1;
+    return { type: 'item', itemId };
+  }
+  return null;
+}
+
+// Reclama el regalo de una carta. Idempotente: si la carta ya estaba reclamada
+// no vuelve a conceder nada. Solo marca la carta como reclamada si el regalo se
+// entregó con éxito. Cada entrega recibe un número de secuencia creciente
+// (`u.letterGrantSeq`) y se anota en el ledger `u.letterGrants`.
+function grantLetterGift(state, user, letter) {
+  if (!user || !letter || !letter.gift || letter.claimed) return null;
+  const granted = applyLetterGiftToUser(user, letter.gift);
+  if (!granted) {
+    console.warn(`⚠️ Regalo de lechuza no entregable en la carta ${letter.id} (${JSON.stringify(letter.gift)}): no se marca como reclamada.`);
+    return null;
+  }
+  letter.claimed = true;
+  letter.read = true;
+  const seq = (Number(user.letterGrantSeq) || 0) + 1;
+  user.letterGrantSeq = seq;
+  user.letterGrants = (user.letterGrants && typeof user.letterGrants === 'object') ? user.letterGrants : {};
+  user.letterGrants[letter.id] = { seq, gift: granted };
+  pruneLetterGrants(user);
+  return granted;
+}
+
+const LETTER_GRANT_LEDGER_MAX = 100;
+function pruneLetterGrants(user) {
+  const grants = user && user.letterGrants;
+  if (!grants || typeof grants !== 'object') return;
+  const ids = Object.keys(grants);
+  if (ids.length <= LETTER_GRANT_LEDGER_MAX) return;
+  ids.sort((a, b) => (Number(grants[a] && grants[a].seq) || 0) - (Number(grants[b] && grants[b].seq) || 0));
+  ids.slice(0, ids.length - LETTER_GRANT_LEDGER_MAX).forEach(id => delete grants[id]);
+}
+
+// El cliente envía su copia completa de la base de datos en cada sync_db. Si esa
+// copia es obsoleta (una pestaña antigua, o un commit que se solapa con el
+// claim) puede sobrescribir `u.inv`/`u.galeones` y borrar un regalo ya entregado.
+//
+// El servidor es la fuente de verdad del ledger (`letterGrants`/`letterGrantSeq`)
+// que vive en `memoryState`. Aquí se fusiona ese ledger en el estado entrante y
+// se re-aplican las entregas cuya secuencia el cliente todavía no reflejaba
+// (eSeq > seq). Un cliente que ya recibió el regalo por broadcast trae la
+// secuencia al día y no se re-aplica, así que nunca se duplica.
+function reconcileLetterGrants(state, authoritativeUsers) {
+  if (!state || !Array.isArray(state.users)) return;
+  const source = Array.isArray(authoritativeUsers) ? authoritativeUsers : state.users;
+  const byId = new Map(source.filter(u => u && u.id != null).map(u => [Number(u.id), u]));
+  state.users.forEach(user => {
+    const src = byId.get(Number(user.id));
+    const srcGrants = (src && src.letterGrants && typeof src.letterGrants === 'object') ? src.letterGrants : null;
+    if (!srcGrants) {
+      // El servidor no tiene ledger para este usuario: se descarta cualquier
+      // entrada que viniera del cliente (no es fuente de verdad).
+      user.letterGrants = {};
+      return;
+    }
+    // Secuencia que ESTE cliente ya refleja, antes de sustituir su ledger.
+    let seq = Number(user.letterGrantSeq) || 0;
+    Object.keys(srcGrants)
+      .map(id => ({ id, entry: srcGrants[id] }))
+      .sort((a, b) => (Number(a.entry && a.entry.seq) || 0) - (Number(b.entry && b.entry.seq) || 0))
+      .forEach(({ entry }) => {
+        const eSeq = Number(entry && entry.seq) || 0;
+        if (entry && entry.gift && eSeq > seq) {
+          if (applyLetterGiftToUser(user, entry.gift)) {
+            console.warn(`🔁 Regalo de lechuza re-aplicado (cliente obsoleto): ${user.username} <- ${JSON.stringify(entry.gift)}`);
+          }
+          seq = eSeq;
+        }
+      });
+    // El servidor es la fuente de verdad del ledger: se sustituye el del cliente
+    // (una copia, para no compartir referencias con memoryState).
+    user.letterGrants = {};
+    Object.keys(srcGrants).forEach(id => {
+      const e = srcGrants[id];
+      user.letterGrants[id] = { seq: Number(e && e.seq) || 0, gift: (e && e.gift) ? { ...e.gift } : null };
+    });
+    user.letterGrantSeq = seq;
+  });
+}
+
 /* ===== MERCADO DE INTERCAMBIO DE CROMOS ===== */
 const TRADE_MAX = 200;
 const TRADE_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled'];
@@ -1185,6 +1294,8 @@ function sanitizeState(state) {
     if (typeof u.yearOffset !== 'number') u.yearOffset = 0;
     if (typeof u.galeones !== 'number') u.galeones = 15;
     if (!u.inv || typeof u.inv !== 'object') u.inv = {};
+    if (typeof u.letterGrantSeq !== 'number') u.letterGrantSeq = 0;
+    if (!u.letterGrants || typeof u.letterGrants !== 'object') u.letterGrants = {};
     if (!u.cromos || typeof u.cromos !== 'object') u.cromos = {};
     Object.keys(u.cromos).forEach(k => {
       const v = u.cromos[k];
@@ -1262,6 +1373,9 @@ function sanitizeState(state) {
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
   // Correo por lechuza y mercado de cromos: arrays saneados y limitados.
   state.letters = sanitizeLetters(state, state.letters);
+  // Re-aplica los regalos de lechuza ya reclamados que un cliente obsoleto
+  // pudiera haber sobrescrito (protección contra lost update).
+  reconcileLetterGrants(state);
   state.tradeOffers = sanitizeTradeOffers(state, state.tradeOffers);
   // Caché global de imágenes: descarta entradas corruptas y limita su tamaño.
   if (!state.spiritCache || typeof state.spiritCache !== 'object' || Array.isArray(state.spiritCache)) {
@@ -1311,6 +1425,11 @@ async function loadState() {
 async function saveState(newState) {
   const { _id, ...stateToSave } = newState;
   reconcileHousePoints(stateToSave);
+  // El ledger de regalos de lechuza del servidor (memoryState previo) es la
+  // fuente de verdad: antes de persistir se fusiona y se re-aplican las
+  // entregas que un cliente con datos obsoletos hubiera podido borrar.
+  const authoritativeUsers = (memoryState && Array.isArray(memoryState.users)) ? memoryState.users : null;
+  reconcileLetterGrants(stateToSave, authoritativeUsers);
   memoryState = stateToSave;
   if (!db) {
     fs.writeFileSync(DB_FILE, JSON.stringify(stateToSave, null, 2));
@@ -1966,28 +2085,25 @@ io.on('connection', async (socket) => {
 
         let granted = null;
         if (letter.gift && !letter.claimed) {
-          if (letter.gift.type === 'galeones') {
-            user.galeones = (Number(user.galeones) || 0) + letter.gift.amount;
-            granted = { type: 'galeones', amount: letter.gift.amount };
-          } else if (letter.gift.type === 'cromo') {
-            user.cromos = user.cromos || {};
-            const entry = user.cromos[letter.gift.cromoId];
-            const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
-            user.cromos[letter.gift.cromoId] = { count: count + 1, image: (entry && entry.image) || undefined };
-            granted = { type: 'cromo', cromoId: letter.gift.cromoId };
-          } else if (letter.gift.type === 'item') {
-            // Objetos de regalo: se guardan en la mochila (u.inv) y se usan desde ella.
-            user.inv = user.inv || {};
-            user.inv[letter.gift.itemId] = (Number(user.inv[letter.gift.itemId]) || 0) + 1;
-            granted = { type: 'item', itemId: letter.gift.itemId };
+          granted = grantLetterGift(state, user, letter);
+          if (!granted) {
+            // Regalo no entregable (objeto desconocido): no se marca la carta
+            // como reclamada para que el jugador pueda reintentar tras un fix.
+            socket.emit('letter_error', { message: 'Ese regalo no se puede entregar todavía. Inténtalo más tarde.' });
           }
-          letter.claimed = true;
         }
         letter.read = true;
 
         await saveState(state);
         io.emit('sync_db', { db: memoryState, reason: null });
-        socket.emit('letter_claimed', { letterId, granted });
+        socket.emit('letter_claimed', {
+          letterId,
+          granted,
+          inventory: (user.inv && typeof user.inv === 'object') ? user.inv : {},
+          galeones: Number(user.galeones) || 0,
+          letterGrantSeq: Number(user.letterGrantSeq) || 0,
+          letter: { id: letter.id, claimed: !!letter.claimed, read: !!letter.read }
+        });
       } catch (err) {
         console.error('Error reclamando el regalo:', err.message);
       }
@@ -2335,7 +2451,7 @@ io.on('connection', async (socket) => {
 
 let botTickCounter = 0;
 
-setInterval(async () => {
+if (require.main === module) setInterval(async () => {
   try {
     // Si no hay jugadores reales conectados, pausamos para no consumir red ni MongoDB
     if (io.engine.clientsCount === 0) return;
@@ -2455,7 +2571,7 @@ async function npcLetterTick() {
 
 // Primer ciclo con retardo aleatorio (entre 1 y 5 min) y luego cada intervalo fijo.
 const NPC_LETTER_FIRST_DELAY_MS = Number(process.env.NPC_LETTER_FIRST_DELAY_MS) || (60 * 1000 + Math.floor(Math.random() * 4 * 60 * 1000));
-setTimeout(() => {
+if (require.main === module) setTimeout(() => {
   npcLetterTick();
   setInterval(npcLetterTick, NPC_LETTER_INTERVAL_MS);
 }, NPC_LETTER_FIRST_DELAY_MS);
@@ -2483,8 +2599,16 @@ async function startServer() {
   server.listen(PORT, '0.0.0.0', () => console.log(`🏰 Servidor en http://0.0.0.0:${PORT}`));
 }
 
-startServer();
+if (require.main === module) startServer();
 
 // ⬅️ AÑADIDO: manejo de errores del proceso para no morir en silencio
 process.on('unhandledRejection', (e) => console.error('⚠️ UnhandledRejection:', e));
 process.on('uncaughtException', (e) => console.error('⚠️ UncaughtException:', e));
+
+// Exporta los helpers puros para las pruebas automatizadas (el servidor no
+// arranca si el módulo se importa con require()).
+module.exports = {
+  applyLetterGiftToUser,
+  grantLetterGift,
+  reconcileLetterGrants
+};
