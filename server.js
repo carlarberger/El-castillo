@@ -486,9 +486,9 @@ async function aiChatJSON({ systemPrompt, userPrompt, maxTokens = 900, temperatu
 }
 
 /* ===== EL PROFETA: PERIÓDICO EDITORIAL GENERADO CON IA ===== */
-// Caché de 10 minutos para no golpear Groq en cada apertura del periódico.
-const PROPHET_CACHE_TTL_MS = 10 * 60 * 1000;
-let prophetCache = { at: 0, key: '', issue: null };
+// Caché persistente de 24 h: la edición activa se guarda en el estado del juego
+// (memoryState.dailyProphet) y sobrevive a reinicios del servidor.
+const PROPHET_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const asStr = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 
@@ -830,17 +830,26 @@ app.post('/api/daily-prophet', async (req, res) => {
   const ctx = { year, leadingHouse, leadingPoints, housesSummary, recentLogs, playerNames, couples };
   const fallbackIssue = () => buildFallbackProphet(ctx);
 
-  // Caché: misma "foto" del castillo dentro de los 10 minutos -> misma edición.
-  const cacheKey = JSON.stringify([year, leadingHouse, leadingPoints, housesSummary, recentLogs, playerNames, couples]);
+  // La edición activa vive en el estado persistente del juego: se devuelve tal
+  // cual durante 24 h (o hasta que cambie el año escolar), sin regenerarla por
+  // cambios en puntos, logs u otros datos del castillo.
   const now = Date.now();
-  if (prophetCache.issue && prophetCache.key === cacheKey && (now - prophetCache.at) < PROPHET_CACHE_TTL_MS) {
-    return res.json({ ok: true, issue: prophetCache.issue, cached: true, fallback: !!prophetCache.issue.__fallback });
+  const active = memoryState && memoryState.dailyProphet;
+  if (active && active.issue && active.year === year && (now - Number(active.generatedAt)) < PROPHET_CACHE_TTL_MS) {
+    return res.json({ ok: true, issue: active.issue, cached: true, fallback: !!active.issue.__fallback });
   }
+
+  // Persiste la edición recién generada y la marca como activa durante 24 h.
+  const publishIssue = async (issue) => {
+    memoryState.dailyProphet = { issue, generatedAt: Date.now(), year };
+    try { await saveState(memoryState); }
+    catch (err) { console.error('Error guardando El Profeta:', err.message); }
+  };
 
   if (!AI_ENABLED) {
     const issue = fallbackIssue();
     if (issue) issue.__fallback = true;
-    prophetCache = { at: now, key: cacheKey, issue };
+    await publishIssue(issue);
     return res.json({ ok: true, issue, cached: false, fallback: true });
   }
 
@@ -863,13 +872,13 @@ Redacta la edición de hoy de El Profeta en JSON.`;
     const issue = normalizeProphetIssue(parsed, ctx);
     if (!issue) throw new Error('JSON editorial incompleto');
     issue.__fallback = false;
-    prophetCache = { at: now, key: cacheKey, issue };
+    await publishIssue(issue);
     return res.json({ ok: true, issue, cached: false, fallback: false });
   } catch (err) {
     console.error('Error generando El Profeta (usando respaldo local):', err.message);
     const issue = fallbackIssue();
     if (issue) issue.__fallback = true;
-    prophetCache = { at: now, key: cacheKey, issue };
+    await publishIssue(issue);
     return res.json({ ok: true, issue, cached: false, fallback: true });
   } finally {
     clearTimeout(timer);
@@ -1297,6 +1306,8 @@ function defaultDb() {
     letters: [],
     // Ofertas de intercambio de cromos: { id, from, to, giveCromoId, wantCromoId, status, at }
     tradeOffers: [],
+    // Edición activa de El Profeta: { issue, generatedAt, year } o null.
+    dailyProphet: null,
     // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
     spiritCache: {}
   };
@@ -1838,6 +1849,19 @@ function sanitizeState(state) {
   // pudiera haber sobrescrito (protección contra lost update).
   reconcileLetterGrants(state);
   state.tradeOffers = sanitizeTradeOffers(state, state.tradeOffers);
+  // Edición activa de El Profeta: estructura { issue, generatedAt, year } válida
+  // o null. Se conserva al guardar otros cambios para no regenerarla antes de 24 h.
+  const dp = state.dailyProphet;
+  if (!dp || typeof dp !== 'object' || !dp.issue || typeof dp.issue !== 'object'
+      || !Number.isFinite(Number(dp.generatedAt))) {
+    state.dailyProphet = null;
+  } else {
+    state.dailyProphet = {
+      issue: dp.issue,
+      generatedAt: Number(dp.generatedAt),
+      year: clampSchoolYear(dp.year)
+    };
+  }
   // Caché global de imágenes: descarta entradas corruptas y limita su tamaño.
   if (!state.spiritCache || typeof state.spiritCache !== 'object' || Array.isArray(state.spiritCache)) {
     state.spiritCache = {};
@@ -1891,6 +1915,14 @@ async function saveState(newState) {
   // entregas que un cliente con datos obsoletos hubiera podido borrar.
   const authoritativeUsers = (memoryState && Array.isArray(memoryState.users)) ? memoryState.users : null;
   reconcileLetterGrants(stateToSave, authoritativeUsers);
+  // La edición activa de El Profeta es autoritativa del servidor: un cliente que
+  // la omita (o reenvíe una copia antigua) no debe borrarla antes de sus 24 h.
+  const prevProphet = memoryState && memoryState.dailyProphet;
+  const incomingProphet = stateToSave.dailyProphet;
+  if (prevProphet && prevProphet.issue
+      && (!incomingProphet || Number(incomingProphet.generatedAt) <= Number(prevProphet.generatedAt))) {
+    stateToSave.dailyProphet = prevProphet;
+  }
   memoryState = stateToSave;
   if (!db) {
     fs.writeFileSync(DB_FILE, JSON.stringify(stateToSave, null, 2));
