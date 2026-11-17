@@ -1244,6 +1244,55 @@ function mergeTradeOffers(serverList, incomingList, users) {
   return sanitizeTradeOffers({ users }, [...map.values()]);
 }
 
+/* ===== FUSIÓN DE USUARIOS (protección contra borrado masivo) ===== */
+// Un jugador real tiene casa/contraseña y no es NPC.
+function isRealUser(u) {
+  return !!(u && !u.is_npc && (u.pass || u.house || u.is_admin));
+}
+
+// El cliente envía su array `users` completo en cada sync_db. Si ese cliente
+// arrancó con la base por defecto (solo NPCs) o quedó obsoleto, sobrescribiría
+// MongoDB y borraría a todos los jugadores reales.
+//
+// Reglas del servidor (fuente de verdad de la EXISTENCIA de personajes reales):
+//   1. Un usuario del servidor que el cliente no traiga NUNCA se elimina si es
+//      real (los NPCs se re-siembran solos en sanitizeState).
+//   2. Un cliente no puede degradar a un jugador real (convertirlo en NPC o
+//      vaciarle la contraseña); se conserva la versión del servidor.
+//   3. Sí se aceptan registros nuevos (ids que el servidor no tenía) y las
+//      actualizaciones normales de cada jugador.
+function mergeUsers(serverUsers, incomingUsers) {
+  const server = Array.isArray(serverUsers) ? serverUsers : [];
+  const incoming = Array.isArray(incomingUsers) ? incomingUsers : [];
+  const serverById = new Map(server.filter(u => u && u.id != null).map(u => [Number(u.id), u]));
+  const incomingIds = new Set(incoming.filter(u => u && u.id != null).map(u => Number(u.id)));
+
+  const merged = [];
+  incoming.forEach(u => {
+    if (!u || u.id == null) return;
+    const sv = serverById.get(Number(u.id));
+    if (sv && isRealUser(sv) && !isRealUser(u)) { merged.push(sv); return; }
+    // Una cuenta protegida no puede quedar sin contraseña: un cliente obsoleto
+    // (con `pass` vacío) no debe desactivar la protección de un jugador real.
+    if (sv && isRealUser(sv) && !u.pass && sv.pass) {
+      merged.push({ ...u, pass: sv.pass });
+      return;
+    }
+    merged.push(u);
+  });
+
+  const preserved = [];
+  server.forEach(u => {
+    if (!u || u.id == null || incomingIds.has(Number(u.id)) || !isRealUser(u)) return;
+    merged.push(u);
+    preserved.push(u.username);
+  });
+  if (preserved.length) {
+    console.warn(`🛡️ sync_db: ${preserved.length} jugador(es) real(es) preservados del servidor: ${preserved.join(', ')}`);
+  }
+  return merged;
+}
+
 /* ===== MIGRACIÓN DE RELACIONES (amistad / romance) ===== */
 // Las relaciones antiguas solo guardaban `score`. Se migran al esquema nuevo:
 //   friendshipScore -> afinidad de amistad (hereda el score antiguo)
@@ -1889,16 +1938,6 @@ io.on('connection', async (socket) => {
           return;
         }
 
-        const oldUsers = memoryState.users || [];
-        for (const nu of data.db.users) {
-          const ou = oldUsers.find(o => o.id === nu.id);
-          if (ou && (Number(nu.points) - Number(ou.points)) > 500) {
-            console.log(`⚠️ Sync bloqueado: ${nu.username} saltó ${nu.points - ou.points} pts.`);
-            socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Anti-Cheat)' });
-            return;
-          }
-        }
-
         // Las solicitudes de amistad se funden con la lista del servidor:
         // un cliente con datos obsoletos no puede borrar las pendientes.
         data.db.friendRequests = mergeFriendRequests(
@@ -1923,6 +1962,16 @@ io.on('connection', async (socket) => {
           Array.isArray(data.db.tradeOffers) ? data.db.tradeOffers : [],
           liveUsers
         );
+
+        // Los usuarios reales del servidor NUNCA se pueden borrar por un cliente
+        // con datos obsoletos o por defecto (solo NPCs). Se hace al final para
+        // que las fusiones anteriores usen la lista aceptada por el cliente.
+        data.db.users = mergeUsers((memoryState && memoryState.users) || [], liveUsers);
+        if (!data.db.users.some(isRealUser) && (memoryState && memoryState.users || []).some(isRealUser)) {
+          console.log('⛔ sync_db rechazado: eliminaría a todos los jugadores reales.');
+          socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Protección de datos)' });
+          return;
+        }
 
         await saveState(data.db);
 
@@ -2757,5 +2806,7 @@ process.on('uncaughtException', (e) => console.error('⚠️ UncaughtException:'
 module.exports = {
   applyLetterGiftToUser,
   grantLetterGift,
-  reconcileLetterGrants
+  reconcileLetterGrants,
+  isRealUser,
+  mergeUsers
 };
