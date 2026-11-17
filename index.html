@@ -2834,20 +2834,34 @@ const API={
     if(d.quidditch) npc.npc_path='quidditch';
     db.users.push(npc);chime();commit(`Nuevo NPC: ${name}`);toast(`NPC ${name} creado.`);
   },
-  editNpc(npcId, data){
+  editNpc(charId, data){
     must(session.isAdmin,'Solo admin');
-    const npc=db.users.find(u=>u.id===Number(npcId));must(npc&&npc.is_npc,'NPC no encontrado');
-    const name=cleanName(data.username);must(name,'Escribe un nombre para el NPC');
-    must(!db.users.some(u=>u.id!==npc.id&&u.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
-    npc.username=name;
-    if(data.house&&HOUSE(data.house)) npc.house=data.house;
-    if(typeof data.npc_trait==='string') npc.npc_trait=data.npc_trait.trim().slice(0,80)||npc.npc_trait;
-    if(data.points!=null){const pts=Math.max(0,Math.round(Number(data.points)||0));npc.points=pts;}
-    npc.look=lookOf(data);
-    if(data.gender) npc.gender=normGender(data.gender);
-    commit('Admin editó al NPC: ' + npc.username);
+    const u=db.users.find(x=>x.id===Number(charId));must(u,'Personaje no encontrado');
+    const name=cleanName(data.username);must(name,'Escribe un nombre');
+    must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
+    u.username=name;
+    if(data.house&&HOUSE(data.house)) u.house=data.house;
+    if(u.is_npc&&typeof data.npc_trait==='string') u.npc_trait=data.npc_trait.trim().slice(0,80)||u.npc_trait;
+    u.look=lookOf(data);
+    if(data.gender) u.gender=normGender(data.gender);
+    if(data.romancePref) u.romancePref=normRomancePref(data.romancePref);
+    // Recursos y estadísticas: se aplican solo los campos enviados, cada uno
+    // acotado a su rango válido (el servidor vuelve a sanear al sincronizar).
+    const num=(v,min,max)=>(v==null||v==='')?null:Math.max(min,Math.min(max,Math.round(Number(v)||0)));
+    const set=(k,v)=>{if(v!=null)u[k]=v;};
+    set('points',num(data.points,0,999999));
+    set('galeones',num(data.galeones,0,999999));
+    set('flight_xp',num(data.flight_xp,0,999999));
+    set('happiness',num(data.happiness,0,100));
+    set('pride',num(data.pride,0,100));
+    set('academic_progress',num(data.academic_progress,0,200));
+    set('petLove',num(data.petLove,0,100));
+    set('attrValentia',num(data.attrValentia,0,999));
+    set('attrEmpatia',num(data.attrEmpatia,0,999));
+    set('attrSabiduria',num(data.attrSabiduria,0,999));
+    commit('Admin editó a ' + u.username);
     closeModal();
-    toast(`NPC ${npc.username} actualizado.`);
+    toast(`${u.username} actualizado.`);
   },
   awardGaleones(id,amt){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.galeones=Math.max(0,(t.galeones||0)+amt); commit(`Admin dio ${amt} 🪙 a ${t.username}`); },
   toggleQuidditch(id){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.quidditch_approved=!t.quidditch_approved; if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved&&!t.flight_xp)t.flight_xp=15;} commit(`${t.username} Quidditch: ${t.quidditch_approved}`); },
@@ -3456,7 +3470,7 @@ function renderAdmin(){
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
    <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>🪙</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="deduct" data-id="${x.id}" type="button">-10</button> <button class="btn sm gold" data-do="awardGal" data-id="${x.id}" type="button">+10 🪙</button> <button class="btn sm" data-do="toggleQuid" data-id="${x.id}" type="button">${x.quidditch_approved?'🧹 Quitar Quid':'🧹 Dar Quid'}</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button> ${x.is_npc?`<button class="btn sm" data-do="editNpc" data-id="${x.id}" type="button" title="Editar aspecto, nombre, casa, rasgo y puntos">✏️ Editar</button>`:''} <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar">✕</button></td></tr>`).join('')}</tbody></table></div>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="deduct" data-id="${x.id}" type="button">-10</button> <button class="btn sm gold" data-do="awardGal" data-id="${x.id}" type="button">+10 🪙</button> <button class="btn sm" data-do="toggleQuid" data-id="${x.id}" type="button">${x.quidditch_approved?'🧹 Quitar Quid':'🧹 Dar Quid'}</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button> ${x.is_npc?`<button class="btn sm" data-do="editNpc" data-id="${x.id}" type="button" title="Editar aspecto, nombre, casa, rasgo y puntos">✏️ Editar</button>`:`<button class="btn sm" data-do="editNpc" data-id="${x.id}" type="button" title="Editar aspecto, puntos, galeones y estadísticas">✏️ Editar</button>`} <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar">✕</button></td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -4143,24 +4157,48 @@ function openCustomNpcModal() {
   </div>`, true);
 }
 
-/* ===== Edición de NPCs (solo Admin) ===== */
-function openEditNpcModal(npcId){
+/* ===== Edición de personajes (solo Admin) =====
+   Sirve tanto para NPCs como para jugadores reales. Permite ajustar nombre, casa,
+   aspecto, género, preferencia romántica y todas las estadísticas/recursos
+   (puntos, galeones, XP de vuelo, felicidad, orgullo, académico, cariño de la
+   mascota, valentía, empatía y sabiduría) para restaurar estados anteriores. */
+const STAT_FIELDS=[
+  ['points','Puntos',0,999999,'🎯'],
+  ['galeones','Galeones',0,999999,'🪙'],
+  ['flight_xp','XP de vuelo',0,999999,'🧹'],
+  ['happiness','Felicidad',0,100,'😊'],
+  ['pride','Orgullo',0,100,'🦁'],
+  ['academic_progress','Académico',0,200,'📚'],
+  ['petLove','Cariño de la mascota',0,100,'🐾'],
+  ['attrValentia','Valentía',0,999,'🦁'],
+  ['attrEmpatia','Empatía',0,999,'🕊️'],
+  ['attrSabiduria','Sabiduría',0,999,'🦅']
+];
+function openEditNpcModal(charId){
   must(session.isAdmin,'Solo admin');
-  const npc=db.users.find(u=>u.id===Number(npcId));
-  must(npc&&npc.is_npc,'NPC no encontrado');
-  window.npcDraft={id:npc.id,username:npc.username,house:npc.house||'gryffindor',npc_trait:npc.npc_trait||'',points:Number(npc.points)||0,gender:normGender(npc.gender),...lookOf(npc.look||{})};
+  const u=db.users.find(x=>x.id===Number(charId));
+  must(u,'Personaje no encontrado');
+  const d={id:u.id,is_npc:!!u.is_npc,username:u.username,house:u.house||'gryffindor',npc_trait:u.npc_trait||'',
+    gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),...lookOf(u.look||{})};
+  STAT_FIELDS.forEach(([k])=>{ d[k]=Number(u[k])||0; });
+  window.npcDraft=d;
   openModal(npcEditHTML(),true);
 }
 function npcEditHTML(){
   const d=window.npcDraft;
   const sw=(label,arr,key,names)=>`<div class="swrow"><span>${label}</span>${arr.map((c,i)=>`<button type="button" class="sw ${d[key]===i?'on':''}" style="background:${c}" data-do="npcDraft" data-k="${key}" data-v="${i}" aria-label="${label}: ${names?names[i]:i+1}" title="${names?names[i]:''}"></button>`).join('')}</div>`;
-  return `<h3 style="font-size:20px">✏️ Editar NPC: ${esc(d.username)}</h3>
-  <div class="creator" id="npcEditBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Vista previa del alumno IA. Los colores de la túnica siguen su casa.</p></div>
+  const statRow=([k,label,min,max,icon])=>`<div><label class="hint" for="npcEdit_${k}">${icon} ${label}</label><input id="npcEdit_${k}" type="number" min="${min}" max="${max}" step="1" value="${d[k]}" style="width:100%" aria-label="${label}"></div>`;
+  return `<h3 style="font-size:20px">✏️ Editar ${d.is_npc?'NPC':'jugador'}: ${esc(d.username)}</h3>
+  <div class="creator" id="npcEditBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Vista previa. Los colores de la túnica siguen su casa.</p></div>
    <div style="display:grid;gap:12px;min-width:0">
-    <div><label class="hint" for="npcEditName">Nombre del NPC</label><input id="npcEditName" type="text" maxlength="18" value="${esc(d.username)}" autocomplete="off"></div>
-    <div><label class="hint" for="npcEditTrait">Rasgo</label><input id="npcEditTrait" type="text" maxlength="80" value="${esc(d.npc_trait)}" placeholder="Ej: Bromista y ágil en duelo" autocomplete="off"></div>
-    <div><label class="hint" for="npcEditPoints">Puntos</label><input id="npcEditPoints" type="number" min="0" step="1" value="${d.points}" style="width:auto" aria-label="Puntos"></div>
+    <div><label class="hint" for="npcEditName">Nombre</label><input id="npcEditName" type="text" maxlength="18" value="${esc(d.username)}" autocomplete="off"></div>
+    ${d.is_npc?`<div><label class="hint" for="npcEditTrait">Rasgo</label><input id="npcEditTrait" type="text" maxlength="80" value="${esc(d.npc_trait)}" placeholder="Ej: Bromista y ágil en duelo" autocomplete="off"></div>`:''}
     <div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="npcDraftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>
+    <div><span class="hint">Género</span><div class="chips" style="margin-top:6px">${GENDER_IDS.map(g=>`<button type="button" class="chip ${d.gender===g?'on':''}" data-do="npcDraftGender" data-id="${g}">${GENDER_LABEL[g]}</button>`).join('')}</div></div>
+    <div><span class="hint">Le atraen (preferencia romántica)</span><div class="chips" style="margin-top:6px">${ROMANCE_PREF_IDS.map(r=>`<button type="button" class="chip ${normRomancePref(d.romancePref)===r?'on':''}" data-do="npcDraftRomance" data-id="${r}">${ROMANCE_PREF_LABEL[r]}</button>`).join('')}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+      ${STAT_FIELDS.map(statRow).join('')}
+    </div>
     ${sw('Piel',SKIN,'skin',SKINN)}
     ${sw('Pelo',HAIR_COLORS,'hairColor',HAIR_COLORN)}
     <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="npcDraftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
@@ -4172,10 +4210,10 @@ function npcEditHTML(){
 }
 function refreshNpcDraft(){
   const el=$('npcEditBox');if(!el)return;
-  const nm=$('npcEditName'),tr=$('npcEditTrait'),pt=$('npcEditPoints');
+  const nm=$('npcEditName'),tr=$('npcEditTrait');
   if(nm)window.npcDraft.username=nm.value;
   if(tr)window.npcDraft.npc_trait=tr.value;
-  if(pt)window.npcDraft.points=pt.value;
+  STAT_FIELDS.forEach(([k])=>{const inp=$('npcEdit_'+k);if(inp)window.npcDraft[k]=inp.value;});
   el.outerHTML=npcEditHTML();
 }
 
@@ -7776,6 +7814,8 @@ document.addEventListener('click',e=>{
     case 'npcDraftEyes':window.npcDraft.eyes=Number(d.v);refreshNpcDraft();break;
     case 'npcDraftClothing':window.npcDraft.clothing=Number(d.v);refreshNpcDraft();break;
     case 'npcDraftFacialHair':window.npcDraft.facialHair=d.id||'none';refreshNpcDraft();break;
+    case 'npcDraftGender':window.npcDraft.gender=normGender(d.id);refreshNpcDraft();break;
+    case 'npcDraftRomance':window.npcDraft.romancePref=normRomancePref(d.id);refreshNpcDraft();break;
     case 'saveNpcEdit':refreshNpcDraft();API.editNpc(Number(d.id),window.npcDraft);break;
     case 'deduct':API.award(Number(d.id),-10);break;
     case 'awardGal':API.awardGaleones(Number(d.id),10);break;
