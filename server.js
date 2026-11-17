@@ -229,7 +229,10 @@ function npcPersonaKey(npcId, npcName) {
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, {
+  cors: { origin: '*' },
+  perMessageDeflate: true
+});
 
 // ⬅️ AÑADIDO: bloquear archivos sensibles ANTES del static
 const BLOCKED_PATHS = new Set([
@@ -2330,10 +2333,16 @@ io.on('connection', async (socket) => {
   }
 });
 
+let botTickCounter = 0;
+
 setInterval(async () => {
   try {
-    const state = await loadState();
-    if (!state.npcAi) return;
+    // Si no hay jugadores reales conectados, pausamos para no consumir red ni MongoDB
+    if (io.engine.clientsCount === 0) return;
+
+    // Usamos el estado en RAM (memoryState) en lugar de descargar todo MongoDB en cada ciclo
+    const state = memoryState;
+    if (!state || !state.npcAi) return;
     const npcs = state.users.filter(u => u.is_npc && u.house && isEnrolled(state, u));
     if (!npcs.length) return;
 
@@ -2378,12 +2387,19 @@ setInterval(async () => {
       if (state.chat.length > 60) state.chat.shift();
     }
 
-    await saveState(state);
+    reconcileHousePoints(state);
+    botTickCounter++;
+
+    // Guardamos en MongoDB Atlas solo cada 5 ciclos (~5 minutos) en vez de cada 25 segundos
+    if (botTickCounter % 5 === 0) {
+      await saveState(state);
+    }
+
     io.emit('sync_db', { db: memoryState, reason: null });
   } catch (err) {
     console.error('Error en turno autónomo de bot:', err.message);
   }
-}, 25000);
+}, 60000);
 
 // ⬅️ LECHUZAS AUTOMÁTICAS DE NPCs: revisión periódica (30 min por defecto).
 // Se añade una ligera variación (jitter) al primer arranque para repartir la
@@ -2454,7 +2470,8 @@ async function startServer() {
       });
       await client.connect();
       db = client.db('elcastillo');
-      console.log('✅ Conectado a MongoDB Atlas');
+      await loadState();
+      console.log('✅ Conectado a MongoDB Atlas y estado inicial cargado');
     } catch (err) {
       console.error('❌ Error al conectar a MongoDB, usando respaldo local db.json:', err.message);
     }
