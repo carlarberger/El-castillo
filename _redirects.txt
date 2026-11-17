@@ -1,0 +1,8 @@
+# Cloudflare Pages: impedir el acceso directo a ficheros internos.
+# El backend (Northflank) ya los bloquea con 403; estas reglas cubren el
+# frontend estático en Cloudflare Pages.
+/server.js /404.html 404
+/lore.json /404.html 404
+/package.json /404.html 404
+/package-lock.json /404.html 404
+/db.json /404.html 404
