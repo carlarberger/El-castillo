@@ -837,6 +837,12 @@ function mergeFriendRequests(serverList, incomingList, doneList, users) {
 /* ===== CORREO POR LECHUZA (cartas y regalos offline) ===== */
 const LETTER_MAX = 200;
 const LETTER_GIFT_GALEONES_MAX = 100;
+// Objetos que un jugador puede adjuntar a una lechuza. Coincide con la tienda
+// de Hogsmeade y los objetos de regalo (evita inyectar objetos inexistentes).
+const LETTER_ITEM_IDS = new Set([
+  'bomba_fetida', 'polvo_oscuridad', 'rana_chocolate', 'grageas_bertie', 'cerveza_mantequilla',
+  'apuntes_magicos', 'libro_hechizos', 'pocion_curativa', 'pocion_prestigio', 'objeto_brillante'
+]);
 
 function sanitizeLetterGift(gift) {
   if (!gift || typeof gift !== 'object') return null;
@@ -849,6 +855,10 @@ function sanitizeLetterGift(gift) {
     const cromoId = String(gift.cromoId || '').trim().slice(0, 40);
     return cromoId ? { type: 'cromo', cromoId } : null;
   }
+  if (type === 'item') {
+    const itemId = String(gift.itemId || '').trim().slice(0, 40);
+    return (itemId && LETTER_ITEM_IDS.has(itemId)) ? { type: 'item', itemId } : null;
+  }
   return null;
 }
 
@@ -858,12 +868,15 @@ function sanitizeLetter(r, users) {
   const to = Number(r.to);
   if (!from || !to) return null;
   if (users && users.length && (!users.some(u => u.id === from) || !users.some(u => u.id === to))) return null;
+  const sender = users && users.find(u => u.id === from);
   return {
     id: String(r.id || `ltr_${from}_${to}_${Date.now()}`),
     from,
     to,
     message: String(r.message || '').slice(0, 400),
     gift: sanitizeLetterGift(r.gift),
+    // Marca de lechuza automática de NPC (o remitente que ya es NPC).
+    npc: !!(r.npc || (sender && sender.is_npc)),
     read: !!r.read,
     claimed: !!r.claimed,
     at: Number(r.at) || Date.now()
@@ -1147,12 +1160,192 @@ async function saveState(newState) {
 const CROMO_IDS = ['dumbledore', 'merlin', 'rowena', 'godric', 'helga', 'salazar', 'newt', 'morgana', 'flamel'];
 const BIRTHDAY_GALEONES = 15;
 
+/* ===== LECHUZAS AUTOMÁTICAS DE NPCs (personalidad y regalos) =====
+   Cada NPC del canon tiene un pool de regalos coherente con su carácter.
+   Cada regalo: { id, minFriendship, weight }. `id` pertenece a NPC_GIFT_CATALOG. */
+
+// Catálogo de regalos: define qué concede cada id. Los objetos se guardan en
+// `u.inv` (y se pueden usar desde la Mochila); los cromos y galeones, aparte.
+const NPC_GIFT_CATALOG = {
+  galeones_10:        { kind: 'galeones', amount: 10, label: '10 Galeones', icon: '🪙' },
+  galeones_20:        { kind: 'galeones', amount: 20, label: '20 Galeones', icon: '🪙' },
+  galeones_50:        { kind: 'galeones', amount: 50, label: '50 Galeones', icon: '🪙' },
+  rana_chocolate:     { kind: 'item', itemId: 'rana_chocolate', label: 'Rana de Chocolate', icon: '🐸' },
+  grageas_bertie:     { kind: 'item', itemId: 'grageas_bertie', label: 'Grageas de Todos los Sabores', icon: '🍬' },
+  bomba_fetida:       { kind: 'item', itemId: 'bomba_fetida', label: 'Bomba Fétida', icon: '💣' },
+  cerveza_mantequilla:{ kind: 'item', itemId: 'cerveza_mantequilla', label: 'Cerveza de Mantequilla', icon: '🍺' },
+  apuntes_magicos:    { kind: 'item', itemId: 'apuntes_magicos', label: 'Apuntes Mágicos (+10 XP la próxima clase)', icon: '📝' },
+  libro_hechizos:     { kind: 'item', itemId: 'libro_hechizos', label: 'Libro de Hechizos', icon: '📚' },
+  pocion_curativa:    { kind: 'item', itemId: 'pocion_curativa', label: 'Poción Curativa', icon: '🧪' },
+  pocion_prestigio:   { kind: 'item', itemId: 'pocion_prestigio', label: 'Poción de Prestigio (decorativa)', icon: '🍾' },
+  objeto_brillante:   { kind: 'item', itemId: 'objeto_brillante', label: 'Objeto Brillante (vendible)', icon: '💎' },
+  cromo_comun:        { kind: 'cromo_pool', rareza: 'Común', label: 'Cromo de mago', icon: '🐸' },
+  cromo_raro:         { kind: 'cromo_pool', rareza: 'Raro', label: 'Cromo raro de mago', icon: '🐸' },
+  cromo_legendario:   { kind: 'cromo_pool', rareza: 'Legendario', label: 'Cromo legendario', icon: '🌟' }
+};
+
+// Personalidades: pool de regalos por NPC del canon. La afinidad mínima de
+// cada regalo hace que los obsequios evolucionen con la amistad.
+const NPC_GIFT_POOLS = {
+  'Harry Potter': [
+    { id: 'galeones_10', minFriendship: 20, weight: 3 },
+    { id: 'cromo_comun', minFriendship: 20, weight: 3 },
+    { id: 'rana_chocolate', minFriendship: 20, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 50, weight: 2 },
+    { id: 'pocion_curativa', minFriendship: 50, weight: 2 },
+    { id: 'galeones_20', minFriendship: 60, weight: 2 }
+  ],
+  'Ron Weasley': [
+    { id: 'grageas_bertie', minFriendship: 20, weight: 4 },
+    { id: 'rana_chocolate', minFriendship: 20, weight: 4 },
+    { id: 'bomba_fetida', minFriendship: 20, weight: 3 },
+    { id: 'cerveza_mantequilla', minFriendship: 50, weight: 2 },
+    { id: 'galeones_10', minFriendship: 60, weight: 1 }
+  ],
+  'Hermione Granger': [
+    { id: 'apuntes_magicos', minFriendship: 20, weight: 4 },
+    { id: 'libro_hechizos', minFriendship: 20, weight: 3 },
+    { id: 'cromo_comun', minFriendship: 20, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 }
+  ],
+  'Draco Malfoy': [
+    { id: 'galeones_20', minFriendship: 40, weight: 3 },
+    { id: 'galeones_50', minFriendship: 70, weight: 2 },
+    { id: 'pocion_prestigio', minFriendship: 40, weight: 3 },
+    { id: 'cromo_raro', minFriendship: 50, weight: 2 },
+    { id: 'cromo_legendario', minFriendship: 80, weight: 1 }
+  ],
+  'Luna Lovegood': [
+    { id: 'cromo_comun', minFriendship: 20, weight: 3 },
+    { id: 'objeto_brillante', minFriendship: 20, weight: 3 },
+    { id: 'cromo_raro', minFriendship: 40, weight: 3 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 },
+    { id: 'cromo_legendario', minFriendship: 70, weight: 1 }
+  ],
+  'Neville Longbottom': [
+    { id: 'rana_chocolate', minFriendship: 20, weight: 3 },
+    { id: 'pocion_curativa', minFriendship: 20, weight: 3 },
+    { id: 'cromo_comun', minFriendship: 30, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Ginny Weasley': [
+    { id: 'grageas_bertie', minFriendship: 20, weight: 3 },
+    { id: 'cerveza_mantequilla', minFriendship: 20, weight: 2 },
+    { id: 'cromo_comun', minFriendship: 30, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 }
+  ],
+  'Fred Weasley': [
+    { id: 'bomba_fetida', minFriendship: 20, weight: 4 },
+    { id: 'grageas_bertie', minFriendship: 20, weight: 4 },
+    { id: 'objeto_brillante', minFriendship: 30, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'George Weasley': [
+    { id: 'bomba_fetida', minFriendship: 20, weight: 4 },
+    { id: 'grageas_bertie', minFriendship: 20, weight: 4 },
+    { id: 'objeto_brillante', minFriendship: 30, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Percy Weasley': [
+    { id: 'libro_hechizos', minFriendship: 20, weight: 4 },
+    { id: 'apuntes_magicos', minFriendship: 30, weight: 3 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Oliver Wood': [
+    { id: 'galeones_10', minFriendship: 20, weight: 3 },
+    { id: 'cerveza_mantequilla', minFriendship: 30, weight: 3 },
+    { id: 'cromo_comun', minFriendship: 30, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 }
+  ],
+  'Cho Chang': [
+    { id: 'cromo_comun', minFriendship: 20, weight: 3 },
+    { id: 'rana_chocolate', minFriendship: 20, weight: 2 },
+    { id: 'objeto_brillante', minFriendship: 40, weight: 2 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Pansy Parkinson': [
+    { id: 'galeones_10', minFriendship: 30, weight: 3 },
+    { id: 'pocion_prestigio', minFriendship: 40, weight: 3 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 }
+  ],
+  'Blaise Zabini': [
+    { id: 'pocion_curativa', minFriendship: 20, weight: 3 },
+    { id: 'galeones_10', minFriendship: 40, weight: 3 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 },
+    { id: 'cromo_legendario', minFriendship: 80, weight: 1 }
+  ],
+  'Cedric Diggory': [
+    { id: 'galeones_10', minFriendship: 20, weight: 3 },
+    { id: 'rana_chocolate', minFriendship: 20, weight: 2 },
+    { id: 'cromo_comun', minFriendship: 30, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 }
+  ],
+  'Hannah Abbott': [
+    { id: 'rana_chocolate', minFriendship: 20, weight: 3 },
+    { id: 'pocion_curativa', minFriendship: 20, weight: 3 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Ernie Macmillan': [
+    { id: 'libro_hechizos', minFriendship: 20, weight: 3 },
+    { id: 'apuntes_magicos', minFriendship: 30, weight: 3 },
+    { id: 'galeones_10', minFriendship: 50, weight: 2 }
+  ],
+  'Nymphadora Tonks': [
+    { id: 'galeones_20', minFriendship: 40, weight: 3 },
+    { id: 'bomba_fetida', minFriendship: 40, weight: 2 },
+    { id: 'cromo_raro', minFriendship: 60, weight: 2 },
+    { id: 'cromo_legendario', minFriendship: 80, weight: 1 }
+  ]
+};
+
+// Regalos especiales de cumpleaños (afinidad >= 50): cromo legendario o 50 Galeones.
+const NPC_BIRTHDAY_GIFTS = ['galeones_50', 'cromo_legendario'];
+
+/* ===== PARÁMETROS DE LAS LECHUZAS AUTOMÁTICAS =====
+   Todo configurable por entorno para no saturar el servidor en producción. */
+const NPC_FRIENDSHIP_MIN = Number(process.env.NPC_LETTER_FRIENDSHIP_MIN) || 20;      // afinidad mínima para recibir carta
+const NPC_LETTER_INTERVAL_MS = Number(process.env.NPC_LETTER_INTERVAL_MS) || 30 * 60 * 1000; // revisión cada 30 min
+const NPC_LETTER_CHANCE = Number(process.env.NPC_LETTER_CHANCE) || 0.35;            // prob. por jugador elegible y ciclo
+const NPC_LETTER_MIN_GAP_MS = Number(process.env.NPC_LETTER_MIN_GAP_MS) || 45 * 60 * 1000; // separación mínima entre cartas por jugador
+const NPC_LETTER_PENDING_CAP = Number(process.env.NPC_LETTER_PENDING_CAP) || 5;     // máx. cartas de NPC sin reclamar por jugador
+const NPC_LETTER_PER_TICK = Number(process.env.NPC_LETTER_PER_TICK) || 3;           // máx. cartas generadas por ciclo (evita picos)
+
+// Frases por defecto (sin IA) coherentes con la personalidad de cada NPC.
+const NPC_LETTER_LINES = {
+  'Harry Potter': ['Te mando algo por si te hace falta en una aventura. ¡Cuídate!'],
+  'Ron Weasley': ['Esto me sobraba del carrito de Honeydukes. ¡No se lo digas a mi madre!'],
+  'Hermione Granger': ['He hecho una copia de mis apuntes para ti. ¡No olvides repasar!'],
+  'Draco Malfoy': ['No es que me importes, pero mi familia tiene de sobra. Tómalo.'],
+  'Luna Lovegood': ['Los Nargles me dijeron que te haría ilusión esto.'],
+  'Neville Longbottom': ['Mi abuela me dio más de lo que necesito. Quédatelo.'],
+  'Ginny Weasley': ['Te mando esto con cariño. ¡Nos vemos en el campo de Quidditch!'],
+  'Fred Weasley': ['¡Una pequeña travesura para ti! Úsala con cabeza… o sin ella.'],
+  'George Weasley': ['¡De parte de los gemelos! Que Filch nunca te pille.'],
+  'Percy Weasley': ['Adjunto material de estudio. La disciplina es la clave del éxito.'],
+  'Oliver Wood': ['¡Un pequeño empujón para tus entrenamientos! Arriba la escoba.'],
+  'Cho Chang': ['Pensé en ti al ver esto. ¡Hasta pronto en el castillo!'],
+  'Pansy Parkinson': ['No se lo cuentes a nadie, pero me caes bien. Toma.'],
+  'Blaise Zabini': ['Un detalle elegante para alguien que lo merece.'],
+  'Cedric Diggory': ['Los buenos amigos se apoyan. Aquí tienes una muestra.'],
+  'Hannah Abbott': ['¡Qué alegría tenerte cerca! Te mando un detalle dulce.'],
+  'Ernie Macmillan': ['Como futuro Prefecto, recompenso a los alumnos ejemplares.'],
+  'Nymphadora Tonks': ['¡Sorpresa! Un regalito de una vieja alumna. ¡Pásalo bien!']
+};
+
+function npcDefaultLine(name) {
+  const lines = NPC_LETTER_LINES[name];
+  if (Array.isArray(lines) && lines.length) return lines[Math.floor(Math.random() * lines.length)];
+  return 'Te mando un pequeño detalle. ¡Cuídate por el castillo!';
+}
+
 function isBirthdayToday(u, now = new Date()) {
   if (!u || !u.birthMonth || !u.birthDay) return false;
   return (now.getMonth() + 1) === Number(u.birthMonth) && now.getDate() === Number(u.birthDay);
 }
 
-// Amigos NPC con afinidad alta (>50 y sin rivalidad) que felicitan al jugador.
+// Amigos NPC con afinidad alta (>= 50 y sin rivalidad) que felicitan al jugador.
 function npcBirthdayFriends(state, uid) {
   const rels = state.relations || {};
   const out = [];
@@ -1161,13 +1354,107 @@ function npcBirthdayFriends(state, uid) {
     const [a, b] = [Math.min(uid, npc.id), Math.max(uid, npc.id)];
     const rel = rels[`${a}_${b}`];
     if (!rel || rel.rival) return;
-    if ((Number(rel.friendshipScore) || 0) > 50) out.push(npc);
+    if ((Number(rel.friendshipScore) || 0) >= 50) out.push(npc);
   });
   return out;
 }
 
+/* ===== MOTOR DE LECHUZAS AUTOMÁTICAS DE NPCs ===== */
+// Rareza de cada cromo para poder regalar por categoría.
+const CROMO_RARITY = {
+  dumbledore: 'Legendario', merlin: 'Legendario',
+  rowena: 'Raro', godric: 'Raro', helga: 'Raro', salazar: 'Raro',
+  newt: 'Común', morgana: 'Común', flamel: 'Común'
+};
+function cromoIdsByRarity(rareza) {
+  const ids = CROMO_IDS.filter(id => CROMO_RARITY[id] === rareza);
+  return ids.length ? ids : CROMO_IDS;
+}
+
+// Clave de relación (mismo esquema que el cliente: idMenor_idMayor).
+function relKeyBetween(a, b) {
+  const x = Math.min(Number(a), Number(b)), y = Math.max(Number(a), Number(b));
+  return `${x}_${y}`;
+}
+function friendshipBetween(state, a, b) {
+  const rel = (state.relations || {})[relKeyBetween(a, b)];
+  if (!rel || rel.rival) return 0;
+  return Number(rel.friendshipScore) || 0;
+}
+
+// Convierte un id del catálogo en el objeto `gift` que se guarda en la carta.
+function buildGiftFromCatalog(giftId) {
+  const def = NPC_GIFT_CATALOG[giftId];
+  if (!def) return null;
+  if (def.kind === 'galeones') return { type: 'galeones', amount: def.amount };
+  if (def.kind === 'item') return { type: 'item', itemId: def.itemId };
+  if (def.kind === 'cromo_pool') {
+    const ids = cromoIdsByRarity(def.rareza);
+    return { type: 'cromo', cromoId: ids[Math.floor(Math.random() * ids.length)] };
+  }
+  return null;
+}
+
+// Elige un regalo del pool del NPC filtrando por la afinidad actual y
+// aplicando el peso de cada opción (los mejores regalos requieren más amistad).
+function pickNpcGift(npcName, friendship) {
+  const pool = NPC_GIFT_POOLS[npcName];
+  if (!Array.isArray(pool) || !pool.length) return null;
+  const eligible = pool.filter(g => NPC_GIFT_CATALOG[g.id] && friendship >= (Number(g.minFriendship) || 0));
+  if (!eligible.length) return null;
+  const total = eligible.reduce((s, g) => s + Math.max(1, Number(g.weight) || 1), 0);
+  let r = Math.random() * total;
+  for (const g of eligible) {
+    r -= Math.max(1, Number(g.weight) || 1);
+    if (r <= 0) return { giftId: g.id, gift: buildGiftFromCatalog(g.id) };
+  }
+  const last = eligible[eligible.length - 1];
+  return { giftId: last.id, gift: buildGiftFromCatalog(last.id) };
+}
+
+// Nota que acompaña el regalo: frase de personalidad (Groq si está activo).
+async function npcLetterMessage(npc, giftId, playerName) {
+  const fallback = npcDefaultLine(npc.username);
+  if (!AI_ENABLED) return fallback;
+  const def = NPC_GIFT_CATALOG[giftId] || {};
+  const giftName = def.label || 'un regalo';
+  const systemPrompt = `Eres ${npc.username}, alumno de Hogwarts del canon de Harry Potter. Escribe una nota BREVE (máximo 25 palabras) en español, cariñosa y coherente con tu personalidad, para acompañar un regalo (${giftName}) que envías por lechuza a tu amigo ${playerName}. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"nota":"..."}`;
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: 90,
+    temperature: 0.9,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: 'Escribe la nota. Devuelve el JSON.' }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const first = raw.indexOf('{'), last = raw.indexOf('}');
+    if (first !== -1 && last !== -1) raw = raw.slice(first, last + 1);
+    const nota = String(JSON.parse(raw).nota || '').trim().slice(0, 240);
+    return nota || fallback;
+  } catch (err) {
+    return fallback;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Genera (una sola vez por año) el saludo de cumpleaños y las cartas de los
-// amigos NPC. Devuelve un resumen para el cliente o null si hoy no toca.
+// amigos NPC (afinidad >= 50). Devuelve un resumen para el cliente o null.
 function grantBirthdayIfDue(state, uid, now = new Date()) {
   const u = state.users.find(x => x.id === uid);
   if (!u || !isBirthdayToday(u, now)) return null;
@@ -1184,18 +1471,71 @@ function grantBirthdayIfDue(state, uid, now = new Date()) {
   friends.forEach((npc, i) => {
     const id = `bday_${uid}_${year}_${npc.id}`;
     if (existing.has(id)) return;
-    const wantsCromo = i % 2 === 1;
-    const gift = wantsCromo
-      ? { type: 'cromo', cromoId: CROMO_IDS[Math.floor(Math.random() * CROMO_IDS.length)] }
-      : { type: 'galeones', amount: 10 };
+    // Regalo especial de cumpleaños: cromo legendario o 50 Galeones.
+    const giftId = NPC_BIRTHDAY_GIFTS[i % NPC_BIRTHDAY_GIFTS.length];
+    const gift = buildGiftFromCatalog(giftId) || { type: 'galeones', amount: 50 };
     state.letters.push({
-      id, from: npc.id, to: uid,
-      message: `¡Feliz cumpleaños! Espero que pases un día mágico. Te mando un pequeño regalo. — ${npc.username}`,
+      id, from: npc.id, to: uid, npc: true,
+      message: `¡Feliz cumpleaños! Espero que pases un día mágico. Te mando un regalo especial. — ${npc.username}`,
       gift, read: false, claimed: false, at: Date.now()
     });
     fromNames.push(npc.username);
   });
   return { galeones: BIRTHDAY_GALEONES, friends: fromNames };
+}
+
+/* ===== MOTOR: cartas espontáneas de NPCs a jugadores reales =====
+   Revisa a los jugadores reales matriculados y, con cierta probabilidad,
+   hace que un NPC amigo (afinidad >= NPC_FRIENDSHIP_MIN) le envíe una carta
+   con un regalo coherente con su personalidad y su nivel de amistad. */
+
+// Cartas de NPC sin leer dirigidas a un jugador (para el aviso al conectarse).
+function pendingNpcLetters(state, uid) {
+  return (Array.isArray(state.letters) ? state.letters : [])
+    .filter(l => Number(l.to) === Number(uid) && l.npc && !l.read);
+}
+// ¿Cuántas cartas de NPC sin reclamar tiene ya el jugador? (evita acumulación)
+function unclaimedNpcLetters(state, uid) {
+  return (Array.isArray(state.letters) ? state.letters : [])
+    .filter(l => Number(l.to) === Number(uid) && l.npc && l.gift && !l.claimed).length;
+}
+// Última carta de NPC recibida (para respetar la separación mínima entre cartas).
+function lastNpcLetterAt(state, uid) {
+  let max = 0;
+  (Array.isArray(state.letters) ? state.letters : []).forEach(l => {
+    if (Number(l.to) === Number(uid) && l.npc) max = Math.max(max, Number(l.at) || 0);
+  });
+  return max;
+}
+
+// Un ciclo del motor: devuelve las cartas creadas (para notificar en tiempo real).
+function runNpcLetterTick(state, now = Date.now()) {
+  const created = [];
+  if (!Array.isArray(state.users)) return created;
+  const realPlayers = state.users.filter(u => !u.is_npc && u.house && u.pass && isEnrolled(state, u));
+
+  for (const player of realPlayers) {
+    if (created.length >= NPC_LETTER_PER_TICK) break;
+    if (Math.random() > NPC_LETTER_CHANCE) continue;
+    if (unclaimedNpcLetters(state, player.id) >= NPC_LETTER_PENDING_CAP) continue;
+    if (now - lastNpcLetterAt(state, player.id) < NPC_LETTER_MIN_GAP_MS) continue;
+
+    // NPCs amigos del jugador con afinidad suficiente y pool disponible.
+    const friends = state.users.filter(npc => {
+      if (!npc.is_npc || npc.id === player.id) return false;
+      if (!NPC_GIFT_POOLS[npc.username]) return false;
+      return friendshipBetween(state, player.id, npc.id) >= NPC_FRIENDSHIP_MIN;
+    });
+    if (!friends.length) continue;
+
+    const npc = friends[Math.floor(Math.random() * friends.length)];
+    const friendship = friendshipBetween(state, player.id, npc.id);
+    const picked = pickNpcGift(npc.username, friendship);
+    if (!picked || !picked.gift) continue;
+
+    created.push({ player, npc, giftId: picked.giftId, gift: picked.gift });
+  }
+  return created;
 }
 
 io.on('connection', async (socket) => {
@@ -1282,6 +1622,24 @@ io.on('connection', async (socket) => {
         }
       } catch (err) {
         console.error('Error procesando el cumpleaños:', err.message);
+      }
+
+      // Aviso de cartas de NPC pendientes (enviadas mientras estaba desconectado).
+      try {
+        const pend = pendingNpcLetters(memoryState, uid);
+        if (pend.length) {
+          const fromIds = [...new Set(pend.map(l => Number(l.from)))];
+          const fromNames = fromIds
+            .map(id => { const u = memoryState.users.find(x => x.id === id); return u ? u.username : null; })
+            .filter(Boolean);
+          io.to('user:' + uid).emit('npc_letters_pending', {
+            count: pend.length,
+            hasGift: pend.some(l => l.gift),
+            fromNames
+          });
+        }
+      } catch (err) {
+        console.error('Error avisando de lechuzas de NPC pendientes:', err.message);
       }
     });
 
@@ -1397,6 +1755,16 @@ io.on('connection', async (socket) => {
             if (count <= 1) delete sender.cromos[gift.cromoId];
             else sender.cromos[gift.cromoId] = { count: count - 1, image: (entry && entry.image) || undefined };
             gift = { type: 'cromo', cromoId: gift.cromoId };
+          } else if (gift.type === 'item') {
+            sender.inv = sender.inv || {};
+            const have = Number(sender.inv[gift.itemId]) || 0;
+            if (have < 1) {
+              socket.emit('letter_error', { message: 'No tienes ese objeto en tu mochila.' });
+              return;
+            }
+            if (have <= 1) delete sender.inv[gift.itemId];
+            else sender.inv[gift.itemId] = have - 1;
+            gift = { type: 'item', itemId: gift.itemId };
           }
         }
 
@@ -1442,6 +1810,11 @@ io.on('connection', async (socket) => {
             const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
             user.cromos[letter.gift.cromoId] = { count: count + 1, image: (entry && entry.image) || undefined };
             granted = { type: 'cromo', cromoId: letter.gift.cromoId };
+          } else if (letter.gift.type === 'item') {
+            // Objetos de regalo: se guardan en la mochila (u.inv) y se usan desde ella.
+            user.inv = user.inv || {};
+            user.inv[letter.gift.itemId] = (Number(user.inv[letter.gift.itemId]) || 0) + 1;
+            granted = { type: 'item', itemId: letter.gift.itemId };
           }
           letter.claimed = true;
         }
@@ -1849,6 +2222,65 @@ setInterval(async () => {
     console.error('Error en turno autónomo de bot:', err.message);
   }
 }, 25000);
+
+// ⬅️ LECHUZAS AUTOMÁTICAS DE NPCs: revisión periódica (30 min por defecto).
+// Se añade una ligera variación (jitter) al primer arranque para repartir la
+// carga y no coincidir con otros procesos periódicos del servidor.
+let npcLetterTickRunning = false;
+async function npcLetterTick() {
+  if (npcLetterTickRunning) return; // evita solapamientos si una pasada tarda
+  npcLetterTickRunning = true;
+  try {
+    const state = memoryState;
+    const created = runNpcLetterTick(state);
+    if (!created.length) return;
+
+    const now = Date.now();
+    state.letters = Array.isArray(state.letters) ? state.letters : [];
+    for (const item of created) {
+      // Nota de personalidad (Groq si está disponible; respaldo local si no).
+      let message;
+      try {
+        message = await npcLetterMessage(item.npc, item.giftId, item.player.username);
+      } catch (e) {
+        message = npcDefaultLine(item.npc.username);
+      }
+      const letter = {
+        id: `npc_${item.npc.id}_${item.player.id}_${now}_${Math.floor(Math.random() * 1000)}`,
+        from: item.npc.id,
+        to: item.player.id,
+        message,
+        gift: item.gift,
+        npc: true,
+        read: false,
+        claimed: false,
+        at: Date.now()
+      };
+      state.letters.push(letter);
+      state.letters = sanitizeLetters(state, state.letters);
+      // Aviso en tiempo real si el jugador está conectado (si no, quedará en espera).
+      io.to('user:' + item.player.id).emit('new_letter', {
+        id: letter.id, from: letter.from, fromName: item.npc.username,
+        hasGift: !!letter.gift, message, npc: true
+      });
+    }
+
+    await saveState(state);
+    io.emit('sync_db', { db: memoryState, reason: null });
+    console.log(`🦉 ${created.length} lechuza(s) automática(s) de NPC enviadas.`);
+  } catch (err) {
+    console.error('Error en el ciclo de lechuzas de NPC:', err.message);
+  } finally {
+    npcLetterTickRunning = false;
+  }
+}
+
+// Primer ciclo con retardo aleatorio (entre 1 y 5 min) y luego cada intervalo fijo.
+const NPC_LETTER_FIRST_DELAY_MS = Number(process.env.NPC_LETTER_FIRST_DELAY_MS) || (60 * 1000 + Math.floor(Math.random() * 4 * 60 * 1000));
+setTimeout(() => {
+  npcLetterTick();
+  setInterval(npcLetterTick, NPC_LETTER_INTERVAL_MS);
+}, NPC_LETTER_FIRST_DELAY_MS);
 
 async function startServer() {
   if (uri) {
