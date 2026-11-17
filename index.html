@@ -1171,6 +1171,10 @@ function ensureDbIntegrity(){
     if (typeof u.animagus_stage === 'undefined') { u.animagus_stage = 0; changed = true; }
     if (typeof u.galeones !== 'number') { u.galeones = 15; changed = true; }
     if (!u.inv || typeof u.inv !== 'object') { u.inv = {}; changed = true; }
+    // Ledger de regalos de lechuza: lo gestiona el servidor; aquí solo se
+    // garantiza su forma para no perderlo al reenviar la db.
+    if (typeof u.letterGrantSeq !== 'number') { u.letterGrantSeq = 0; changed = true; }
+    if (!u.letterGrants || typeof u.letterGrants !== 'object') { u.letterGrants = {}; changed = true; }
     if (!u.cromos || typeof u.cromos !== 'object') { u.cromos = {}; changed = true; }
     Object.keys(u.cromos).forEach(k=>{const v=u.cromos[k];if(typeof v==='number'){u.cromos[k]={count:v};changed=true;}else if(!v||typeof v!=='object'){delete u.cromos[k];changed=true;}else if(typeof v.count!=='number'){v.count=Number(v.count)||0;changed=true;}});
     if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
@@ -1392,11 +1396,27 @@ socket.on('letter_sent',(data)=>{
 socket.on('letter_claimed',(data)=>{
   if(!data||!session.uid) return;
   const g=data.granted;
+  // El servidor es la fuente de verdad de la mochila/saldo: se adopta su
+  // inventario para que un commit posterior no reintroduzca datos obsoletos.
+  const u=me();
+  if(u){
+    if(data.inventory && typeof data.inventory==='object') u.inv={...data.inventory};
+    if(typeof data.galeones==='number') u.galeones=data.galeones;
+    if(typeof data.letterGrantSeq==='number') u.letterGrantSeq=data.letterGrantSeq;
+    if(data.letter && data.letter.id){
+      const l=lettersList().find(x=>String(x.id)===String(data.letter.id));
+      if(l){ l.claimed=!!data.letter.claimed; l.read=!!data.letter.read; }
+    }
+  }
   if(g&&g.type==='galeones') toast(`🎁 ¡Has recibido ${g.amount} Galeones!`);
   else if(g&&g.type==='cromo'){const c=cromoById(g.cromoId);toast(`🎁 ¡Has recibido el cromo ${c?c.nombre:g.cromoId}!`);}
   else if(g&&g.type==='item'){const it=itemDef(g.itemId);toast(`🎁 ¡Has recibido ${it?it.nombre:g.itemId}! Está en tu Mochila.`);}
   updateLettersBadge();
   renderAll();
+  // Refresca la bandeja si está abierta para que la carta deje de mostrar
+  // "Reclamar" (evita que el usuario reenvíe un commit con datos obsoletos).
+  const modal=$('modalRoot');
+  if(modal && !modal.hidden && modal.querySelector('[data-do="claimLetter"]')) openLettersModal();
 });
 socket.on('letter_error',(data)=>{
   if(data&&data.message) toast('✉️ '+data.message);
