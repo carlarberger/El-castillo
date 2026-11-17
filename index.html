@@ -477,6 +477,80 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .soc-req .row{margin-left:auto;gap:6px}
 .soc-tabs-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;font-weight:800}
 .soc-tab.on .soc-tabs-count{background:#1b1405;color:#e3bb4e}
+
+/* ===== EL PROFETA: periódico mágico en papel crema ===== */
+.modal.prophet-modal{background:rgba(20,16,8,.82);backdrop-filter:blur(4px)}
+.modal.prophet-modal .panel{max-width:760px;width:100%;background:transparent;border:none;box-shadow:none;padding:0;display:block;text-align:left}
+.prophet-paper{
+  background:#f4edd8;
+  background-image:radial-gradient(rgba(23,21,18,.05) 1px, transparent 1px),radial-gradient(rgba(23,21,18,.04) 1px, transparent 1px);
+  background-size:14px 14px, 22px 22px;background-position:0 0, 7px 7px;
+  color:#171512;font-family:'Cormorant',Georgia,serif;padding:22px 24px 26px;
+  border:1px solid #cbbf9e;border-radius:6px;box-shadow:0 18px 60px rgba(0,0,0,.55);
+  max-height:86vh;overflow-y:auto;position:relative;
+}
+.prophet-head{text-align:center;border-bottom:3px double #171512;padding-bottom:10px;margin-bottom:14px}
+.prophet-masthead{font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:clamp(34px,8vw,58px);letter-spacing:.02em;line-height:1;margin:0;color:#171512}
+.prophet-tagline{font-family:'Cinzel',Georgia,serif;font-style:italic;text-transform:uppercase;font-size:clamp(10px,2.2vw,13px);letter-spacing:.16em;margin:6px 0 0;color:#3a342b}
+.prophet-rule{border:0;border-top:1px solid #171512;margin:10px 0}
+.prophet-strip{display:flex;justify-content:space-between;gap:12px;font-family:'Cinzel',Georgia,serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;border-top:1px solid #171512;border-bottom:1px solid #171512;padding:5px 2px;color:#171512}
+.prophet-strip .weather{font-style:italic;text-transform:uppercase;font-family:'Cormorant',Georgia,serif;letter-spacing:.06em;font-size:12px}
+.prophet-lead{text-align:center;margin-top:16px}
+.prophet-cat{display:inline-block;background:#8b1e1e;color:#f7f0dc;font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:11px;letter-spacing:.22em;text-transform:uppercase;padding:3px 12px;margin-bottom:10px}
+.prophet-headline{font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:clamp(22px,5vw,38px);line-height:1.06;margin:0;color:#171512;text-transform:uppercase}
+.prophet-sub{font-style:italic;font-size:clamp(15px,3vw,19px);margin:10px 0 6px;color:#3a342b}
+.prophet-byline{font-family:'Cinzel',Georgia,serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#5a5245;border-top:1px solid #cbbf9e;border-bottom:1px solid #cbbf9e;display:inline-block;padding:4px 12px;margin-bottom:10px}
+.prophet-body{text-align:justify;font-size:17px;line-height:1.5;column-gap:26px}
+.prophet-body p{margin:0 0 10px}
+.prophet-dropcap::first-letter{float:left;font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:54px;line-height:.82;padding:4px 8px 0 0;color:#8b1e1e}
+.prophet-section{border-top:1px solid #171512;margin-top:16px;padding-top:12px}
+.prophet-section .s-cat{font-family:'Cinzel',Georgia,serif;font-weight:700;color:#8b1e1e;letter-spacing:.16em;text-transform:uppercase;font-size:11px}
+.prophet-section h4{font-family:'Cinzel',Georgia,serif;font-size:19px;margin:4px 0 2px;color:#171512}
+.prophet-section .s-sub{font-style:italic;color:#5a5245;font-size:15px;margin:0 0 6px}
+.prophet-section p{font-size:15.5px;line-height:1.45;margin:0;text-align:justify}
+.prophet-classified{border:2px dashed #8b1e1e;padding:12px 14px;margin-top:18px;background:rgba(139,30,30,.05)}
+.prophet-classified .c-lock{font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#8b1e1e}
+.prophet-classified .c-title{font-family:'Cinzel',Georgia,serif;font-weight:900;font-size:18px;margin:6px 0 2px;color:#171512}
+.prophet-classified .c-hint{font-style:italic;font-size:14px;color:#5a5245;margin:0 0 8px}
+.prophet-censor{position:relative;margin-top:6px;min-height:34px}
+.prophet-redacted{display:flex;flex-direction:column;gap:6px;transition:opacity .5s ease, filter .5s ease}
+.prophet-redacted.gone{display:none}
+.prophet-bar{height:15px;background:#8b1e1e;border-radius:2px;opacity:.9}
+.prophet-bar.short{width:62%}
+.prophet-secret{font-size:15.5px;line-height:1.5;color:#2a0f0f;background:rgba(255,240,200,.55);border-left:3px solid #8b1e1e;padding:8px 10px;margin:0;opacity:0;transform:translateY(4px)}
+.prophet-secret.revealed{opacity:1;transform:none;transition:opacity .6s ease .1s, transform .6s ease .1s;text-shadow:0 0 10px rgba(227,187,78,.85),0 0 24px rgba(227,187,78,.5)}
+.prophet-notices{margin-top:18px;border:3px double #171512}
+.prophet-notices .n-head{background:#171512;color:#f7f0dc;text-align:center;font-family:'Cinzel',Georgia,serif;font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:12px;padding:6px}
+.prophet-notices .n-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.prophet-notices .n-col{padding:10px 12px}
+.prophet-notices .n-col+.n-col{border-left:1px solid #cbbf9e}
+.prophet-notices .n-item{margin-bottom:8px;font-size:14px;line-height:1.4}
+.prophet-notices .n-item:last-child{margin-bottom:0}
+.prophet-notices .n-item b{font-family:'Cinzel',Georgia,serif;color:#8b1e1e;letter-spacing:.05em}
+.prophet-foot{margin-top:16px;border-top:3px double #171512;padding-top:10px;text-align:center}
+.prophet-foot .f-text{font-family:'Cinzel',Georgia,serif;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#5a5245}
+.prophet-lumos{margin-top:10px;font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:13px;letter-spacing:.12em;background:transparent;color:#8b1e1e;border:2px dotted #8b1e1e;border-radius:6px;padding:8px 16px;cursor:pointer;transition:.2s}
+.prophet-lumos:hover{background:#8b1e1e;color:#f7f0dc;box-shadow:0 0 20px rgba(227,187,78,.6)}
+.prophet-lumos[disabled]{opacity:.55;cursor:default}
+.prophet-loading{font-family:'Cinzel',Georgia,serif;color:#f4edd8;text-align:center;padding:40px 10px;letter-spacing:.08em}
+.prophet-loading .spin{display:inline-block;animation:prophetSpin 1.1s linear infinite}
+@keyframes prophetSpin{to{transform:rotate(360deg)}}
+@media(max-width:560px){.prophet-notices .n-grid{grid-template-columns:1fr}.prophet-notices .n-col+.n-col{border-left:0;border-top:1px solid #cbbf9e}}
+
+/* ===== ACTIVIDADES SOCIALES (Parte B) ===== */
+.social-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-basis:100%;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.social-acts .sa-label{font-size:12px;color:var(--muted);align-self:center}
+.study-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;margin:10px 0}
+.study-card{aspect-ratio:1/1;border:1px solid var(--line);border-radius:12px;background:linear-gradient(160deg,var(--surface-2),var(--surface));color:var(--fg);font-size:26px;display:grid;place-items:center;cursor:pointer;transition:.18s;user-select:none}
+.study-card:hover{border-color:var(--gold)}
+.study-card.flipped{background:linear-gradient(160deg,#3a2f0e,#241d06);border-color:var(--gold);box-shadow:0 0 16px var(--glow)}
+.study-card.matched{background:linear-gradient(160deg,#12351f,#0c2415);border-color:var(--good);cursor:default;opacity:.85}
+.study-card.hidden{color:transparent}
+.quiz-opt{display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);font:inherit;font-size:14px;cursor:pointer;transition:.16s}
+.quiz-opt:hover{border-color:var(--gold);background:#241d06}
+.quiz-opt.ok{border-color:var(--good);background:#12351f}
+.quiz-opt.bad{border-color:var(--bad);background:#351212}
+.quest-card{width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:12px 14px;background:var(--surface-2);display:grid;gap:6px}
 </style>
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
@@ -487,6 +561,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
     <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
     <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
+    <button class="btn sm gold" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">📰 El Profeta</button>
     <button class="btn sm gold" type="button" data-do="openMacroMap" title="Mapa del Mundo: regiones del universo mágico">🗺️ Mapa del Mundo</button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
@@ -2940,6 +3015,7 @@ function openModal(html,wide,cls,overlayCls){
 function closeModal(){
   if(mgClean){mgClean();mgClean=null}
   socialModalOpen=false;
+  quizState=null;studyState=null;
   const m=$('modalRoot');m.hidden=true;m.innerHTML='';
 }
 document.addEventListener('keydown',e=>{
@@ -3173,7 +3249,34 @@ function renderYou(){
     const n=curMin(),nx=daySched(curDay()).find(x=>x.free&&toMin(x.from)>n);
     h+=`<span class="hint" style="margin-left:auto">Puedes moverte por las salas en recreo o modo libre${nx?' (próximo a las '+nx.from+')':''}.</span>`;
   }
+  h+=socialActivitiesBar(u,loc);
   box.innerHTML=h;
+}
+
+// Barra de actividades sociales disponibles según la sala en la que estés.
+// Ninguna impone energía ni tiempos de espera forzados.
+function socialActivitiesBar(u,loc){
+  if(!u||!u.house) return '';
+  const at=loc===userLoc(u);
+  let btns='';
+  if(loc==='tresescobas'&&at){
+    const ok=userYear(u)>=3;
+    btns+=`<button class="btn sm gold" type="button" data-do="openButterbeer" ${ok?'':'disabled'} title="${ok?'Toma una Cerveza de Mantequilla y conversa':'Solo a partir de 3.º curso'}">🍺 Tomar Cerveza de Mantequilla${ok?'':' (3.º curso+)'}</button>`;
+  }
+  if(loc==='comedor'&&at){
+    btns+=`<button class="btn sm gold" type="button" data-do="openFriendQuiz" title="Almuerzo con un cuestionario de amistad sobre el canon">🧠 Cuestionario de Amistad</button>`;
+  }
+  if(loc==='patio'&&at){
+    btns+=`<button class="btn sm gold" type="button" data-do="openGobstones" title="Juega a los Gobstones en el Patio">🔮 Jugar a los Gobstones</button>`;
+  }
+  if(loc==='biblioteca'&&at){
+    btns+=`<button class="btn sm gold" type="button" data-do="openStudyPartner" title="Sesión de estudio en pareja: memoria de runas">📖 Sesión de Estudio en Pareja</button>`;
+  }
+  if(u.house&&loc===u.house&&at){
+    btns+=`<button class="btn sm gold" type="button" data-do="openQuestBoard" title="Tablón de encargos de la Sala Común">📋 Tablón de Encargos</button>`;
+  }
+  if(!btns) return '';
+  return `<div class="social-acts"><span class="sa-label">Actividades sociales:</span>${btns}</div>`;
 }
 function renderSchedule(){
   const day=curDay(),n=curMin();
@@ -6717,6 +6820,536 @@ async function listenGossip() {
   }
 }
 
+/* ===== EL PROFETA: PERIÓDICO EDITORIAL (cliente) ===== */
+let prophetIssue=null;      // última edición recibida
+let lumosUsed=false;        // la recompensa de Sabiduría se da una vez por sesión
+
+// Reúne la "foto" actual del castillo para que el editorial hable de lo que pasa.
+function prophetPayload(){
+  const houses=[...db.houses].sort((a,b)=>b.points-a.points);
+  const lead=houses[0]||{id:'gryffindor',points:0};
+  const leadName=HOUSE(lead.id)?HOUSE(lead.id).name:'Gryffindor';
+  const playerNames=db.users.filter(u=>isEnrolled(u)).sort((a,b)=>b.points-a.points).slice(0,8).map(u=>u.username);
+  const couples=(db.officialCouples||[]).map(c=>(c.members||[]).map(id=>{const x=db.users.find(u=>u.id===id);return x?x.username:''}).filter(Boolean).join(' y ')).filter(Boolean);
+  return {
+    year:Number(db.schoolYear)||1,
+    leadingHouse:leadName,
+    leadingPoints:Number(lead.points)||0,
+    housesSummary:houses.map(h=>({name:HOUSE(h.id)?HOUSE(h.id).name:h.id,points:Number(h.points)||0})),
+    recentLogs:(db.log||[]).slice(0,8).map(l=>({u:l.u,a:l.a,p:l.p})),
+    playerNames,
+    couples
+  };
+}
+
+async function openProphetModal(){
+  openModal(`<div class="prophet-loading"><span class="spin">🪄</span><br>El Profeta está imprimiendo la edición de hoy…</div>`,true,'','prophet-modal');
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/daily-prophet`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(prophetPayload())
+    });
+    const data=await res.json();
+    prophetIssue=(data&&data.issue)||null;
+    if(!prophetIssue) throw new Error('sin edición');
+  }catch(err){
+    prophetIssue=null;
+  }
+  if(!prophetIssue){
+    openModal(`<div class="prophet-paper"><p style="text-align:center">📰 El Profeta no ha podido imprimirse hoy. Inténtalo de nuevo en unos minutos.</p>
+      <div style="text-align:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div></div>`,true,'','prophet-modal');
+    return;
+  }
+  renderProphetModal();
+}
+
+function renderProphetModal(){
+  const p=prophetIssue; if(!p) return;
+  const secs=(p.sections||[]).map(s=>`<div class="prophet-section">
+      <span class="s-cat">${esc(s.category||'HOGWARTS')}</span>
+      <h4>${esc(s.title||'')}</h4>
+      ${s.subtitle?`<p class="s-sub">${esc(s.subtitle)}</p>`:''}
+      <p>${esc(s.text||'')}</p>
+    </div>`).join('');
+  const paras=(p.lead.paragraphs||[]).map((t,i)=>`<p class="${i===0?'prophet-dropcap':''}">${esc(t)}</p>`).join('');
+  const notices=(p.notices||[]);
+  const half=Math.ceil(notices.length/2);
+  const col=(arr)=>arr.map(n=>`<div class="n-item"><b>${esc(n.title||'')}</b> ${esc(n.text||'')}</div>`).join('');
+  const cl=p.classified||{};
+  openModal(`<div class="prophet-paper">
+    <header class="prophet-head">
+      <h2 class="prophet-masthead">${esc(p.masthead||'El Profeta')}</h2>
+      <p class="prophet-tagline">${esc(p.tagline||'EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO')}</p>
+    </header>
+    <div class="prophet-strip"><span>${esc(p.dateline||'LONDRES — 2026')}</span><span class="weather">${esc(p.weather||'')}</span></div>
+    <section class="prophet-lead">
+      <span class="prophet-cat">${esc(p.lead.category||'NOTICIA')}</span>
+      <h3 class="prophet-headline">${esc(p.lead.headline||'')}</h3>
+      ${p.lead.subheadline?`<p class="prophet-sub">${esc(p.lead.subheadline)}</p>`:''}
+      <div><span class="prophet-byline">${esc(p.lead.byline||'POR EL EQUIPO DE REDACCIÓN DE EL PROFETA')}</span></div>
+      <div class="prophet-body">${paras}</div>
+    </section>
+    ${secs}
+    <section class="prophet-classified">
+      <span class="c-lock">🔒 ${esc(cl.title||'INFORME SELLADO POR EL MINISTERIO')}</span>
+      <p class="c-title">${esc(cl.category||'MINISTERIO · CLASIFICADO')} · <span style="color:#8b1e1e">CENSURADO</span></p>
+      <p class="c-hint">${esc(cl.hint||'')}</p>
+      <div class="prophet-censor" id="prophetCensor">
+        <div class="prophet-redacted" id="prophetRedacted">
+          <span class="prophet-bar"></span><span class="prophet-bar"></span><span class="prophet-bar short"></span>
+        </div>
+        <p class="prophet-secret" id="prophetSecret">${esc(cl.secretText||'')}</p>
+      </div>
+    </section>
+    <section class="prophet-notices">
+      <div class="n-head">${esc(p.noticesTitle||'AVISOS Y ANUNCIOS CLASIFICADOS')}</div>
+      <div class="n-grid">
+        <div class="n-col">${col(notices.slice(0,half))}</div>
+        <div class="n-col">${col(notices.slice(half))}</div>
+      </div>
+    </section>
+    <footer class="prophet-foot">
+      <p class="f-text">${esc(p.footer||'ENVIAR LECHUZAS A: EL PROFETA, CALLEJÓN DIAGON, LONDRES')}</p>
+      <button class="prophet-lumos" type="button" data-do="lumosReveal" id="lumosBtn">🪄 LUMOS</button>
+      <div style="margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar el periódico</button></div>
+    </footer>
+  </div>`,true,'','prophet-modal');
+  if(lumosUsed) applyLumosReveal(false);
+}
+
+// Disipa la censura con una transición luminosa. La primera vez en la sesión
+// otorga +2 de Sabiduría al personaje del jugador.
+function applyLumosReveal(award){
+  const red=$('prophetRedacted'),secret=$('prophetSecret'),btn=$('lumosBtn');
+  if(red) red.classList.add('gone');
+  if(secret) secret.classList.add('revealed');
+  if(btn){btn.disabled=true;btn.textContent='🪄 ¡LUMOS!';}
+  if(award){
+    const u=me();
+    if(u&&u.house){
+      u.attrSabiduria=(Number(u.attrSabiduria)||0)+2;
+      commit(`${u.username} reveló un informe clasificado con LUMOS`);
+      toast('🪄 ¡LUMOS! +2 de Sabiduría al revelar el informe del Ministerio');
+    }else{
+      toast('🪄 ¡LUMOS! El informe sellado se revela ante ti');
+    }
+  }
+}
+
+function lumosReveal(){
+  if(lumosUsed){ applyLumosReveal(false); return; }
+  lumosUsed=true;
+  chime();
+  applyLumosReveal(true);
+}
+
+/* ===== PARTE B: ACTIVIDADES SOCIALES (estilo Hogwarts Mystery, sin energía) ===== */
+let quizState=null;  // cuestionario canon activo (Cerveza de Mantequilla / Amistad)
+
+// Helpers compartidos -------------------------------------------------------
+// Personajes con los que puedo interactuar: NPC canon + jugadores reales
+// matriculados que estén en la misma sala que yo (o todos si no paso sala).
+function socialPartners(u,roomId){
+  if(!u||!u.house) return [];
+  return db.users.filter(x=>{
+    if(Number(x.id)===Number(u.id)) return false;
+    if(!x.house||!isEnrolled(x)) return false;
+    if(roomId&&userLoc(x)!==roomId) return false;
+    return true;
+  });
+}
+function bumpFriendship(u,target,gain){
+  db.relations=db.relations||{};
+  const r=getRel(u.id,target.id);
+  r.friendshipScore=Math.min(100,(Number(r.friendshipScore)||0)+gain);
+  db.relations[relKey(u.id,target.id)]=r;
+  if(target.is_npc) checkFriendshipUnlock(target);
+  return r;
+}
+function grantHousePoints(u,pts,label){
+  u.points=(Number(u.points)||0)+pts;
+  const h=db.houses.find(x=>x.id===u.house); if(h) h.points+=pts;
+  db.log.unshift({u:u.username,h:u.house,a:label,p:pts,x:0});
+  db.log.length=Math.min(db.log.length,15);
+}
+function pushGlobalChat(text,who,house,role){
+  db.chat.push({id:Date.now(),u:who||'✨ El Castillo',h:house||'',role:role||'student',ch:'global',text:text,time:curTime()});
+  if(db.chat.length>60) db.chat.shift();
+}
+// Pide un cuestionario canon al backend (con respaldo local en el servidor).
+async function fetchCanonQuiz(npcName,mode,extra){
+  const body=Object.assign({npcName:npcName,mode:mode,year:Number(db.schoolYear)||1},extra||{});
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/canon-quiz`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await res.json();
+    if(data&&Array.isArray(data.questions)&&data.questions.length) return data.questions.slice(0,3);
+  }catch(err){ /* sin conexión: usamos banco local del cliente */ }
+  return clientCanonQuiz(npcName);
+}
+// Banco de preguntas local mínimo por si el backend no responde.
+const CLIENT_CANON_QUIZ=[
+  {q:'¿Cuántas casas tiene Hogwarts?',options:['Cuatro','Tres','Cinco'],correctIndex:0},
+  {q:'¿Cómo se llama el castillo de la escuela?',options:['Hogwarts','Beauxbatons','Durmstrang'],correctIndex:0},
+  {q:'¿Qué criatura lleva el correo en el castillo?',options:['Las lechuzas','Los gatos','Los sapos'],correctIndex:0},
+  {q:'¿Qué asignatura enseña Pociones?',options:['El profesor Snape','El profesor Flitwick','La profesora Sprout'],correctIndex:0},
+  {q:'¿Qué deporte se juega en escobas?',options:['Quidditch','Gobstones','Ajedrez mágico'],correctIndex:0},
+  {q:'¿Dónde compran los alumnos sus varitas?',options:['Ollivanders','Honeydukes','Zonko'],correctIndex:0}
+];
+function clientCanonQuiz(){
+  const pool=shuffleArray(CLIENT_CANON_QUIZ);
+  return pool.slice(0,3).map(it=>{
+    const pairs=it.options.map((opt,idx)=>({opt,ok:idx===it.correctIndex}));
+    const mixed=shuffleArray(pairs);
+    return {q:it.q,options:mixed.map(p=>p.opt),correctIndex:mixed.findIndex(p=>p.ok)};
+  });
+}
+// Selector genérico de compañero para las actividades sociales.
+function partnerPickerHTML(partners,doAction){
+  if(!partners.length) return `<p class="muted" style="text-align:center">No hay nadie más aquí ahora mismo. Prueba cuando haya otro alumno o NPC en la sala.</p>`;
+  return `<div class="grid g2" style="width:100%">${partners.slice(0,8).map(p=>`
+    <button class="box" style="cursor:pointer;display:flex;align-items:center;gap:10px;text-align:left" type="button" data-do="${doAction}" data-id="${p.id}">
+      ${av(p,32)}<div><strong>${esc(p.username)}</strong><br><span class="muted" style="font-size:12px">${p.is_npc?'Alumno canon':'Jugador'} · ${userYear(p)}.º · ${esc(roomName(userLoc(p)))}</span></div>
+    </button>`).join('')}</div>`;
+}
+// Renderiza una pregunta del cuestionario y gestiona la respuesta.
+function renderQuizModal(cfg){
+  const st=cfg;const q=st.questions[st.index];
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">${st.icon} ${esc(st.title)} · ${esc(st.partnerName)}</span>
+    <p class="muted" style="font-size:12px;margin:6px 0">Pregunta ${st.index+1}/3 · aciertos: ${st.correct}</p>
+    <h3 style="font-size:18px;color:var(--gold);margin:4px 0 10px">${esc(q.q)}</h3>
+    ${q.options.map((o,i)=>`<button class="quiz-opt" type="button" data-do="quizAnswer" data-i="${i}">${esc(o)}</button>`).join('')}
+  </div>`,true);
+}
+function answerQuiz(i){
+  const st=quizState;if(!st)return;
+  const q=st.questions[st.index];
+  if(st.locked) return;
+  st.locked=true;
+  const correct=i===q.correctIndex;
+  if(correct) st.correct++;
+  const opts=document.querySelectorAll('.quiz-opt');
+  opts.forEach((b,idx)=>{ if(idx===q.correctIndex) b.classList.add('ok'); else if(idx===i) b.classList.add('bad'); });
+  (correct?chime:buzzSnd)();
+  setTimeout(()=>{
+    st.locked=false; st.index++;
+    if(st.index>=st.questions.length){ finishQuiz(); }
+    else renderQuizModal(st);
+  },650);
+}
+function finishQuiz(){
+  const st=quizState;if(!st)return;
+  quizState=null;
+  const u=me(),t=db.users.find(x=>x.id===Number(st.partnerId));
+  if(!u||!t){ closeModal(); return; }
+  const perfect=st.correct>=3;
+  const friendGain=st.friendGain(perfect);
+  const pts=st.pointsGain?st.pointsGain(perfect):0;
+  bumpFriendship(u,t,friendGain);
+  if(pts) grantHousePoints(u,pts,st.logLabel);
+  if(st.chatLine){ pushGlobalChat(st.chatLine(u,t,perfect),u.username,u.house,u.role); }
+  commit(st.logLabel);
+  (perfect?fanfare:chime)();
+  openModal(`<div style="width:100%;text-align:center">
+    <span class="pill gold">${st.icon} ${esc(st.title)}</span>
+    <h3 style="font-size:20px;color:var(--gold);margin:8px 0">${perfect?'¡Perfecto!':st.correct>=1?'Buen intento':'Otra vez será'}</h3>
+    <p class="muted">${st.correct}/3 respuestas correctas con ${esc(st.partnerName)}.</p>
+    <p style="font-weight:700;color:var(--gold)">+${friendGain} amistad${pts?` · +${pts} pts para ${HOUSE(u.house).name}`:''}</p>
+    ${st.finalNote?`<p class="muted" style="font-size:13px;font-style:italic">${esc(st.finalNote(u,t,perfect))}</p>`:''}
+    <div class="row" style="justify-content:center;margin-top:8px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+
+// B1 — Cerveza de Mantequilla en Las Tres Escobas (3.er curso+) --------------
+function openButterbeerModal(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(userLoc(u)==='tresescobas','Debes estar en Las Tres Escobas');
+  must(userYear(u)>=3,'La Cerveza de Mantequilla es solo para alumnos de 3.º curso o mayores');
+  const partners=socialPartners(u,'tresescobas');
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">🍺 Las Tres Escobas</span>
+    <h3 style="font-size:20px;color:var(--gold)">Cerveza de Mantequilla</h3>
+    <p class="muted" style="font-size:13px">Elige con quién compartir una jarra caliente y demuéstrale cuánto sabes de su historia.</p>
+    ${partnerPickerHTML(partners,'butterbeerPick')}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+async function startButterbeer(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const t=db.users.find(x=>x.id===Number(npcId));must(t,'Alumno no encontrado');
+  must(userLoc(u)==='tresescobas'&&userLoc(t)==='tresescobas','Debéis estar juntos en Las Tres Escobas');
+  toast('🍺 Pidiendo dos jarras de Cerveza de Mantequilla…');
+  const questions=await fetchCanonQuiz(t.username,'butterbeer',{house:t.house,trait:t.npc_trait});
+  quizState={
+    icon:'🍺',title:'Cerveza de Mantequilla',partnerId:t.id,partnerName:t.username,
+    questions,index:0,correct:0,locked:false,
+    friendGain:(perfect)=>perfect?15:7,
+    pointsGain:null,logLabel:`${u.username} tomó una Cerveza de Mantequilla con ${t.username}`,
+    chatLine:(uu,tt,perfect)=>perfect
+      ? `🍺 ${tt.username} y ${uu.username} brindaron en Las Tres Escobas: «¡Nadie conoce a ${tt.username} como ${uu.username}!»`
+      : `🍺 ${tt.username} y ${uu.username} compartieron una Cerveza de Mantequilla en Las Tres Escobas.`,
+    finalNote:(uu,tt,perfect)=>perfect?`${tt.username} te considera ya un buen amigo.`:`${tt.username} sonríe: «La próxima ronda, tu turno».`
+  };
+  renderQuizModal(quizState);
+}
+
+// B2 — Almuerzo con Cuestionario de Amistad (Gran Comedor) ------------------
+function openFriendQuizModal(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(userLoc(u)==='comedor','Debes estar en el Gran Comedor');
+  const partners=socialPartners(u,'comedor');
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">🧠 Gran Comedor</span>
+    <h3 style="font-size:20px;color:var(--gold)">Cuestionario de Amistad</h3>
+    <p class="muted" style="font-size:13px">Comparte mesa y responde 3 preguntas canon sobre su casa, varita, familia o mascota. Acertar las 3 suma puntos para tu casa.</p>
+    ${partnerPickerHTML(partners,'friendQuizPick')}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+async function startFriendQuiz(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const t=db.users.find(x=>x.id===Number(npcId));must(t,'Alumno no encontrado');
+  must(userLoc(u)==='comedor'&&userLoc(t)==='comedor','Debéis estar juntos en el Gran Comedor');
+  toast('🧠 Poniendo a prueba lo que sabes de tu amigo…');
+  const questions=await fetchCanonQuiz(t.username,'lunch',{house:t.house,trait:t.npc_trait});
+  quizState={
+    icon:'🧠',title:'Cuestionario de Amistad',partnerId:t.id,partnerName:t.username,
+    questions,index:0,correct:0,locked:false,
+    friendGain:(perfect)=>perfect?12:6,
+    pointsGain:(perfect)=>perfect?5:0,logLabel:`${u.username} almorzó con ${t.username} en el Gran Comedor`,
+    finalNote:(uu,tt,perfect)=>perfect?`¡Conoces a ${tt.username} de memoria!`:`${tt.username} te cuenta algunos detalles para la próxima.`
+  };
+  renderQuizModal(quizState);
+}
+
+// B3 — Partidas de Gobstones en el Patio (Canvas, 20 s) ---------------------
+function openGobstonesModal(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(userLoc(u)==='patio','Debes estar en el Patio');
+  const partners=socialPartners(u,'patio');
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">🔮 Patio del Castillo</span>
+    <h3 style="font-size:20px;color:var(--gold)">Gobstones</h3>
+    <p class="muted" style="font-size:13px">Apunta y lanza canicas mágicas para sacar las 3 canicas del rival fuera del círculo… ¡sin caer en los charcos fétidos!</p>
+    ${partnerPickerHTML(partners,'gobstonesPick')}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function startGobstones(npcId){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const t=db.users.find(x=>x.id===Number(npcId));must(t,'Alumno no encontrado');
+  must(userLoc(u)==='patio'&&userLoc(t)==='patio','Debéis estar juntos en el Patio');
+  openCanvasModal('🔮 Partidas de Gobstones',
+    `Saca las 3 canicas de ${t.username} del círculo antes de 20 segundos. Cuidado con los charcos fétidos.`,
+    'Toca o haz clic para lanzar tu canica hacia el punto señalado.', false);
+  const center={x:400,y:200,r:120};
+  const puddles=[{x:250,y:120,r:34},{x:560,y:300,r:38},{x:430,y:330,r:30},{x:320,y:300,r:26}];
+  let enemy=[],mine=[],score=0,startTime=Date.now(),duration=20000,shots=0,fouls=0,done=false;
+  const spawnEnemy=()=>{ enemy=[{x:center.x-30,y:center.y-20,r:12},{x:center.x+24,y:center.y+6,r:12},{x:center.x-4,y:center.y+34,r:12}]; };
+  spawnEnemy(); mine=[{x:120,y:340,r:12}];
+  mgClickHandler=(mx,my)=>{
+    if(!mgActive) return;
+    shots++;
+    tone([520,720],'sine',.03,.1,.07);
+    // Si apuntas a un charco, la canica se pierde.
+    const inPuddle=puddles.some(p=>Math.hypot(mx-p.x,my-p.y)<=p.r);
+    if(inPuddle){ fouls++; toast('🤢 ¡Canica perdida en un charco fétido!'); tone([180,120],'sawtooth',.05,.18,.08); return; }
+    // Impacta en la canica enemiga más cercana al punto pulsado.
+    let hit=-1,best=1e9;
+    enemy.forEach((e,i)=>{const d=Math.hypot(mx-e.x,my-e.y); if(d<best){best=d;hit=i;}});
+    if(hit>=0&&best<=46){
+      const e=enemy[hit];
+      const dir=Math.atan2(e.y-center.y,e.x-center.x);
+      e.x=center.x+Math.cos(dir)*(center.r+40);
+      e.y=center.y+Math.sin(dir)*(center.r+40);
+      e.out=true; score++;
+      chime();
+      if(score>=3){ done=true; awardGobstones(t,score); return; }
+    }
+  };
+  function loop(){
+    if(!mgActive||done) return;
+    const rem=Math.max(0,duration-(Date.now()-startTime));
+    if(rem<=0){ done=true; awardGobstones(t,score); return; }
+    ctx.clearRect(0,0,800,400);
+    ctx.fillStyle='#14122e';ctx.fillRect(0,0,800,400);
+    // Círculo de juego
+    ctx.strokeStyle='rgba(227,187,78,.6)';ctx.lineWidth=4;
+    ctx.beginPath();ctx.arc(center.x,center.y,center.r,0,Math.PI*2);ctx.stroke();
+    // Charcos fétidos
+    puddles.forEach(p=>{ctx.fillStyle='rgba(90,140,60,.55)';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#bfe08a';ctx.font='16px sans-serif';ctx.fillText('🤢',p.x-8,p.y+6);});
+    // Canicas enemigas
+    enemy.forEach(e=>{ctx.fillStyle=e.out?'rgba(120,120,140,.5)':'#c43b34';ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();});
+    // Mi canica
+    mine.forEach(m=>{ctx.fillStyle='#4a6ee0';ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#dbe4ff';ctx.stroke();});
+    $('mgCanvasHud').textContent=`🔮 Fuera: ${score}/3 · ⏱️ ${(rem/1000).toFixed(1)} s · Lanzamientos: ${shots}`;
+    gameLoop=requestAnimationFrame(loop);
+  }
+  loop();
+}
+function awardGobstones(t,score){
+  const u=me();
+  if(!u||!u.house){ closeMinigame(); return; }
+  const won=Number(score)>=3;
+  if(won){
+    u.galeones=(Number(u.galeones)||0)+10;
+    bumpFriendship(u,t,8);
+    grantHousePoints(u,5,'Gobstones en el Patio');
+    pushGlobalChat(`🔮 ${u.username} ganó una partida de Gobstones a ${t.username} en el Patio.`,u.username,u.house,u.role);
+    commit(`${u.username} ganó a los Gobstones (+10 galeones)`);
+    fanfare();
+    toast('🔮 ¡Victoria! +10 Galeones, +8 amistad y +5 pts para tu casa');
+  }else{
+    bumpFriendship(u,t,3);
+    commit(`${u.username} jugó a los Gobstones con ${t.username}`);
+    toast(`🔮 Se acabó el tiempo (${score}/3). Consigues +3 de amistad igualmente`);
+  }
+  closeMinigame();
+}
+
+// B4 — Tablón de Encargos Infinitos en la Sala Común -----------------------
+const QUEST_TEMPLATES=[
+  {task:'Lleva una poción a la Enfermería',from:'Sala de Pociones',to:'enfermeria'},
+  {task:'Entrega un pergamino en la Lechucería',from:'Biblioteca',to:'lechuceria'},
+  {task:'Recoge díctamo en los Invernaderos',from:'Herbología',to:'invernaderos'},
+  {task:'Lleva las cartas al Gran Comedor',from:'Lechucería',to:'comedor'},
+  {task:'Devuelve los libros a la Biblioteca',from:'Encantamientos',to:'biblioteca'},
+  {task:'Repara una armadura en la Gran Escalera',from:'Sala de Profesores',to:'escalera'},
+  {task:'Entrega muestras a la Torre de Astronomía',from:'Pociones',to:'astronomia'},
+  {task:'Lleva una lechuza herida a la Cabaña de Hagrid',from:'Lechucería',to:'cabana'}
+];
+function questStorage(u){
+  u.quests=Array.isArray(u.quests)?u.quests:[];
+  return u.quests;
+}
+function openQuestBoardModal(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(userLoc(u)===u.house,'Debes estar en tu Sala Común');
+  const active=questStorage(u).find(q=>q&&!q.done);
+  let body;
+  if(active){
+    const here=userLoc(u)===active.to;
+    body=`<div class="quest-card">
+      <strong style="color:var(--gold)">📋 ${esc(active.task)}</strong>
+      <span class="muted" style="font-size:13px">Origen: ${esc(active.from)} · Destino: ${esc(roomName(active.to))}</span>
+      <span class="hint" style="font-size:12px">${here?'¡Estás en el destino! Pulsa para entregar.':'Viaja a '+esc(roomName(active.to))+' para entregar el encargo.'}</span>
+      <button class="btn sm gold" type="button" data-do="deliverQuest" ${here?'':'disabled'}>✅ Entregar encargo (+8 Galeones, +5 pts)</button>
+    </div>`;
+  }else{
+    body=`<p class="muted" style="font-size:13px;text-align:left">No tienes encargos activos. Pide uno nuevo y ve a la sala indicada para entregarlo. Recompensa: <b>+8 Galeones</b> y <b>+5 pts</b> para tu casa.</p>
+      <div class="row" style="justify-content:center"><button class="btn sm gold" type="button" data-do="newQuest">📋 Pedir un encargo</button></div>`;
+  }
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">📋 Sala Común · ${HOUSE(u.house).name}</span>
+    <h3 style="font-size:20px;color:var(--gold)">Tablón de Encargos</h3>
+    ${body}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function newQuest(){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const q=shuffleArray(QUEST_TEMPLATES)[0];
+  const list=questStorage(u).filter(x=>x&&x.done);
+  list.push({id:Date.now(),task:q.task,from:q.from,to:q.to,done:false});
+  u.quests=list.slice(-3);
+  commit(`${u.username} aceptó un encargo: ${q.task}`);
+  toast(`📋 Nuevo encargo: ${q.task} → ${roomName(q.to)}`);
+  openQuestBoardModal();
+}
+function deliverQuest(){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const active=questStorage(u).find(q=>q&&!q.done);
+  must(active,'No tienes encargos activos');
+  must(userLoc(u)===active.to,`Ve a ${roomName(active.to)} para entregar el encargo`);
+  active.done=true;
+  u.galeones=(Number(u.galeones)||0)+8;
+  grantHousePoints(u,5,'Encargo entregado');
+  pushGlobalChat(`📋 ${u.username} completó un encargo: ${active.task}.`,u.username,u.house,u.role);
+  commit(`${u.username} entregó un encargo (+8 galeones)`);
+  fanfare();
+  openModal(`<div style="width:100%;text-align:center">
+    <span class="pill gold">📋 Encargo completado</span>
+    <h3 style="font-size:20px;color:var(--gold);margin:8px 0">¡Entrega realizada!</h3>
+    <p class="muted">${esc(active.task)} → ${esc(roomName(active.to))}</p>
+    <p style="font-weight:700;color:var(--gold)">+8 Galeones · +5 pts para ${HOUSE(u.house).name}</p>
+    <div class="row" style="justify-content:center;margin-top:8px"><button class="btn sm gold" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+
+// B5 — Estudio Cooperativo en la Biblioteca (memoria 6 parejas) -------------
+const STUDY_PAIRS=['🔮','🌿','🪶','🧪','📜','✨'];
+let studyState=null;
+function openStudyPartnerModal(){
+  const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
+  must(userLoc(u)==='biblioteca','Debes estar en la Biblioteca');
+  const partners=socialPartners(u,'biblioteca');
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">📖 Biblioteca de Hogwarts</span>
+    <h3 style="font-size:20px;color:var(--gold)">Sesión de Estudio en Pareja</h3>
+    <p class="muted" style="font-size:13px">Empareja las 6 runas e ingredientes de memoria junto a un compañero. Completarlo otorga <b>+4 Sabiduría</b> (x2) y <b>+10 amistad</b>.</p>
+    ${partnerPickerHTML(partners,'studyPick')}
+    <div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function startStudySession(partnerId){
+  const u=me();must(u&&u.house,'Inicia sesión primero');
+  const t=db.users.find(x=>x.id===Number(partnerId));must(t,'Alumno no encontrado');
+  must(userLoc(u)==='biblioteca'&&userLoc(t)==='biblioteca','Debéis estar juntos en la Biblioteca');
+  const deck=shuffleArray(STUDY_PAIRS.concat(STUDY_PAIRS)).map((sym,i)=>({i,sym,flipped:false,matched:false}));
+  studyState={partnerId:t.id,partnerName:t.username,deck,flipped:[],matched:0,locked:false};
+  renderStudyModal();
+}
+function renderStudyModal(){
+  const st=studyState;if(!st)return;
+  openModal(`<div style="width:100%;text-align:center">
+    <span class="pill gold">📖 Estudio en pareja con ${esc(st.partnerName)}</span>
+    <p class="muted" style="font-size:13px;margin:8px 0">Encuentra las 6 parejas de runas e ingredientes · Parejas: ${st.matched}/6</p>
+    <div class="study-grid">
+      ${st.deck.map(c=>`<button class="study-card ${c.flipped||c.matched?'flipped':''} ${c.matched?'matched':''}" type="button" data-do="studyFlip" data-i="${c.i}" ${c.matched?'disabled':''}>${c.flipped||c.matched?c.sym:'❔'}</button>`).join('')}
+    </div>
+    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+  </div>`,true);
+}
+function studyFlip(i){
+  const st=studyState;if(!st||st.locked)return;
+  const c=st.deck.find(x=>x.i===Number(i));
+  if(!c||c.flipped||c.matched) return;
+  c.flipped=true; st.flipped.push(c); tone([600],'sine',0,.05,.05);
+  if(st.flipped.length===2){
+    const [a,b]=st.flipped;
+    if(a.sym===b.sym){
+      a.matched=b.matched=true; st.matched++; st.flipped=[];
+      chime();
+      if(st.matched>=6){ finishStudy(); return; }
+      renderStudyModal();
+    }else{
+      st.locked=true;
+      setTimeout(()=>{ a.flipped=b.flipped=false; st.flipped=[]; st.locked=false; renderStudyModal(); },700);
+      return;
+    }
+  }else{
+    renderStudyModal();
+  }
+}
+function finishStudy(){
+  const st=studyState;if(!st)return;
+  studyState=null;
+  const u=me(),t=db.users.find(x=>x.id===Number(st.partnerId));
+  if(!u||!t){ closeModal(); return; }
+  u.attrSabiduria=(Number(u.attrSabiduria)||0)+4;
+  bumpFriendship(u,t,10);
+  pushGlobalChat(`📖 ${u.username} y ${t.username} estudiaron juntos en la Biblioteca.`,u.username,u.house,u.role);
+  commit(`${u.username} estudió en pareja con ${t.username}`);
+  fanfare();
+  openModal(`<div style="width:100%;text-align:center">
+    <span class="pill gold">📖 Biblioteca</span>
+    <h3 style="font-size:20px;color:var(--gold);margin:8px 0">¡Memoria impecable!</h3>
+    <p class="muted">Completaste las 6 parejas junto a ${esc(t.username)}.</p>
+    <p style="font-weight:700;color:var(--gold)">+4 Sabiduría (x2) · +10 amistad</p>
+    <div class="row" style="justify-content:center;margin-top:8px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+
 /* ===== 4. CUMPLEAÑOS ===== */
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 function birthdayLabel(u) {
@@ -7713,6 +8346,21 @@ document.addEventListener('click',e=>{
     case 'sneak':API.sneak();break;
     case 'openMerlin':startMerlinTrial(d.id);break;
     case 'openMacroMap':openMacroMapModal();break;
+    case 'openProphet':openProphetModal();break;
+    case 'lumosReveal':lumosReveal();break;
+    case 'openButterbeer':openButterbeerModal();break;
+    case 'butterbeerPick':startButterbeer(Number(d.id));break;
+    case 'openFriendQuiz':openFriendQuizModal();break;
+    case 'friendQuizPick':startFriendQuiz(Number(d.id));break;
+    case 'openGobstones':openGobstonesModal();break;
+    case 'gobstonesPick':startGobstones(Number(d.id));break;
+    case 'openQuestBoard':openQuestBoardModal();break;
+    case 'newQuest':newQuest();break;
+    case 'deliverQuest':deliverQuest();break;
+    case 'openStudyPartner':openStudyPartnerModal();break;
+    case 'studyPick':startStudySession(Number(d.id));break;
+    case 'studyFlip':studyFlip(d.i);break;
+    case 'quizAnswer':answerQuiz(Number(d.i));break;
     case 'closeMacroMap':closeMacroMapModal();break;
     case 'openMacroRegion':enterMacroRegion(d.id);break;
     case 'buyMacroItem':buyMacroItem(d.shop,d.id);break;
