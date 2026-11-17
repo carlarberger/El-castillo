@@ -2557,6 +2557,21 @@ const API={
     if(d.quidditch) npc.npc_path='quidditch';
     db.users.push(npc);chime();commit(`Nuevo NPC: ${name}`);toast(`NPC ${name} creado.`);
   },
+  editNpc(npcId, data){
+    must(session.isAdmin,'Solo admin');
+    const npc=db.users.find(u=>u.id===Number(npcId));must(npc&&npc.is_npc,'NPC no encontrado');
+    const name=cleanName(data.username);must(name,'Escribe un nombre para el NPC');
+    must(!db.users.some(u=>u.id!==npc.id&&u.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
+    npc.username=name;
+    if(data.house&&HOUSE(data.house)) npc.house=data.house;
+    if(typeof data.npc_trait==='string') npc.npc_trait=data.npc_trait.trim().slice(0,80)||npc.npc_trait;
+    if(data.points!=null){const pts=Math.max(0,Math.round(Number(data.points)||0));npc.points=pts;}
+    npc.look=lookOf(data);
+    if(data.gender) npc.gender=normGender(data.gender);
+    commit('Admin editó al NPC: ' + npc.username);
+    closeModal();
+    toast(`NPC ${npc.username} actualizado.`);
+  },
   awardGaleones(id,amt){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.galeones=Math.max(0,(t.galeones||0)+amt); commit(`Admin dio ${amt} 🪙 a ${t.username}`); },
   toggleQuidditch(id){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.quidditch_approved=!t.quidditch_approved; if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved&&!t.flight_xp)t.flight_xp=15;} commit(`${t.username} Quidditch: ${t.quidditch_approved}`); },
   deleteUser(id){ must(session.isAdmin,'Solo admin'); const idx=db.users.findIndex(u=>u.id===id); must(idx!==-1,'No encontrado'); const nm=db.users[idx].username; db.users.splice(idx,1); commit(`Eliminado ${nm}`); },
@@ -3078,7 +3093,7 @@ function renderAdmin(){
     <div class="row" style="margin-bottom:10px">${[[15,'+15 min'],[30,'+30 min'],[60,'+1 h'],[180,'+3 h']].map(([m,l])=>`<button class="btn sm" data-do="adv" data-n="${m}" type="button">${l}</button>`).join('')}</div>
     <button class="btn sm ${db.free?'gold':''}" data-do="free" type="button">${db.free?'Desactivar modo libre':'Activar modo libre (sin horario)'}</button></div>
    <div class="box" style="grid-column:1/-1"><h4>Alumnos (${db.users.length})</h4><div class="tablewrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>Nombre</th><th>Tipo</th><th>Casa</th><th>Pts</th><th>🪙</th><th>Vuelo</th><th>Rol</th><th>Acción</th></tr></thead><tbody>
-    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="deduct" data-id="${x.id}" type="button">-10</button> <button class="btn sm gold" data-do="awardGal" data-id="${x.id}" type="button">+10 🪙</button> <button class="btn sm" data-do="toggleQuid" data-id="${x.id}" type="button">${x.quidditch_approved?'🧹 Quitar Quid':'🧹 Dar Quid'}</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button> <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar">✕</button></td></tr>`).join('')}</tbody></table></div>
+    ${db.users.map(x=>`<tr><td>${esc(x.username)}</td><td>${x.is_npc?'🤖 NPC':'👤 Jugador'}</td><td>${x.house?HOUSE(x.house).name:'—'}</td><td class="mono">${x.points}</td><td class="mono">${x.galeones||0}</td><td class="mono">${x.flight_xp}</td><td>${x.role}</td><td><button class="btn sm" data-do="award" data-id="${x.id}" type="button">+10</button> <button class="btn sm" data-do="deduct" data-id="${x.id}" type="button">-10</button> <button class="btn sm gold" data-do="awardGal" data-id="${x.id}" type="button">+10 🪙</button> <button class="btn sm" data-do="toggleQuid" data-id="${x.id}" type="button">${x.quidditch_approved?'🧹 Quitar Quid':'🧹 Dar Quid'}</button> <button class="btn sm" data-do="togglePref" data-id="${x.id}" type="button">${x.role==='prefect'?'Quitar prefecto':'Hacer prefecto'}</button> <button class="btn sm gold" data-do="toggleDel" data-id="${x.id}" type="button" title="Delegado / Premio Anual (Solo 7mo año)">${x.role==='delegado'?'Quitar Delegado':'Hacer Delegado'}</button> ${x.is_npc?`<button class="btn sm" data-do="editNpc" data-id="${x.id}" type="button" title="Editar aspecto, nombre, casa, rasgo y puntos">✏️ Editar</button>`:''} <button class="btn sm danger" data-do="delUser" data-id="${x.id}" type="button" title="Eliminar">✕</button></td></tr>`).join('')}</tbody></table></div>
     <button class="btn sm danger" style="margin-top:10px" data-do="reset" type="button">${resetArmed?'Confirmar: reiniciar todos los puntos':'Reiniciar todos los puntos'}</button></div></div></div>`;
   if(active){const el=$(active);if(el&&el.focus)el.focus()}
 }
@@ -3681,6 +3696,42 @@ function openCustomNpcModal() {
     <button class="btn gold" data-do="saveCustomNpc" type="button">Crear NPC</button>
     <button class="btn" data-do="closeModal" type="button">Cancelar</button>
   </div>`, true);
+}
+
+/* ===== Edición de NPCs (solo Admin) ===== */
+function openEditNpcModal(npcId){
+  must(session.isAdmin,'Solo admin');
+  const npc=db.users.find(u=>u.id===Number(npcId));
+  must(npc&&npc.is_npc,'NPC no encontrado');
+  window.npcDraft={id:npc.id,username:npc.username,house:npc.house||'gryffindor',npc_trait:npc.npc_trait||'',points:Number(npc.points)||0,gender:normGender(npc.gender),...lookOf(npc.look||{})};
+  openModal(npcEditHTML(),true);
+}
+function npcEditHTML(){
+  const d=window.npcDraft;
+  const sw=(label,arr,key,names)=>`<div class="swrow"><span>${label}</span>${arr.map((c,i)=>`<button type="button" class="sw ${d[key]===i?'on':''}" style="background:${c}" data-do="npcDraft" data-k="${key}" data-v="${i}" aria-label="${label}: ${names?names[i]:i+1}" title="${names?names[i]:''}"></button>`).join('')}</div>`;
+  return `<h3 style="font-size:20px">✏️ Editar NPC: ${esc(d.username)}</h3>
+  <div class="creator" id="npcEditBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Vista previa del alumno IA. Los colores de la túnica siguen su casa.</p></div>
+   <div style="display:grid;gap:12px;min-width:0">
+    <div><label class="hint" for="npcEditName">Nombre del NPC</label><input id="npcEditName" type="text" maxlength="18" value="${esc(d.username)}" autocomplete="off"></div>
+    <div><label class="hint" for="npcEditTrait">Rasgo</label><input id="npcEditTrait" type="text" maxlength="80" value="${esc(d.npc_trait)}" placeholder="Ej: Bromista y ágil en duelo" autocomplete="off"></div>
+    <div><label class="hint" for="npcEditPoints">Puntos</label><input id="npcEditPoints" type="number" min="0" step="1" value="${d.points}" style="width:auto" aria-label="Puntos"></div>
+    <div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="npcDraftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>
+    ${sw('Piel',SKIN,'skin',SKINN)}
+    ${sw('Pelo',HAIR_COLORS,'hairColor',HAIR_COLORN)}
+    <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="npcDraftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="npcDraftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="npcDraftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="npcDraftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
+    <div class="row"><button class="btn gold" type="button" data-do="saveNpcEdit" data-id="${d.id}">💾 Guardar Cambios</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
+   </div></div>`;
+}
+function refreshNpcDraft(){
+  const el=$('npcEditBox');if(!el)return;
+  const nm=$('npcEditName'),tr=$('npcEditTrait'),pt=$('npcEditPoints');
+  if(nm)window.npcDraft.username=nm.value;
+  if(tr)window.npcDraft.npc_trait=tr.value;
+  if(pt)window.npcDraft.points=pt.value;
+  el.outerHTML=npcEditHTML();
 }
 
 function openPetAdoptModal() {
@@ -6844,6 +6895,14 @@ document.addEventListener('click',e=>{
     case 'genFinal':API.generateFinal();break;
     case 'openCustomNpc':openCustomNpcModal();break;
     case 'saveCustomNpc':API.createCustomNpc({name:$('npcName').value,house:$('npcHouse').value,year:$('npcYear').value,pers:$('npcPers').value,trait:$('npcTrait').value,quidditch:$('npcQuid').checked});closeModal();break;
+    case 'editNpc':openEditNpcModal(Number(d.id));break;
+    case 'npcDraft':window.npcDraft[d.k]=Number(d.v);refreshNpcDraft();break;
+    case 'npcDraftHouse':window.npcDraft.house=d.id;refreshNpcDraft();break;
+    case 'npcDraftHair':window.npcDraft.hair=Number(d.v);refreshNpcDraft();break;
+    case 'npcDraftEyes':window.npcDraft.eyes=Number(d.v);refreshNpcDraft();break;
+    case 'npcDraftClothing':window.npcDraft.clothing=Number(d.v);refreshNpcDraft();break;
+    case 'npcDraftFacialHair':window.npcDraft.facialHair=d.id||'none';refreshNpcDraft();break;
+    case 'saveNpcEdit':refreshNpcDraft();API.editNpc(Number(d.id),window.npcDraft);break;
     case 'deduct':API.award(Number(d.id),-10);break;
     case 'awardGal':API.awardGaleones(Number(d.id),10);break;
     case 'toggleQuid':API.toggleQuidditch(Number(d.id));break;
