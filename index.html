@@ -959,7 +959,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   happiness: 50, pride: 50, academic_progress: 0, animagus_stage: 0,
   attrValentia: 0, attrEmpatia: 0, attrSabiduria: 0,
   spells: [],
-  galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false,
+  galeones:15, inv:{}, cromos:{}, inmunidadFilchHasta:0, buffDobleGaleon:false, buffApuntes:false,
   classStars:{}, lastClassDate:null, classStreak:0, badges:[],
   unlockedCosmetics:[], mcGonagallWarned:false, patronus:null, patronusImage:null, animagusImage:null,
   birthDay:null, birthMonth:null, lastBirthdayYear:null,
@@ -1175,6 +1175,7 @@ function ensureDbIntegrity(){
     Object.keys(u.cromos).forEach(k=>{const v=u.cromos[k];if(typeof v==='number'){u.cromos[k]={count:v};changed=true;}else if(!v||typeof v!=='object'){delete u.cromos[k];changed=true;}else if(typeof v.count!=='number'){v.count=Number(v.count)||0;changed=true;}});
     if (typeof u.inmunidadFilchHasta !== 'number') { u.inmunidadFilchHasta = 0; changed = true; }
     if (typeof u.buffDobleGaleon !== 'boolean') { u.buffDobleGaleon = false; changed = true; }
+    if (typeof u.buffApuntes !== 'boolean') { u.buffApuntes = false; changed = true; }
     if (typeof u.pet === 'undefined') { u.pet = null; changed = true; }
     if (typeof u.petLastUse === 'undefined') { u.petLastUse = null; changed = true; }
     if (typeof u.petLastPlay === 'undefined') { u.petLastPlay = null; changed = true; }
@@ -1366,7 +1367,20 @@ socket.on('friend_request_result',(data)=>{
 socket.on('new_letter',(data)=>{
   if(!data||!session.uid) return;
   if(Number(data.from)===Number(session.uid)) return;
-  toast(`🦉 Lechuza de ${data.fromName||'un alumno'}${data.hasGift?' con regalo 🎁':''}`);
+  const npc=!!data.npc;
+  toast(npc
+    ? `🦉 ${data.fromName||'Un amigo del castillo'} te ha enviado una lechuza${data.hasGift?' con regalo 🎁':''}`
+    : `🦉 Lechuza de ${data.fromName||'un alumno'}${data.hasGift?' con regalo 🎁':''}`);
+  chime();
+  updateLettersBadge();
+});
+// Cartas de NPC que quedaron en espera mientras el jugador estaba desconectado.
+socket.on('npc_letters_pending',(data)=>{
+  if(!data||!session.uid) return;
+  const n=Number(data.count)||0;
+  if(!n) return;
+  const who=(Array.isArray(data.fromNames)&&data.fromNames.length)?` de ${data.fromNames.slice(0,2).join(', ')}${data.fromNames.length>2?' y más':''}`:'';
+  toast(`🦉 Tienes ${n} carta(s) de lechuza${who}${data.hasGift?' con regalo 🎁':''}`);
   chime();
   updateLettersBadge();
 });
@@ -1379,6 +1393,7 @@ socket.on('letter_claimed',(data)=>{
   const g=data.granted;
   if(g&&g.type==='galeones') toast(`🎁 ¡Has recibido ${g.amount} Galeones!`);
   else if(g&&g.type==='cromo'){const c=cromoById(g.cromoId);toast(`🎁 ¡Has recibido el cromo ${c?c.nombre:g.cromoId}!`);}
+  else if(g&&g.type==='item'){const it=itemDef(g.itemId);toast(`🎁 ¡Has recibido ${it?it.nombre:g.itemId}! Está en tu Mochila.`);}
   updateLettersBadge();
   renderAll();
 });
@@ -1747,6 +1762,19 @@ const TIENDA_HOGSMEADE = {
   cerveza_mantequilla: { id: 'cerveza_mantequilla', tienda: 'Honeydukes', nombre: 'Cerveza de Mantequilla', precio: 18, desc: 'Duplica los Galeones que ganes en tu próximo minijuego.' }
 };
 
+// ===== OBJETOS DE REGALO DE NPCs (no se venden; llegan por lechuza) =====
+// Coherentes con la personalidad de cada NPC. Se guardan en la Mochila (u.inv).
+const ITEMS_REGALO = {
+  apuntes_magicos: { id: 'apuntes_magicos', nombre: 'Apuntes Mágicos', icon: '📝', desc: 'Bonus de +10 XP en tu próxima clase.', vendible: 0 },
+  libro_hechizos: { id: 'libro_hechizos', nombre: 'Libro de Hechizos', icon: '📚', desc: 'Conocimiento valioso: al usarlo ganas +1 de Sabiduría.', vendible: 0 },
+  pocion_curativa: { id: 'pocion_curativa', nombre: 'Poción Curativa', icon: '🧪', desc: 'Restaura el ánimo: +5 de Felicidad al usarla.', vendible: 0 },
+  pocion_prestigio: { id: 'pocion_prestigio', nombre: 'Poción de Prestigio', icon: '🍾', desc: 'Poco útil, pero queda impresionante en la estantería.', vendible: 8 },
+  objeto_brillante: { id: 'objeto_brillante', nombre: 'Objeto Brillante', icon: '💎', desc: 'Una chuchería reluciente que puedes vender por Galeones.', vendible: 15 }
+};
+// Busca un objeto entre la tienda y los regalos de NPC.
+function itemDef(id){ return TIENDA_HOGSMEADE[id] || ITEMS_REGALO[id] || null; }
+function itemIcon(id){ const it=itemDef(id); return (it&&it.icon)||'📦'; }
+
 const CROMOS_MAGOS = [
   { id: 'dumbledore', nombre: 'Albus Dumbledore', rareza: 'Legendario', desc: 'Director de Hogwarts, descubridor de los 12 usos de la sangre de dragón.' },
   { id: 'merlin', nombre: 'Merlín', rareza: 'Legendario', desc: 'El mago más famoso de todos los tiempos; perteneció a Slytherin.' },
@@ -1987,10 +2015,11 @@ const API={
     
     const basePoints = 5 + (spec.bonusPts || 0);
     const ev=activeEvent(),mult=ev?ev.mult:1;
-    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id)+petFreeActBonus(u),fx=(ACTS[key].flightXp||0)+extraFlight+petFlightBonus(u);
+    const pts=Math.round((basePoints+extra)*mult)+(u.role==='prefect'?2:0)+friendBonusFor(u.id)+petFreeActBonus(u),fx=(ACTS[key].flightXp||0)+extraFlight+petFlightBonus(u)+(u.buffApuntes?10:0);
     
     u.points+=pts;
     if(fx) u.flight_xp+=fx;
+    if(u.buffApuntes){ u.buffApuntes=false; toast('📝 ¡Apuntes Mágicos consumidos: +10 XP!'); }
     let galGain = spec.bonusGal || 1;
     if(u.buffDobleGaleon && extra>0){ galGain *= 2; u.buffDobleGaleon = false; }
     u.galeones = (u.galeones||0) + galGain;
@@ -2464,7 +2493,7 @@ const API={
   },
   useItem(itemId){
     const u=me();must(u&&u.house,'Inicia sesión con tu personaje primero');
-    const item=TIENDA_HOGSMEADE[itemId];must(item,'Artículo no encontrado');
+    const item=itemDef(itemId);must(item,'Artículo no encontrado');
     u.inv=u.inv||{};must((u.inv[itemId]||0)>0,'No tienes este objeto en tu mochila');
     u.inv[itemId]--;
     let msg=`Usaste ${item.nombre}.`;
@@ -2483,6 +2512,15 @@ const API={
     else if(itemId==='grageas_bertie'){
       if(Math.random()>0.3){ const pts=Math.floor(Math.random()*3)+1; u.points+=pts; msg=`🍬 ¡Sabor a fresa! +${pts} pts para ${HOUSE(u.house).name}.`; }
       else msg='🤢 ¡Puaj, sabor a cera de oído!';
+    }
+    else if(itemId==='apuntes_magicos'){ u.buffApuntes=true; msg='📝 ¡Apuntes repasados! Tu próxima clase dará +10 XP de vuelo.'; }
+    else if(itemId==='libro_hechizos'){ u.attrSabiduria=(Number(u.attrSabiduria)||0)+1; msg='📚 ¡Leído con atención! +1 de Sabiduría.'; }
+    else if(itemId==='pocion_curativa'){ u.happiness=Math.min(100,(Number(u.happiness)||50)+5); msg='🧪 ¡Reconfortante! +5 de Felicidad.'; }
+    else if(itemId==='pocion_prestigio'){ msg='🍾 La colocas en tu estantería. Elegante… aunque no sirve de mucho.'; }
+    else if(itemId==='objeto_brillante'){
+      const valor=Math.max(1,Number(item.vendible)||15);
+      u.galeones=(u.galeones||0)+valor;
+      msg=`💎 ¡Lo vendiste a un mercader! +${valor} Galeones.`;
     }
     chime();commit(`${u.username} usó ${item.nombre}`);toast(msg);
   },
@@ -3220,23 +3258,16 @@ function openBackpackModal() {
   } else {
     html += `<div class="grid g2" style="width:100%;text-align:left">`;
     items.forEach(id => {
-      const item = TIENDA_HOGSMEADE[id];
+      const item = itemDef(id);
       if (!item) return;
-      
-      let icon = '📦';
-      if (id === 'bomba_fetida') icon = '💣';
-      if (id === 'polvo_oscuridad') icon = '🌫️';
-      if (id === 'rana_chocolate') icon = '🐸';
-      if (id === 'grageas_bertie') icon = '🍬';
-      if (id === 'cerveza_mantequilla') icon = '🍺';
-
+      const icon = itemIcon(id);
       html += `<div class="box" style="display:flex;flex-direction:column;gap:8px;border-left:3px solid var(--gold)">
         <div class="row" style="justify-content:space-between">
-          <strong style="font-size:15px">${icon} ${item.nombre}</strong>
+          <strong style="font-size:15px">${icon} ${esc(item.nombre)}</strong>
           <span class="pill gold mono">x${inv[id]}</span>
         </div>
-        <p class="muted" style="font-size:12px;flex:1">${item.desc}</p>
-        <button class="btn sm gold" data-do="useFromBackpack" data-id="${id}">✨ Usar objeto</button>
+        <p class="muted" style="font-size:12px;flex:1">${esc(item.desc)}</p>
+        <button class="btn sm gold" data-do="useFromBackpack" data-id="${esc(id)}">✨ Usar objeto</button>
       </div>`;
     });
     html += `</div>`;
@@ -5506,6 +5537,7 @@ function letterGiftLabel(gift) {
   if (!gift) return '';
   if (gift.type === 'galeones') return `🪙 ${gift.amount} Galeones`;
   if (gift.type === 'cromo') { const c = cromoById(gift.cromoId); return `🐸 Cromo: ${c ? c.nombre : gift.cromoId}`; }
+  if (gift.type === 'item') { const it = itemDef(gift.itemId); return `${itemIcon(gift.itemId)} ${it ? it.nombre : gift.itemId}`; }
   return '';
 }
 function openLettersModal() {
@@ -5513,10 +5545,12 @@ function openLettersModal() {
   if (!u) return toast('Inicia sesión con tu personaje para revisar tus lechuzas');
   const inbox = inboxLetters(u.id).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
   const unread = inbox.filter(l => !l.read).length;
+  const npcUnread = inbox.filter(l => !l.read && isNpcLetter(l)).length;
   let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
     <h3 style="font-size:20px;color:var(--gold)">✉️ Lechuzas</h3>
     <span class="pill ${unread ? 'warn' : 'off'}">${unread} sin leer</span>
   </div>`;
+  if (npcUnread) html += `<p class="muted" style="width:100%;font-size:12px;margin-bottom:6px">🦉 ${npcUnread} lechuza(s) de tus amigos del castillo te esperan.</p>`;
   html += `<div class="row" style="width:100%;margin-bottom:10px">
     <button class="btn sm gold" data-do="openComposeLetter" type="button">✍️ Enviar nueva lechuza</button>
     <button class="btn sm" data-do="closeModal" type="button">Cerrar</button>
@@ -5528,9 +5562,13 @@ function openLettersModal() {
     inbox.forEach(l => {
       const f = db.users.find(x => x.id === Number(l.from));
       const giftLbl = letterGiftLabel(l.gift);
-      html += `<div class="box" style="border-left:3px solid ${l.read ? 'var(--line)' : 'var(--gold)'}">
+      const npc = isNpcLetter(l);
+      // Las cartas de NPC se resaltan con borde dorado y un icono de búho.
+      const border = npc ? 'var(--gold)' : (l.read ? 'var(--line)' : 'var(--gold)');
+      const borderStyle = npc ? `border:1px solid var(--gold);border-left:3px solid var(--gold);background:linear-gradient(0deg, rgba(212,175,55,0.08), rgba(212,175,55,0.08))` : '';
+      html += `<div class="box" style="border-left:3px solid ${border};${borderStyle}">
         <div class="row" style="justify-content:space-between">
-          <strong>${f ? `${av(f,28)} ${esc(f.username)}` : 'Alumno desconocido'}</strong>
+          <strong>${npc ? '🦉 ' : ''}${f ? `${av(f,28)} ${esc(f.username)}` : 'Alumno desconocido'}${npc ? ' <span class="pill gold" style="font-size:10px">Amigo del castillo</span>' : ''}</strong>
           ${l.read ? '<span class="pill off">Leída</span>' : '<span class="pill warn">Nueva</span>'}
         </div>
         <p style="font-size:14px;margin:6px 0">${esc(l.message || '(sin mensaje)')}</p>
@@ -5544,6 +5582,13 @@ function openLettersModal() {
     html += `</div>`;
   }
   openModal(html, true);
+}
+// Una carta es de NPC si trae la marca del servidor o si el remitente es un NPC.
+function isNpcLetter(l) {
+  if (!l) return false;
+  if (l.npc) return true;
+  const f = db.users.find(x => x.id === Number(l.from));
+  return !!(f && f.is_npc);
 }
 function openComposeLetterModal(targetId) {
   const u = me();
