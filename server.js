@@ -598,6 +598,148 @@ app.post('/api/gossip', async (req, res) => {
   }
 });
 
+/* ===== SISTEMA DE RELACIONES OFICIALES Y POLIAMOR (IA árbitro) ===== */
+// Rasgos que definen cómo reacciona cada arquetipo ante una intervención romántica.
+const ROMANCE_TRAIT_HINTS = {
+  valentia: 'valiente y directo, defiende lo suyo',
+  lealtad: 'leal, se siente traicionado con facilidad',
+  sabiduria: 'reflexivo y sereno, acepta argumentos razonados',
+  intelecto: 'analítico, valora la lógica y la elocuencia',
+  astucia: 'astuto y calculador, busca su propio interés',
+  ambicion: 'ambicioso, le importa el estatus y el poder',
+  justicia: 'justo y recto, rechaza los atajos',
+  empatia: 'empático y abierto, escucha con el corazón',
+  responsabilidad: 'responsable y formal, evita escándalos',
+  bromista: 'bromista, se toma pocas cosas en serio',
+  liderazgo: 'líder, defiende su posición y su imagen'
+};
+function describeNpcForRomance(state, id) {
+  const u = (state.users || []).find(x => Number(x.id) === Number(id));
+  if (!u) return null;
+  const traits = (Array.isArray(u.personality) ? u.personality : [])
+    .map(t => ROMANCE_TRAIT_HINTS[t] || t)
+    .join('; ');
+  return {
+    id: Number(u.id),
+    name: u.username,
+    house: u.house || 'sin casa',
+    trait: u.npc_trait || 'alumno del castillo',
+    traits: traits || 'de carácter reservado'
+  };
+}
+function romanceRelScore(state, a, b) {
+  const rel = (state.relations || {})[relKeyBetween(a, b)] || {};
+  return {
+    friendship: Number(rel.friendshipScore) || 0,
+    romance: Number(rel.romanceScore) || 0
+  };
+}
+// Respaldo local: heurística determinista si no hay GROQ_API_KEY o falla la IA.
+function pickFallbackRomanceIntervention(target, partner, relTarget, relPartner, type, message) {
+  const len = String(message || '').trim().length;
+  const warm = /amor|querer|juntos|felic|respet|confianza|apoy|compartir|coraz/i.test(message || '');
+  const base = type === 'poly' ? 0.25 : 0.35;
+  const score = Math.min(1, base + (relTarget.romance / 200) + (len >= 60 ? 0.15 : 0) + (warm ? 0.15 : 0));
+  const success = score >= 0.5;
+  if (success) {
+    return {
+      success: true,
+      resultType: type,
+      message: type === 'poly'
+        ? `${target.name} y ${partner.name} lo meditan y deciden darte una oportunidad: el amor puede repartirse sin romperse.`
+        : `${target.name} escucha tus palabras, mira a ${partner.name} y decide dar el paso contigo.`,
+      consequences: { playerFriendshipLoss: 0, playerRomanceLoss: 0, npcAnger: false },
+      fallback: true
+    };
+  }
+  return {
+    success: false,
+    resultType: 'reject',
+    message: type === 'poly'
+      ? `${target.name} y ${partner.name} se miran ofendidos: no piensan compartir lo que tienen contigo por medio.`
+      : `${target.name} frunce el ceño: su relación con ${partner.name} no se toca por un simple mensaje.`,
+    consequences: { playerFriendshipLoss: 20, playerRomanceLoss: 10, npcAnger: true },
+    fallback: true
+  };
+}
+
+app.post('/api/romance-intervention', async (req, res) => {
+  const body = req.body || {};
+  const playerId = Number(body.playerId);
+  const targetId = Number(body.targetId);
+  const partnerId = Number(body.partnerId);
+  const type = body.type === 'poly' ? 'poly' : 'break';
+  const message = String(body.message || '').trim().slice(0, 500);
+  const year = clampSchoolYear(body.year);
+
+  if (!message) return res.status(400).json({ error: 'Escribe un mensaje persuasivo.' });
+
+  const state = memoryState;
+  const player = (state.users || []).find(u => Number(u.id) === playerId);
+  const target = describeNpcForRomance(state, targetId);
+  const partner = describeNpcForRomance(state, partnerId);
+  if (!player || !target || !partner) return res.status(404).json({ error: 'Personajes no encontrados.' });
+  if (targetId === partnerId) return res.status(400).json({ error: 'La pareja no es válida.' });
+
+  const relTarget = romanceRelScore(state, playerId, targetId);
+  const relPartner = romanceRelScore(state, playerId, partnerId);
+
+  if (!AI_ENABLED) {
+    return res.json({ ok: true, ...pickFallbackRomanceIntervention(target, partner, relTarget, relPartner, type, message) });
+  }
+
+  const action = type === 'poly' ? 'proponer poliamor a' : 'intervenir para separar a';
+  const systemPrompt = `Eres el árbitro de las relaciones en el castillo de Hogwarts. Evalúa con realismo y drama si dos alumnos NPC aceptarían la propuesta de un jugador. Usa sus personalidades y las puntuaciones actuales para decidir: un NPC posesivo o inseguro rechazará casi siempre; uno libre, empático o sabio puede aceptar. El jugador ${player.username} quiere ${action} la relación entre ${target.name} y ${partner.name}. El mensaje del jugador es: "${message}". Personalidad de ${target.name}: ${target.traits} (rasgo: ${target.trait}). Personalidad de ${partner.name}: ${partner.traits} (rasgo: ${partner.trait}). Amistad del jugador con ${target.name}: ${relTarget.friendship}/100, romance: ${relTarget.romance}/100. Amistad con ${partner.name}: ${relPartner.friendship}/100, romance: ${relPartner.romance}/100. Están en el Año ${year}. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"success": true o false, "resultType": "break" | "poly" | "reject", "message": "explicación breve de la reacción en español, en una o dos frases", "consequences": {"playerFriendshipLoss": número, "playerRomanceLoss": número, "npcAnger": true o false}}. Si success es true, resultType debe ser "${type}". Si es false, resultType debe ser "reject".`;
+
+  const aiBody = {
+    model: AI_MODEL,
+    max_tokens: 320,
+    temperature: 0.8,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: 'Decide el desenlace y devuelve el JSON.' }
+    ]
+  };
+  if (/gpt-oss/i.test(AI_MODEL)) aiBody.reasoning_effort = 'low';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+  try {
+    const aiRes = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_KEY}` },
+      body: JSON.stringify(aiBody),
+      signal: controller.signal
+    });
+    if (!aiRes.ok) throw new Error(`Groq HTTP ${aiRes.status}`);
+    const json = await aiRes.json();
+    let raw = String(json?.choices?.[0]?.message?.content || '').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+    const firstBrace = raw.indexOf('{'), lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) raw = raw.slice(firstBrace, lastBrace + 1);
+    const parsed = JSON.parse(raw);
+
+    const success = parsed.success === true || parsed.success === 'true';
+    let resultType = String(parsed.resultType || '').toLowerCase();
+    if (success) resultType = type;
+    else resultType = 'reject';
+    const reply = String(parsed.message || parsed.reply || '').trim().slice(0, 300)
+      || (success ? 'Aceptan tu propuesta.' : 'Rechazan tu propuesta.');
+    const c = parsed.consequences && typeof parsed.consequences === 'object' ? parsed.consequences : {};
+    const consequences = {
+      playerFriendshipLoss: Math.max(0, Math.min(100, Math.round(Number(c.playerFriendshipLoss) || (success ? 0 : 20)))),
+      playerRomanceLoss: Math.max(0, Math.min(100, Math.round(Number(c.playerRomanceLoss) || (success ? 0 : 10)))),
+      npcAnger: c.npcAnger === true || c.npcAnger === 'true' || (!success)
+    };
+    return res.json({ ok: true, success, resultType, message: reply, consequences, fallback: false });
+  } catch (err) {
+    console.error('Error evaluando la intervención romántica (usando respaldo local):', err.message);
+    return res.json({ ok: true, ...pickFallbackRomanceIntervention(target, partner, relTarget, relPartner, type, message) });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err && (err.name === 'MongooseError' || err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError' || (err.message && err.message.includes('buffering timed out')))) {
     console.warn('[AI Studio] Database offline — returning mock empty response');
@@ -729,6 +871,8 @@ function defaultDb() {
     free: false,
     npcAi: true,
     relations: {},
+    // Parejas oficiales: { members: [id1, id2, ...], type: 'monogamous' | 'polyamorous', at }
+    officialCouples: [],
     // Solicitudes de amistad pendientes: { id, from, to, type, at }
     friendRequests: [],
     // Ids de solicitudes ya resueltas (aceptadas/rechazadas): evita que un
@@ -995,6 +1139,23 @@ function migrateRelations(relations) {
   return out;
 }
 
+function sanitizeOfficialCouples(state) {
+  const raw = state && Array.isArray(state.officialCouples) ? state.officialCouples : [];
+  const validIds = new Set((state.users || []).map(u => Number(u.id)));
+  const out = [];
+  raw.forEach(c => {
+    if (!c || !Array.isArray(c.members)) return;
+    // Solo ids reales, sin duplicados y con un máximo razonable por relación.
+    const members = [...new Set(c.members.map(Number).filter(id => validIds.has(id)))].slice(0, 6);
+    if (members.length < 2) return;
+    const type = c.type === 'polyamorous' ? 'polyamorous' : 'monogamous';
+    // Un jugador solo puede estar en una relación oficial: se descarta la duplicada.
+    if (members.some(id => out.some(o => o.members.includes(id)))) return;
+    out.push({ members, type, at: Number(c.at) || Date.now() });
+  });
+  return out.slice(0, 200);
+}
+
 function sanitizeState(state) {
   if (!state || !Array.isArray(state.users)) return defaultDb();
   if (!state.schoolYear || state.schoolYear < 1 || state.schoolYear > 7) state.schoolYear = 1;
@@ -1088,6 +1249,7 @@ function sanitizeState(state) {
   }
   if (!state.relations || typeof state.relations !== 'object') state.relations = {};
   state.relations = migrateRelations(state.relations);
+  state.officialCouples = sanitizeOfficialCouples(state);
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
   if (!Array.isArray(state.friendRequests)) state.friendRequests = [];
   if (!Array.isArray(state.friendRequestsDone)) state.friendRequestsDone = [];
