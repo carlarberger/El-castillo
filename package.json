@@ -4,7 +4,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/part4a.test.js",
+    "test": "node test/part4a.test.js && node test/part4b.test.js && node test/deleted-users.test.js",
+    "test:4a": "node test/part4a.test.js",
+    "test:4b": "node test/part4b.test.js",
+    "test:deleted": "node test/deleted-users.test.js",
     "test:lechuza": "node test/letters.test.js"
   },
   "dependencies": {
