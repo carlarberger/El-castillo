@@ -1205,6 +1205,14 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   demiguiseCarrying: [],
   alohomoraLevel: 1,
   bagCapacity: 5,
+  // Perfil: varita de Ollivanders, títulos, guardarropa y bestiario (Tandas 4 y 8).
+  wand: null,
+  title: null,
+  unlockedTitles: [],
+  unlockedCosmetics: [],
+  equippedCosmetics: [],
+  bestiary: [],
+  guidePages: [],
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
 });
@@ -1256,6 +1264,173 @@ const SERVER_NPC_LINES = [
   '¡Practicar nuestro hechizo Patronus y la forma Animaga nos salvará en las incursiones!',
   '¿Quién quiere estudiar juntos en la Biblioteca para subir nuestra amistad?'
 ];
+
+/* ===== VARITAS, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) =====
+   La ceremonia de varita de Ollivanders asigna madera, longitud y núcleo. El
+   núcleo concede una pasiva REAL que el servidor aplica y valida (nunca solo el
+   cliente): Fénix = hallazgos mágicos, Unicornio = Empatía, Dragón = Valentía. */
+const WAND_CORES = {
+  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',            icon: '🪶', desc: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.' },
+  unicornio: { id: 'unicornio', name: 'Pelo de Unicornio',         icon: '🦄', desc: '+1 de Empatía efectiva en interacciones y diálogos.' },
+  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', desc: '+1 de Valentía efectiva en duelos y pruebas de acción.' }
+};
+const WAND_WOODS = ['acebo', 'sauce', 'espino', 'tejo', 'caoba', 'fresno', 'nogal', 'manzano'];
+const WAND_LENGTHS = [24, 26, 28, 30, 32, 34];
+
+// Cuestionario de personalidad de Ollivanders. El orden de las preguntas y de
+// sus opciones DEBE coincidir con WAND_QUIZ de index.html.
+const WAND_QUIZ = [
+  { q: '¿Qué cualidad valoras más en un mago?', opts: [
+    { t: 'La capacidad de renacer y seguir adelante', core: 'fenix' },
+    { t: 'La bondad y la lealtad', core: 'unicornio' },
+    { t: 'El coraje para enfrentar el peligro', core: 'dragon' } ] },
+  { q: 'Elige tu lugar favorito del castillo:', opts: [
+    { t: 'La Torre de Astronomía, entre las estrellas', core: 'fenix' },
+    { t: 'Los Invernaderos, entre plantas y criaturas', core: 'unicornio' },
+    { t: 'El Aula de Duelos, con la varita en alto', core: 'dragon' } ] },
+  { q: 'Un amigo está en apuros. ¿Qué haces?', opts: [
+    { t: 'Busco una solución ingeniosa y creativa', core: 'fenix' },
+    { t: 'Lo consuelo y lo escucho con calma', core: 'unicornio' },
+    { t: 'Salgo a defenderlo sin dudarlo', core: 'dragon' } ] },
+  { q: '¿Qué tipo de magia te atrae más?', opts: [
+    { t: 'Encantamientos versátiles y transformadores', core: 'fenix' },
+    { t: 'Herbología y cuidado de criaturas', core: 'unicornio' },
+    { t: 'Defensa contra las Artes Oscuras', core: 'dragon' } ] },
+  { q: 'Ante una derrota, tú…', opts: [
+    { t: 'Aprendes y te reinventas para la próxima', core: 'fenix' },
+    { t: 'Reflexionas y apoyas a los tuyos', core: 'unicornio' },
+    { t: 'Te levantas y vuelves a intentarlo con más fuerza', core: 'dragon' } ] }
+];
+
+// Deriva el núcleo de la varita a partir de las respuestas (suma por inclinación).
+function pickWandCore(answers) {
+  const tally = { fenix: 0, unicornio: 0, dragon: 0 };
+  (Array.isArray(answers) ? answers : []).forEach((a, i) => {
+    const q = WAND_QUIZ[i];
+    if (!q) return;
+    const opt = q.opts[Number(a)];
+    if (opt && tally[opt.core] !== undefined) tally[opt.core] += 1;
+  });
+  return Object.keys(tally).sort((a, b) => tally[b] - tally[a] || 0)[0] || 'fenix';
+}
+
+// Títulos equipables: visibles junto al nombre en el chat y el registro.
+const TITLES = {
+  aprendiz:       { id: 'aprendiz',       name: 'Aprendiz de Primer Año', icon: '🎓', desc: 'Recién llegado a Hogwarts.' },
+  elegido_varita: { id: 'elegido_varita', name: 'Elegido por la Varita',  icon: '🪄', desc: 'Completaste la ceremonia de Ollivanders.' },
+  merlin:         { id: 'merlin',         name: 'Discípulo de Merlín',    icon: '🌿', desc: 'Superaste todas las Pruebas de Merlín.' },
+  demiguise:      { id: 'demiguise',      name: 'Cazador de Lunas',       icon: '🌙', desc: 'Recuperaste todas las Estatuas Demiguise.' },
+  coleccionista:  { id: 'coleccionista',  name: 'Coleccionista de Cromos', icon: '🐸', desc: 'Completaste el Álbum de Cromos.' },
+  magizoologo:    { id: 'magizoologo',    name: 'Magizoólogo',            icon: '🦅', desc: 'Registraste muchas criaturas en tu Bestiario.' },
+  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' }
+};
+
+// Guardarropa: prendas cosméticas desbloqueables y equipables. Debe incluir
+// TODAS las prendas icónicas del cliente (ICONIC_COSMETICS) para no borrar los
+// desbloqueos ya conseguidos, más las prendas nuevas de las Tandas 4 y 8.
+const COSMETICS = {
+  gafas_harry:     { id: 'gafas_harry',     name: 'Gafas Redondas de Harry',     icon: '👓' },
+  libro_hermione:  { id: 'libro_hermione',  name: 'Libro Encantado de Hermione', icon: '📖' },
+  bufanda_weasley: { id: 'bufanda_weasley', name: 'Bufanda de la Sra. Weasley',  icon: '🧣' },
+  sombrero_ginny:  { id: 'sombrero_ginny',  name: 'Sombrero de Gryffindor',      icon: '🎩' },
+  guantes_neville: { id: 'guantes_neville', name: 'Guantes de Herbología',       icon: '🌱' },
+  gafas_luna:      { id: 'gafas_luna',      name: 'Gafas de Luna',               icon: '👓' },
+  pluma_cho:       { id: 'pluma_cho',       name: 'Pluma de Ravenclaw',          icon: '🪶' },
+  broche_draco:    { id: 'broche_draco',    name: 'Broche de Draco',             icon: '💎' },
+  panuelo_pansy:   { id: 'panuelo_pansy',   name: 'Pañuelo de Slytherin',        icon: '🐍' },
+  anillo_blaise:   { id: 'anillo_blaise',   name: 'Anillo de Plata de Blaise',   icon: '💍' },
+  bufanda_cedric:  { id: 'bufanda_cedric',  name: 'Bufanda de Hufflepuff',       icon: '💛' },
+  cinta_hannah:    { id: 'cinta_hannah',    name: 'Cinta Amarilla de Hannah',    icon: '🎀' },
+  gafas_tonks:     { id: 'gafas_tonks',     name: 'Gafas de Tonks',              icon: '🕶️' },
+  caramelo_fred:   { id: 'caramelo_fred',   name: 'Caramelo de Broma',           icon: '🍬' },
+  bomba_george:    { id: 'bomba_george',    name: 'Bomba Fétida Perfumada',      icon: '💣' },
+  insignia_percy:  { id: 'insignia_percy',  name: 'Insignia de Prefecto',        icon: '📛' },
+  guantes_oliver:  { id: 'guantes_oliver',  name: 'Guantes de Quidditch',        icon: '🧤' },
+  escudo_ernie:    { id: 'escudo_ernie',    name: 'Escudo de Hufflepuff',        icon: '🛡️' },
+  tunica_gala:     { id: 'tunica_gala',     name: 'Túnicas de Gala',             icon: '🎩' }
+};
+
+// Bestiario: criaturas mágicas que se registran al interactuar con ellas.
+const CREATURES = {
+  hipogrifo:   { id: 'hipogrifo',   name: 'Hipogrifo',                icon: '🦅', room: 'cabana',       desc: 'Orgulloso y noble; exige una reverencia.' },
+  buckbeak:    { id: 'buckbeak',    name: 'Buckbeak',                 icon: '🦅', room: 'cabana',       desc: 'El hipogrifo favorito de Hagrid.' },
+  duendecillo: { id: 'duendecillo', name: 'Duendecillo de Cornualles', icon: '🧚', room: 'cabana',       desc: 'Travieso y difícil de contener.' },
+  gusarajo:    { id: 'gusarajo',    name: 'Gusarajo',                 icon: '🐛', room: 'cabana',       desc: 'Plaga común en las cosechas.' },
+  mandragora:  { id: 'mandragora',  name: 'Mandrágora',               icon: '🌱', room: 'invernaderos', desc: 'Su grito puede despertar a un ejército.' },
+  lazo_diablo: { id: 'lazo_diablo', name: 'Lazo del Diablo',          icon: '🌿', room: 'invernaderos', desc: 'Se defiende con Lumos Solem.' },
+  thestral:    { id: 'thestral',    name: 'Thestral',                 icon: '🐴', room: 'terrenos',     desc: 'Solo lo ve quien ha presenciado una muerte.' },
+  fenix:       { id: 'fenix',       name: 'Fénix',                    icon: '🪶', room: 'comedor',      desc: 'Renace de sus propias cenizas.' }
+};
+
+// Propiedad numérica de cada atributo base.
+const ATTR_PROP = { valentia: 'attrValentia', empatia: 'attrEmpatia', sabiduria: 'attrSabiduria' };
+
+// Normaliza listas de ids que pueden venir como strings o como objetos
+// (los desbloqueos antiguos guardaban `{ id, name, icon, from, at }`).
+function cleanCosmeticIds(v) {
+  if (!Array.isArray(v)) return [];
+  const ids = v.map(x => (x && typeof x === 'object') ? x.id : x).map(String).filter(Boolean);
+  return [...new Set(ids)].slice(0, 64);
+}
+
+// Hallazgos mágicos al moverse: el SERVIDOR es la fuente de verdad (la pasiva de
+// Fénix y la mascota rata se aplican aquí). Los nombres coinciden con
+// RANDOM_FINDS de index.html para que la ficha mostrada sea coherente.
+const SERVER_FINDS = [
+  { name: 'Cromo de Rana de Chocolate de Dumbledore', pts: 5, xp: 0, galeones: 0, icon: '🃏' },
+  { name: 'Galeón de oro perdido', pts: 8, xp: 0, galeones: 3, icon: '🪙' },
+  { name: 'Pista del Mapa del Merodeador', pts: 6, xp: 0, galeones: 0, icon: '🗺️' },
+  { name: 'Grajeas Bertie Bott', pts: 5, xp: 2, galeones: 0, icon: '🍬' },
+  { name: 'Encuentro con Dobby', pts: 7, xp: 0, galeones: 0, icon: '🧦' },
+  { name: 'Pluma de Fénix', pts: 8, xp: 2, galeones: 0, icon: '🪶' },
+  { name: 'Broma de Peeves', pts: 5, xp: 0, galeones: 0, icon: '👻' }
+];
+
+// Núcleo de la varita del jugador (o null si aún no la tiene).
+function wandCore(user) {
+  const c = user && user.wand && user.wand.core;
+  return WAND_CORES[c] ? c : null;
+}
+// Pasiva de Fénix: +10 % de probabilidad de hallazgos mágicos.
+function wandFindBonus(user) { return wandCore(user) === 'fenix' ? 0.10 : 0; }
+// Pasiva de Unicornio: +1 de Empatía efectiva.
+function wandEmpatiaBonus(user) { return wandCore(user) === 'unicornio' ? 1 : 0; }
+// Pasiva de Dragón: +1 de Valentía efectiva.
+function wandValentiaBonus(user) { return wandCore(user) === 'dragon' ? 1 : 0; }
+// Nivel efectivo de un atributo = base (1 + puntos/10) + bonus de la varita.
+function effectiveAttrLevel(user, key) {
+  const prop = ATTR_PROP[key];
+  if (!prop) return 1;
+  const base = Math.floor(Math.max(0, Number(user && user[prop]) || 0) / 10) + 1;
+  if (key === 'empatia') return base + wandEmpatiaBonus(user);
+  if (key === 'valentia') return base + wandValentiaBonus(user);
+  return base;
+}
+// Desbloquea un título si el jugador no lo tenía. Devuelve true si es nuevo.
+function grantTitle(user, id) {
+  if (!user || !TITLES[id]) return false;
+  user.unlockedTitles = Array.isArray(user.unlockedTitles) ? user.unlockedTitles : [];
+  if (user.unlockedTitles.includes(id)) return false;
+  user.unlockedTitles.push(id);
+  if (!user.title) user.title = id;
+  return true;
+}
+// Revisa el progreso real del jugador y desbloquea los títulos merecidos.
+function syncTitleUnlocks(user) {
+  if (!user) return [];
+  const earned = [];
+  if (user.wand) earned.push('elegido_varita');
+  if (Array.isArray(user.merlinTrials) && user.merlinTrials.length >= MERLIN_TRIAL_IDS.length) earned.push('merlin');
+  if (Array.isArray(user.demiguiseCollected) && user.demiguiseCollected.length >= DEMIGUISE_STATUE_IDS.length) earned.push('demiguise');
+  const cromoCount = Object.values(user.cromos || {})
+    .filter(v => ((typeof v === 'number') ? v : (v && v.count) || 0) > 0).length;
+  if (cromoCount >= CROMO_IDS.length) earned.push('coleccionista');
+  if (Array.isArray(user.bestiary) && user.bestiary.length >= 4) earned.push('magizoologo');
+  if (Array.isArray(user.guidePages) && user.guidePages.length >= 5) earned.push('enciclopedista');
+  const newly = [];
+  earned.forEach(id => { if (grantTitle(user, id)) newly.push(id); });
+  return newly;
+}
 
 // ⬅️ AÑADIDO: función que devuelve un objeto NUEVO cada vez (evita mutar BASE_NPCS)
 function defaultDb() {
@@ -1799,6 +1974,18 @@ function sanitizeState(state) {
     u.alohomoraLevel = (_alo >= 1 && _alo <= 3) ? _alo : 1;
     const _bag = Math.floor(Number(u.bagCapacity));
     u.bagCapacity = (_bag >= 5 && _bag <= 99) ? _bag : 5;
+    // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
+    // Retrocompatibilidad: un guardado antiguo sin estos campos queda con
+    // valores por defecto seguros en lugar de provocar errores `undefined`.
+    if (u.wand && (typeof u.wand !== 'object' || !WAND_CORES[u.wand.core])) u.wand = null;
+    if (u.title != null && !TITLES[u.title]) u.title = null;
+    u.unlockedTitles = cleanIds(u.unlockedTitles).filter(id => !!TITLES[id]);
+    if (!u.unlockedTitles.length && u.wand) u.unlockedTitles.push('elegido_varita');
+    if (u.title && !u.unlockedTitles.includes(u.title)) u.title = null;
+    u.unlockedCosmetics = cleanCosmeticIds(u.unlockedCosmetics).filter(id => !!COSMETICS[id]);
+    u.equippedCosmetics = cleanIds(u.equippedCosmetics).filter(id => u.unlockedCosmetics.includes(id));
+    u.bestiary = cleanIds(u.bestiary).filter(id => !!CREATURES[id]);
+    u.guidePages = cleanIds(u.guidePages);
     // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
     const bm = Math.floor(Number(u.birthMonth));
     const bd = Math.floor(Number(u.birthDay));
@@ -2352,6 +2539,23 @@ function isCurfewHour(state) {
   return h >= 22 || h < 7;
 }
 
+// ⬅️ PRESENCIA: jugadores reales conectados ahora mismo. { [userId]: nº de sockets }.
+const onlineUsers = new Map();
+
+function onlineUserIds() {
+  return Array.from(onlineUsers.keys());
+}
+// Emite a todos la lista de jugadores reales en línea y en qué sala están.
+function emitPresence() {
+  const users = memoryState && Array.isArray(memoryState.users) ? memoryState.users : [];
+  const list = onlineUserIds().map(id => {
+    const u = users.find(x => x.id === id);
+    if (!u) return null;
+    return { id: u.id, username: u.username, house: u.house || null, loc: u.loc || null };
+  }).filter(Boolean);
+  io.emit('presence:update', { ids: onlineUserIds(), users: list });
+}
+
 io.on('connection', async (socket) => {
   try {
     const currentState = await loadState();
@@ -2408,6 +2612,17 @@ io.on('connection', async (socket) => {
 
         await saveState(data.db);
 
+        // El usuario recién creado/actualizado puede estar identificado: se
+        // reintenta la presencia ahora que existe en el estado del servidor.
+        try {
+          const uid = Number(socket.data && socket.data.userId);
+          if (uid) registerPresence(uid);
+          // Refresca la sala mostrada en la lista de conectados al moverse.
+          if (onlineUsers.size) emitPresence();
+        } catch (err) {
+          console.error('Error registrando presencia tras sync_db:', err.message);
+        }
+
         socket.broadcast.emit('sync_db', {
           db: memoryState,
           reason: data.reason || null
@@ -2416,6 +2631,26 @@ io.on('connection', async (socket) => {
     });
 
     // ⬅️ MÓDULO SOCIAL: identidad del socket (sala privada por jugador)
+    // Registra la presencia del jugador en el socket (idempotente por socket:
+    // se puede llamar desde `identify` y desde `sync_db` sin contar dos veces).
+    // Es necesario en ambos porque al registrar un personaje nuevo el cliente
+    // envía `identify` antes de que el usuario exista en el servidor.
+    const registerPresence = (uid) => {
+      if (!uid) return;
+      const prev = socket.data.presenceUid;
+      if (prev === uid) return;
+      // Si el socket cambia de identidad, libera el conteo anterior.
+      if (prev) {
+        const n = (onlineUsers.get(prev) || 1) - 1;
+        if (n <= 0) onlineUsers.delete(prev); else onlineUsers.set(prev, n);
+      }
+      const u = memoryState.users.find(x => x.id === uid);
+      if (!u || u.is_npc) { socket.data.presenceUid = null; if (prev) emitPresence(); return; }
+      onlineUsers.set(uid, (onlineUsers.get(uid) || 0) + 1);
+      socket.data.presenceUid = uid;
+      emitPresence();
+    };
+
     socket.on('identify', async (data) => {
       const uid = Number(data && data.userId);
       // Sale de las salas anteriores antes de entrar en la nueva.
@@ -2425,6 +2660,13 @@ io.on('connection', async (socket) => {
       if (!uid) return;
       socket.data.userId = uid;
       socket.join('user:' + uid);
+
+      // Presencia: registra al jugador real como conectado ahora mismo.
+      try {
+        registerPresence(uid);
+      } catch (err) {
+        console.error('Error registrando presencia:', err.message);
+      }
 
       // Al identificarse el jugador se comprueba si hoy es su cumpleaños.
       try {
@@ -2498,8 +2740,9 @@ io.on('connection', async (socket) => {
         user.points = (Number(user.points) || 0) + 10;
         user.bagCapacity = 5 + Math.floor(user.merlinTrials.length / 2);
 
+        const newly = syncTitleUnlocks(user);
         await persistExploration();
-        emitExplorationUpdate(user, { event: 'merlin', trialId, reward: { galeones: 25, sabiduria: 15, housePoints: 10 } });
+        emitExplorationUpdate(user, { event: 'merlin', trialId, reward: { galeones: 25, sabiduria: 15, housePoints: 10 }, newTitles: newly });
       } catch (err) {
         console.error('Error completando Prueba de Merlín:', err.message);
       }
@@ -2544,12 +2787,14 @@ io.on('connection', async (socket) => {
         user.attrValentia = (Number(user.attrValentia) || 0) + 20 * delivered.length;
         user.alohomoraLevel = total >= 6 ? 3 : (total >= 3 ? 2 : 1);
 
+        const newly = syncTitleUnlocks(user);
         await persistExploration();
         emitExplorationUpdate(user, {
           event: 'turnIn',
           delivered: delivered.length,
           total,
-          reward: { galeones: 40 * delivered.length, valentia: 20 * delivered.length }
+          reward: { galeones: 40 * delivered.length, valentia: 20 * delivered.length },
+          newTitles: newly
         });
       } catch (err) {
         console.error('Error entregando Lunas Demiguise:', err.message);
@@ -3073,6 +3318,156 @@ io.on('connection', async (socket) => {
         socket.emit('cromo_image_error', { cromoId, message: msg });
       }
     });
+
+    /* ===== PERFIL: VARITA, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) =====
+       Todas las recompensas y desbloqueos se validan y persisten en el servidor. */
+    const profileUser = () => {
+      const uid = Number(socket.data && socket.data.userId);
+      if (!uid) return null;
+      return memoryState.users.find(u => u.id === uid) || null;
+    };
+    // Resumen del expediente que se devuelve al cliente tras cada cambio.
+    const profileSummary = (u) => {
+      const cromoCount = Object.values(u.cromos || {})
+        .filter(v => ((typeof v === 'number') ? v : (v && v.count) || 0) > 0).length;
+      return {
+        userId: u.id,
+        wand: u.wand || null,
+        title: u.title || null,
+        unlockedTitles: u.unlockedTitles || [],
+        unlockedCosmetics: u.unlockedCosmetics || [],
+        equippedCosmetics: u.equippedCosmetics || [],
+        bestiary: u.bestiary || [],
+        guidePages: u.guidePages || [],
+        progress: {
+          merlin: (u.merlinTrials || []).length, merlinTotal: MERLIN_TRIAL_IDS.length,
+          demiguise: (u.demiguiseCollected || []).length, demiguiseTotal: DEMIGUISE_STATUE_IDS.length,
+          cromos: cromoCount, cromosTotal: CROMO_IDS.length,
+          guide: (u.guidePages || []).length,
+          bestiary: (u.bestiary || []).length, bestiaryTotal: Object.keys(CREATURES).length,
+          spells: Array.isArray(u.spells) ? u.spells.length : 0,
+          classStars: u.classStars || {}
+        },
+        attrValentia: u.attrValentia, attrEmpatia: u.attrEmpatia, attrSabiduria: u.attrSabiduria
+      };
+    };
+
+    // Ceremonia de la varita: el núcleo se deriva de las respuestas en el servidor.
+    socket.on('wand:choose', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        if (u.wand) { socket.emit('wand:result', { ok: false, message: 'Ya tienes tu varita de Ollivanders.' }); return; }
+        const answers = Array.isArray(data && data.answers) ? data.answers.slice(0, WAND_QUIZ.length) : [];
+        if (answers.length < WAND_QUIZ.length) {
+          socket.emit('wand:result', { ok: false, message: 'Debes responder todas las preguntas de Ollivanders.' });
+          return;
+        }
+        const core = pickWandCore(answers);
+        const seed = Number(u.id) || 0;
+        const wand = {
+          core,
+          wood: WAND_WOODS[seed % WAND_WOODS.length],
+          length: WAND_LENGTHS[seed % WAND_LENGTHS.length],
+          chosenAt: Date.now()
+        };
+        u.wand = wand;
+        const newly = syncTitleUnlocks(u);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('wand:result', { ok: true, wand, title: u.title, newTitles: newly, profile: profileSummary(u) });
+      } catch (err) {
+        console.error('Error en la ceremonia de la varita:', err.message);
+      }
+    });
+
+    // Equipar / desequipar un título desbloqueado.
+    socket.on('title:equip', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const id = String((data && data.titleId) || '');
+        if (!TITLES[id] || !(u.unlockedTitles || []).includes(id)) return;
+        u.title = (u.title === id) ? null : id;
+        await saveState(memoryState);
+        socket.emit('profile:update', profileSummary(u));
+      } catch (err) {
+        console.error('Error equipando título:', err.message);
+      }
+    });
+
+    // Equipar / desequipar una prenda cosmética desbloqueada.
+    socket.on('cosmetic:equip', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const id = String((data && data.cosmeticId) || '');
+        if (!COSMETICS[id] || !(u.unlockedCosmetics || []).includes(id)) return;
+        u.equippedCosmetics = Array.isArray(u.equippedCosmetics) ? u.equippedCosmetics : [];
+        u.equippedCosmetics = u.equippedCosmetics.includes(id)
+          ? u.equippedCosmetics.filter(x => x !== id)
+          : u.equippedCosmetics.concat(id);
+        await saveState(memoryState);
+        socket.emit('profile:update', profileSummary(u));
+      } catch (err) {
+        console.error('Error equipando prenda:', err.message);
+      }
+    });
+
+    // Registrar una criatura en el Bestiario al interactuar con ella.
+    socket.on('creature:seen', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const id = String((data && data.creatureId) || '');
+        if (!CREATURES[id]) return;
+        u.bestiary = Array.isArray(u.bestiary) ? u.bestiary : [];
+        if (u.bestiary.includes(id)) return;
+        u.bestiary.push(id);
+        const newly = syncTitleUnlocks(u);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('profile:update', { ...profileSummary(u), event: 'creature', creatureId: id, newTitles: newly });
+      } catch (err) {
+        console.error('Error registrando criatura:', err.message);
+      }
+    });
+
+    // Hallazgo mágico al moverse: el servidor calcula probabilidad y recompensa
+    // (pasiva de Fénix y mascota rata incluidas) y las persiste.
+    socket.on('world:magicFind', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const roomId = String((data && data.room) || '');
+        if (!roomId) return;
+        const petBonus = (u.pet === 'rata') ? ((Number(u.petLove) || 0) >= 80 ? 0.20 : 0.10) : 0;
+        const chance = 0.48 + petBonus + wandFindBonus(u);
+        if (Math.random() >= chance) { socket.emit('world:magicFindResult', { found: false }); return; }
+        const f = SERVER_FINDS[Math.floor(Math.random() * SERVER_FINDS.length)];
+        u.points = (Number(u.points) || 0) + f.pts;
+        if (f.xp) u.flight_xp = (Number(u.flight_xp) || 0) + f.xp;
+        if (f.galeones) u.galeones = (Number(u.galeones) || 0) + f.galeones;
+        memoryState.log = Array.isArray(memoryState.log) ? memoryState.log : [];
+        memoryState.log.unshift({ u: u.username, h: u.house, a: `Hallazgo: ${f.name}`, p: f.pts, x: f.xp });
+        memoryState.log.length = Math.min(memoryState.log.length, 15);
+        reconcileHousePoints(memoryState);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('world:magicFindResult', { found: true, find: f, room: roomId });
+      } catch (err) {
+        console.error('Error en hallazgo mágico:', err.message);
+      }
+    });
+
+    // Desconexión: actualiza la presencia de jugadores reales.
+    socket.on('disconnect', () => {
+      const uid = socket.data && socket.data.presenceUid;
+      if (!uid) return;
+      const n = (onlineUsers.get(uid) || 1) - 1;
+      if (n <= 0) onlineUsers.delete(uid); else onlineUsers.set(uid, n);
+      emitPresence();
+    });
   } catch (err) {
     console.error('Error en la conexión:', err);
   }
@@ -3241,5 +3636,17 @@ module.exports = {
   grantLetterGift,
   reconcileLetterGrants,
   isRealUser,
-  mergeUsers
+  mergeUsers,
+  pickWandCore,
+  wandFindBonus,
+  wandEmpatiaBonus,
+  wandValentiaBonus,
+  effectiveAttrLevel,
+  grantTitle,
+  syncTitleUnlocks,
+  WAND_QUIZ,
+  WAND_CORES,
+  TITLES,
+  COSMETICS,
+  CREATURES
 };
