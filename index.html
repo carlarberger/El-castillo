@@ -283,6 +283,12 @@ select{width:auto}
 .chat{height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg);display:grid;gap:6px;align-content:start}
 .msg{padding:7px 12px;border-radius:10px;background:var(--surface-2);font-size:14px;display:flex;justify-content:space-between;gap:10px}
 .msg time{font-size:11px;color:var(--muted);white-space:nowrap}
+/* UX multijugador (8.2/8.3): registro secundario de NPCs y punto de conexión. */
+.msg.bot{opacity:.72;background:transparent;border:1px dashed var(--line)}
+.npc-log{margin-top:6px;border-top:1px dashed var(--line);padding-top:6px}
+.npc-log-body{display:grid;gap:6px;margin-top:6px;max-height:160px;overflow-y:auto}
+.online-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 25%,transparent);margin-right:6px;vertical-align:middle}
+#onlineBtn.on{border-color:var(--good);color:var(--good)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--line)}
 th{color:var(--gold)}
@@ -562,6 +568,8 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
     <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
     <button class="btn sm gold" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">📰 El Profeta</button>
+    <button class="btn sm gold" type="button" data-do="openMagicProfile" title="Mi Expediente Mágico: varita, títulos, guardarropa y bestiario">📜 Expediente</button>
+    <button class="btn sm" type="button" data-do="openOnlinePlayers" title="Jugadores conectados ahora y en qué sala están" id="onlineBtn">🟢 <span id="onlineCount">0</span> en línea</button>
     <button class="btn sm gold" type="button" data-do="openMacroMap" title="Mapa del Mundo: regiones del universo mágico">🗺️ Mapa del Mundo</button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
@@ -601,7 +609,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       <div class="nowbar"><div><h3 id="nowTitle">—</h3><p class="muted" id="nowSub"></p><p id="skipWarn" style="color:var(--bad);font-weight:700;font-size:13px;margin:4px 0 0;display:none">⚠️ Saltándote la clase</p></div><span class="pill" id="nowCount"></span></div>
       <div class="youbar" id="youBar"></div>
       <div class="region-bar" id="regionBar" hidden></div>
-      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"><span id="gossipSlot"></span><button class="btn sm gold" type="button" data-do="openMacroMap" title="Abrir el Mapa del Mundo del universo mágico">🗺️ Mapa del Mundo</button></div>
+      <div class="maptools"><input id="mapSearch" type="search" placeholder="Busca tu nick y mira dónde estás…" autocomplete="off" aria-label="Buscar alumno en el mapa"><span id="onlineSlot"></span><span id="gossipSlot"></span><button class="btn sm gold" type="button" data-do="openMacroMap" title="Abrir el Mapa del Mundo del universo mágico">🗺️ Mapa del Mundo</button></div>
       <div class="mapbox" id="mapbox" tabindex="0" aria-label="Mapa del castillo. En tiempo libre puedes tocar cualquier sala o usar las flechas para mover tu personaje."><div class="map" id="map"></div></div>
     </div>
     <div class="grid g2" style="margin-top:16px;align-items:start">
@@ -1469,6 +1477,21 @@ function ensureDbIntegrity(){
     if (!Array.isArray(u.demiguiseCarrying)) { u.demiguiseCarrying = []; changed = true; }
     if (typeof u.alohomoraLevel !== 'number' || isNaN(u.alohomoraLevel)) { u.alohomoraLevel = 1; changed = true; }
     if (typeof u.bagCapacity !== 'number' || isNaN(u.bagCapacity)) { u.bagCapacity = 5; changed = true; }
+    // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
+    if (u.wand && (typeof u.wand !== 'object' || !WAND_CORES[u.wand.core])) { u.wand = null; changed = true; }
+    if (u.title != null && !TITLES[u.title]) { u.title = null; changed = true; }
+    if (!Array.isArray(u.unlockedTitles)) { u.unlockedTitles = []; changed = true; }
+    else { const f = u.unlockedTitles.filter(id => !!TITLES[id]); if (f.length !== u.unlockedTitles.length) { u.unlockedTitles = f; changed = true; } }
+    // Las prendas antiguas se guardaban como objetos { id, name, icon, from, at };
+    // se normalizan a ids para poder equiparlas desde el Expediente.
+    if (!Array.isArray(u.unlockedCosmetics)) { u.unlockedCosmetics = []; changed = true; }
+    else if (u.unlockedCosmetics.some(c => c && typeof c === 'object')) {
+      u.unlockedCosmetics = [...new Set(u.unlockedCosmetics.map(c => (c && typeof c === 'object') ? c.id : c).filter(Boolean))];
+      changed = true;
+    }
+    if (!Array.isArray(u.equippedCosmetics)) { u.equippedCosmetics = []; changed = true; }
+    if (!Array.isArray(u.bestiary)) { u.bestiary = []; changed = true; }
+    if (!Array.isArray(u.guidePages)) { u.guidePages = []; changed = true; }
     const _bm = Math.floor(Number(u.birthMonth)), _bd = Math.floor(Number(u.birthDay));
     const _nm = (_bm >= 1 && _bm <= 12) ? _bm : null;
     const _nd = (_nm !== null && _bd >= 1 && _bd <= 31) ? _bd : null;
@@ -2070,9 +2093,11 @@ function impressReqFor(target) {
   return { key, prop: def.prop, label: def.label, icon: def.icon, level };
 }
 // ¿Cumple el jugador el requisito de impresionar a este personaje?
+// Usa el nivel efectivo para que la pasiva de la varita (Pelo de Unicornio /
+// Fibra de Corazón de Dragón) cuente como +1 en estas interacciones.
 function canImpress(u, target) {
   const req = impressReqFor(target);
-  return attrLevelOf(u, req.key) >= req.level;
+  return effectiveAttrLevel(u, req.key) >= req.level;
 }
 // Botón (deshabilitado si no cumple) con el requisito indicado.
 function impressButton(target) {
@@ -2193,6 +2218,92 @@ function quidditchStandings() {
   return Object.keys(wins).map(id => ({ id, wins: wins[id] })).sort((a, b) => b.wins - a.wins);
 }
 
+/* ===== PERFIL: VARITAS, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) =====
+   Catálogos espejo de los del servidor. El servidor valida y persiste todo. */
+const WAND_CORES = {
+  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',            icon: '🪶', desc: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.' },
+  unicornio: { id: 'unicornio', name: 'Pelo de Unicornio',         icon: '🦄', desc: '+1 de Empatía efectiva en interacciones y diálogos.' },
+  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', desc: '+1 de Valentía efectiva en duelos y pruebas de acción.' }
+};
+// Orden de preguntas y opciones idéntico al WAND_QUIZ del servidor.
+const WAND_QUIZ = [
+  { q: '¿Qué cualidad valoras más en un mago?', opts: ['La capacidad de renacer y seguir adelante', 'La bondad y la lealtad', 'El coraje para enfrentar el peligro'] },
+  { q: 'Elige tu lugar favorito del castillo:', opts: ['La Torre de Astronomía, entre las estrellas', 'Los Invernaderos, entre plantas y criaturas', 'El Aula de Duelos, con la varita en alto'] },
+  { q: 'Un amigo está en apuros. ¿Qué haces?', opts: ['Busco una solución ingeniosa y creativa', 'Lo consuelo y lo escucho con calma', 'Salgo a defenderlo sin dudarlo'] },
+  { q: '¿Qué tipo de magia te atrae más?', opts: ['Encantamientos versátiles y transformadores', 'Herbología y cuidado de criaturas', 'Defensa contra las Artes Oscuras'] },
+  { q: 'Ante una derrota, tú…', opts: ['Aprendes y te reinventas para la próxima', 'Reflexionas y apoyas a los tuyos', 'Te levantas y vuelves a intentarlo con más fuerza'] }
+];
+const WAND_WOOD_LABEL = { acebo: 'Acebo', sauce: 'Sauce', espino: 'Espino', tejo: 'Tejo', caoba: 'Caoba', fresno: 'Fresno', nogal: 'Nogal', manzano: 'Manzano' };
+const TITLES = {
+  aprendiz:       { id: 'aprendiz',       name: 'Aprendiz de Primer Año', icon: '🎓', desc: 'Recién llegado a Hogwarts.' },
+  elegido_varita: { id: 'elegido_varita', name: 'Elegido por la Varita',  icon: '🪄', desc: 'Completaste la ceremonia de Ollivanders.' },
+  merlin:         { id: 'merlin',         name: 'Discípulo de Merlín',    icon: '🌿', desc: 'Superaste todas las Pruebas de Merlín.' },
+  demiguise:      { id: 'demiguise',      name: 'Cazador de Lunas',       icon: '🌙', desc: 'Recuperaste todas las Estatuas Demiguise.' },
+  coleccionista:  { id: 'coleccionista',  name: 'Coleccionista de Cromos', icon: '🐸', desc: 'Completaste el Álbum de Cromos.' },
+  magizoologo:    { id: 'magizoologo',    name: 'Magizoólogo',            icon: '🦅', desc: 'Registraste muchas criaturas en tu Bestiario.' },
+  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' }
+};
+const COSMETICS = {
+  gafas_harry:     { id: 'gafas_harry',     name: 'Gafas Redondas de Harry', icon: '👓', desc: 'El clásico inconfundible del Elegido.' },
+  bufanda_weasley: { id: 'bufanda_weasley', name: 'Bufanda Weasley',        icon: '🧣', desc: 'Tejida a mano por la Sra. Weasley.' },
+  broche_draco:    { id: 'broche_draco',    name: 'Broche de Draco',        icon: '💎', desc: 'Elegancia y ambición de Slytherin.' },
+  gafas_luna:      { id: 'gafas_luna',      name: 'Gafas de Luna',          icon: '👓', desc: 'Ves lo que los demás no ven.' },
+  tunica_gala:     { id: 'tunica_gala',     name: 'Túnicas de Gala',        icon: '🎩', desc: 'Atuendo formal para el Baile de Navidad.' }
+};
+const CREATURES = {
+  hipogrifo:   { id: 'hipogrifo',   name: 'Hipogrifo',                icon: '🦅', room: 'cabana',       desc: 'Orgulloso y noble; exige una reverencia.' },
+  buckbeak:    { id: 'buckbeak',    name: 'Buckbeak',                 icon: '🦅', room: 'cabana',       desc: 'El hipogrifo favorito de Hagrid.' },
+  duendecillo: { id: 'duendecillo', name: 'Duendecillo de Cornualles', icon: '🧚', room: 'cabana',       desc: 'Travieso y difícil de contener.' },
+  gusarajo:    { id: 'gusarajo',    name: 'Gusarajo',                 icon: '🐛', room: 'cabana',       desc: 'Plaga común en las cosechas.' },
+  mandragora:  { id: 'mandragora',  name: 'Mandrágora',               icon: '🌱', room: 'invernaderos', desc: 'Su grito puede despertar a un ejército.' },
+  lazo_diablo: { id: 'lazo_diablo', name: 'Lazo del Diablo',          icon: '🌿', room: 'invernaderos', desc: 'Se defiende con Lumos Solem.' },
+  thestral:    { id: 'thestral',    name: 'Thestral',                 icon: '🐴', room: 'terrenos',     desc: 'Solo lo ve quien ha presenciado una muerte.' },
+  fenix:       { id: 'fenix',       name: 'Fénix',                    icon: '🪶', room: 'comedor',      desc: 'Renace de sus propias cenizas.' }
+};
+
+// Núcleo de la varita del jugador (o null).
+const wandCoreOf = u => { const c = u && u.wand && u.wand.core; return WAND_CORES[c] ? c : null; };
+const wandFindBonus = u => wandCoreOf(u) === 'fenix' ? 0.10 : 0;
+const wandEmpatiaBonus = u => wandCoreOf(u) === 'unicornio' ? 1 : 0;
+const wandValentiaBonus = u => wandCoreOf(u) === 'dragon' ? 1 : 0;
+// Nivel efectivo de un atributo (base + bonus de la varita), igual que el servidor.
+function effectiveAttrLevel(u, key) {
+  const def = ATTR_DEFS[key]; if (!def || !u) return 1;
+  const base = Math.floor(Math.max(0, Number(u[def.prop]) || 0) / 10) + 1;
+  if (key === 'empatia') return base + wandEmpatiaBonus(u);
+  if (key === 'valentia') return base + wandValentiaBonus(u);
+  return base;
+}
+// Etiqueta del título equipado, para mostrar junto al nombre en chat y registro.
+function titleBadge(u) {
+  const t = u && u.title && TITLES[u.title];
+  return t ? `<span class="pill gold" title="${esc(t.desc)}">${t.icon} ${esc(t.name)}</span>` : '';
+}
+// Etiqueta de las prendas equipadas.
+function equippedCosmeticsBadges(u) {
+  const ids = Array.isArray(u && u.equippedCosmetics) ? u.equippedCosmetics : [];
+  return ids.map(id => COSMETICS[id]).filter(Boolean)
+    .map(c => `<span class="pill" title="${esc(c.desc)}">${c.icon} ${esc(c.name)}</span>`).join('');
+}
+// Estado de presencia (jugadores reales en línea) compartido con el render.
+let onlineIds = [];
+let onlineList = [];
+const isOnline = id => onlineIds.includes(Number(id));
+function onlineCount() { return onlineIds.length; }
+// Registra una criatura en el Bestiario (validado en el servidor).
+function seeCreature(id) { if (CREATURES[id]) socket.emit('creature:seen', { creatureId: id }); }
+// Observa las criaturas de la sala actual y las registra en el Bestiario.
+function observeCreatures(){
+  const u = me(); must(u && u.house, 'Inicia sesión con tu personaje primero');
+  const loc = userLoc(u);
+  const here = Object.values(CREATURES).filter(c => c.room === loc);
+  if (!here.length) return toast('Aquí no hay criaturas mágicas que observar.');
+  const news = here.filter(c => !((u.bestiary || []).includes(c.id)));
+  here.forEach(c => seeCreature(c.id));
+  if (news.length) toast(`🔭 Observaste ${news.length} criatura(s): ${news.map(c => c.icon + ' ' + c.name).join(', ')}`);
+  else toast('Ya conocías a todas las criaturas de esta zona.');
+}
+
 const API={
   register(name,pass,look,house){
     name=cleanName(name);must(name,'Escribe un nombre para tu personaje');
@@ -2311,15 +2422,12 @@ const API={
       }
     }
     u.loc=roomId;u.locSlot=slotKey();
-    
-    if(Math.random() < 0.48 + petFindBonus(u)) {
-      const f = RANDOM_FINDS[Math.floor(Math.random()*RANDOM_FINDS.length)];
-      u.points += f.pts;
-      if(f.xp) u.flight_xp += f.xp;
-      db.log.unshift({u:u.username,h:u.house,a:`Hallazgo: ${f.name}`,p:f.pts,x:f.xp});
-      openRandomFindModal(f);
-    }
+
+    // Se sincroniza primero el movimiento (y las consecuencias del salto de
+    // clase) y DESPUÉS el servidor decide y persiste el hallazgo mágico, de modo
+    // que la pasiva de Fénix no pueda ser sobrescrita por una copia obsoleta.
     commit();
+    socket.emit('world:magicFind', { room: roomId });
   },
     sneak(){
     const u=me();must(u&&u.house,'Inicia sesión primero');
@@ -3125,6 +3233,8 @@ function avatar(l,house,w=40,seed=null){
 const av=(u,w)=>avatar(u&&u.look,u&&u.house,w,u&&u.username);
 
 let mapTerm='',stuTerm='',stuSort='pts',stuHouse='all',traitsDraft=[],pitchDraft='',resetArmed=false,draftNew=true;
+// UX multijugador (8.2): ocultar el registro secundario de NPCs/bots en el chat.
+let chatHideNpc=true;
 // Región del Mapa del Mundo activa en el mapa micro (null = vista completa del Castillo).
 let macroRegion=null;
 let relFilterMode='all';
@@ -3251,7 +3361,7 @@ function renderMap(regionFilter){
     const hasFilch = (filchRoom === id);
     const isShop = !!SHOP_ROOMS[id];
     const pts=isHouse?db.houses.find(x=>x.id===id).points:null;
-    const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)} (${userYear(x)}.º curso)${x.is_npc?' · NPC':''}">${av(x,22)}</span>`).join('');
+    const pawns=hereUsers.map(x=>`<span class="pawn ${u&&x.id===u.id?'me':''} ${term&&x.username.toLowerCase().includes(term)?'find':''}" title="${esc(x.username)} (${userYear(x)}.º curso)${x.is_npc?' · NPC':''}${!x.is_npc&&isOnline(x.id)?' · 🟢 en línea':''}">${av(x,22)}${!x.is_npc&&isOnline(x.id)?'<span class="online-dot map-dot" title="Jugador conectado ahora"></span>':''}</span>`).join('');
     const filchHtml = hasFilch ? `<span class="pawn" title="Argus Filch">${avatar({skin:1,hair:3,style:'corto',eyes:0},'',22)}</span>` : '';
     const foot=hereUsers.length||hasFilch?`${hereUsers.length?hereUsers.length+' alumnos':''}${hasFilch?' ⚠️ Filch':''}`:(isHouse?pts+' pts':'');
     const texClass = tex ? 'tex-'+tex : '';
@@ -3272,7 +3382,7 @@ function renderMap(regionFilter){
     if(canListenGossip(u)){
       const cd=Math.max(0,15000-(Date.now()-((db.cooldowns[u.id]||{}).gossip||0)));
       gs.innerHTML=`<button class="btn sm" type="button" data-do="listenGossip" ${cd>0?'disabled':''} title="Escucha un rumor divertido sobre otro alumno">👂 ${cd>0?`Espera ${Math.ceil(cd/1000)} s`:'Escuchar chismes'}</button>`;
-    } else if(u&&u.house&&(Number(u.attrEmpatia)||0)<3){
+    } else if(u&&u.house&&effectiveAttrLevel(u,'empatia')<3){
       gs.innerHTML=`<span class="hint" title="Necesitas Empatía Nv. 3">👂 Escuchar chismes (Empatía Nv. 3)</span>`;
     } else { gs.innerHTML=''; }
   }
@@ -3347,6 +3457,10 @@ function socialActivitiesBar(u,loc){
   }
   if(loc==='biblioteca'&&at){
     btns+=`<button class="btn sm gold" type="button" data-do="openStudyPartner" title="Sesión de estudio en pareja: memoria de runas">📖 Sesión de Estudio en Pareja</button>`;
+  }
+  // Bestiario: observar las criaturas de la zona las registra (Tanda 4.5).
+  if(at&&Object.values(CREATURES).some(c=>c.room===loc&&!((u.bestiary||[]).includes(c.id)))){
+    btns+=`<button class="btn sm gold" type="button" data-do="observeCreatures" title="Observa y anota las criaturas de esta zona en tu Bestiario">🔭 Observar criaturas</button>`;
   }
   if(u.house&&loc===u.house&&at){
     btns+=`<button class="btn sm gold" type="button" data-do="openQuestBoard" title="Tablón de encargos de la Sala Común">📋 Tablón de Encargos</button>`;
@@ -3485,13 +3599,17 @@ function renderPlay(){
   ${Array.isArray(u.unlockedCosmetics)&&u.unlockedCosmetics.length?`<div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
     <span class="muted" style="font-size:12px;align-self:center">Prendas icónicas:</span>${cosmeticsBadgesHTML(u)}
   </div>`:''}
+  <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">
+    ${u.wand?`<span class="pill gold" title="${esc((WAND_CORES[wandCoreOf(u)]||{}).desc||'Tu varita de Ollivanders')}">🪄 Varita: ${esc(WAND_WOOD_LABEL[u.wand.wood]||u.wand.wood)} · ${u.wand.length} cm · ${esc((WAND_CORES[wandCoreOf(u)]||{}).name||'núcleo')}</span>`:`<button class="btn sm gold" type="button" data-do="openWandCeremony" title="Consigue tu varita en Ollivanders">🪄 Conseguir mi varita</button>`}
+    <button class="btn sm gold" type="button" data-do="openMagicProfile" title="Varita, títulos, guardarropa y bestiario">📜 Mi Expediente Mágico</button>
+  </div>
   ${birthdayLabel(u)?`<p style="font-size:12px;margin-top:6px"><span class="pill gold">🎂 Cumpleaños: ${esc(birthdayLabel(u))}</span></p>`:''}
   ${tradeOffersHTML(u)}
   ${ownRelationshipStatusHTML(u)}
   ${reputationHTML(u)}`;
 
   who.innerHTML=`<span class="pawn big me">${av(u,46)}</span><div style="flex:1"><strong style="font-size:18px">${esc(u.username)}</strong>
-  <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}${u.patronus?`<span class="pill" title="Tu Patronus" style="border-color:#60a5fa;color:#cfe0ff">${patronusIcon(u.patronus)} ${esc((patronusForm(u.patronus)||{}).name||'Patronus')}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
+  <div class="row" style="gap:6px;margin-top:2px">${hbadge(u.house)}${yearBadge(u)}${titleBadge(u)}${equippedCosmeticsBadges(u)}${u.role==='prefect'?'<span class="pill gold">Prefecto</span>':extraBadge}${u.is_npc?'<span class="pill">🤖 NPC</span>':''}${u.is_admin?'<span class="pill warn">Admin</span>':''}${q?`<span class="pill">${q.pos} #${q.rank}</span>`:''}${petOf(u)?`<span class="pill gold" title="${petOf(u).desc}">${petOf(u).icon} ${petOf(u).name}</span>`:''}${u.patronus?`<span class="pill" title="Tu Patronus" style="border-color:#60a5fa;color:#cfe0ff">${patronusIcon(u.patronus)} ${esc((patronusForm(u.patronus)||{}).name||'Patronus')}</span>`:''}<span class="muted mono" style="font-size:13px">${u.points} pts · 🪙 ${u.galeones||0} Galeones · ${u.flight_xp} XP de vuelo · Misión diaria: ${Math.min(mis,3)}/3</span></div>
       ${!petOf(u)?`<button class="btn sm" style="margin-top:8px" data-do="adoptPet" type="button">🐾 Adoptar mascota</button>`:`<button class="btn sm gold" style="margin-top:8px" data-do="playWithPet" type="button" ${petPlayCooldown(u)>0?'disabled':''}>${petOf(u).icon} ${petPlayCooldown(u)>0?`Jugar en ${Math.ceil(petPlayCooldown(u)/60000)} min`:'Jugar con '+petOf(u).name}</button>`}
       ${u.patronus?`<button class="btn sm" style="margin-top:8px;border-color:#60a5fa;color:#cfe0ff" data-do="summonPatronus" type="button">✨ Invocar Patronus</button>`:''}
       ${u.animagus?`<button class="btn sm" style="margin-top:8px;border-color:#fbbf24;color:#fde68a" data-do="summonAnimagus" type="button">🐾 Invocar Animago</button>`:''}
@@ -3618,10 +3736,69 @@ function renderChat(){
   const glob=session.channel==='global';
   $('chGlobal').className='chip '+(glob?'on':'');$('chHouse').className='chip '+(glob?'':'on');
   $('chHouse').textContent=u&&u.house?'Sala Común de '+HOUSE(u.house).name:'Sala Común';
-  const msgs=db.chat.filter(m=>glob?m.ch==='global':(u&&m.ch===u.house));
+  const all=db.chat.filter(m=>glob?m.ch==='global':(u&&m.ch===u.house));
+  // UX multijugador (8.2): las líneas de bots/NPCs se agrupan en un registro
+  // secundario colapsable para que destaquen los jugadores reales.
+  const isBot=m=>String(m.u||'').startsWith('🤖');
+  const humanMsgs=all.filter(m=>!isBot(m));
+  const npcMsgs=all.filter(isBot);
+  const shown=chatHideNpc?humanMsgs:all;
   const box=$('chatBox'),atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<40;
-  box.innerHTML=msgs.length?msgs.map(m=>`<div class="msg"><span>${hbadge(m.h)} <strong>${esc(m.u)}</strong>${m.role==='prefect'?' <span class="pill gold">Prefecto</span>':''} ${esc(m.text)}</span><time>${esc(m.time)}</time></div>`).join(''):'<p class="muted" style="text-align:center;padding:30px 0">Sin mensajes todavía. Saluda.</p>';
+  const line=m=>{
+    const bot=isBot(m);
+    const who=String(m.u||'').replace(/^🤖\s*/,'');
+    const usr=db.users.find(x=>x.username===who);
+    const dot=!bot&&isOnline(usr&&usr.id)?'<span class="online-dot" title="Jugador conectado ahora"></span>':'';
+    const title=(!bot&&usr)?titleBadge(usr):'';
+    return `<div class="msg${bot?' bot':''}"><span>${dot}${hbadge(m.h)} <strong>${esc(m.u)}</strong>${title}${m.role==='prefect'?' <span class="pill gold">Prefecto</span>':''} ${esc(m.text)}</span><time>${esc(m.time)}</time></div>`;
+  };
+  let html=shown.length?shown.map(line).join(''):'<p class="muted" style="text-align:center;padding:30px 0">Sin mensajes todavía. Saluda.</p>';
+  // Registro secundario de bots/NPCs, colapsable.
+  if(npcMsgs.length){
+    html+=`<div class="npc-log"><button class="btn sm" type="button" data-do="toggleNpcChat" style="width:100%">${chatHideNpc?'▸':'▾'} Actividad de NPCs y bots (${npcMsgs.length})</button>`;
+    if(!chatHideNpc) html+=`<div class="npc-log-body">${npcMsgs.map(line).join('')}</div>`;
+    html+=`</div>`;
+  }
+  box.innerHTML=html;
   if(atEnd)box.scrollTop=box.scrollHeight;
+}
+
+/* ===== JUGADORES CONECTADOS AHORA (8.3) ===== */
+function renderOnlineIndicator(){
+  const el=$('onlineCount');
+  if(el) el.textContent=onlineCount();
+  const btn=$('onlineBtn');
+  if(btn) btn.classList.toggle('on',onlineCount()>0);
+  const slot=$('onlineSlot');
+  if(slot){
+    const n=onlineCount();
+    slot.innerHTML=n>0
+      ? `<button class="btn sm" type="button" data-do="openOnlinePlayers" title="Ver los jugadores conectados ahora y su sala"><span class="online-dot"></span>${n} jugador${n===1?'':'es'} en línea</button>`
+      : `<span class="hint" title="Ningún jugador real conectado ahora">⚪ Sin jugadores en línea</span>`;
+  }
+}
+function openOnlinePlayersModal(){
+  const u=me();
+  const humans=onlineList.length?onlineList:[];
+  const list=humans.map(p=>{
+    const loc=p.loc&&ROOMS.some(r=>r[0]===p.loc)?roomName(p.loc):'el castillo';
+    const meFlag=u&&Number(u.id)===Number(p.id);
+    return `<div class="box" style="display:flex;align-items:center;gap:8px">
+      <span class="online-dot"></span>
+      <strong style="flex:1">${esc(p.username)}${meFlag?' <span class="pill">Tú</span>':''}</strong>
+      ${hbadge(p.house)}
+      <span class="muted" style="font-size:12px">📍 ${esc(loc)}</span>
+    </div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+      <div><h3 style="margin:0;font-size:20px;color:var(--gold)">🟢 Jugadores conectados ahora</h3>
+        <p class="muted" style="font-size:13px">Solo se muestran jugadores reales en línea y en qué sala están.</p></div>
+      <span class="pill good mono">${humans.length} en línea</span>
+    </div>
+    <div class="grid" style="gap:8px">${list||'<p class="muted" style="text-align:center;padding:20px 0">Nadie más está conectado ahora mismo.</p>'}</div>
+    <div class="row" style="margin-top:12px;justify-content:center"><button class="btn sm" data-do="closeModal" type="button">Cerrar</button></div>
+  </div>`, true);
 }
 function renderAdmin(){
   const slot=$('adminSlot');
@@ -3963,11 +4140,159 @@ function buyMacroItem(shopId,itemId){
   toast(`Compraste ${def.nombre} (-${it.price} 🪙)`);
   openShopRoomModal(shopId);
 }
+/* ===== CEREMONIA DE LA VARITA DE OLLIVANDERS (Tanda 4) ===== */
+let wandCeremonyState = null;
+
+function openWandCeremony(){
+  const u = me(); must(u, 'Inicia sesión con tu personaje primero');
+  if (u.wand) { openShopRoomModal('ollivanders'); return; }
+  wandCeremonyState = { step: 0, answers: [] };
+  renderWandCeremony();
+}
+
+function renderWandCeremony(){
+  const u = me(); const st = wandCeremonyState; if (!u || !st) return;
+  const total = WAND_QUIZ.length;
+  if (st.step >= total) { submitWandCeremony(); return; }
+  const q = WAND_QUIZ[st.step];
+  let html = `<div style="width:100%;text-align:left">
+    <div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+      <div class="row"><span class="pawn big">🪄</span><div><h3 style="margin:0;font-size:20px;color:var(--gold)">Ollivanders: Varitas de Garrick</h3><small class="muted">«La varita elige al mago…»</small></div></div>
+      <span class="pill gold mono">${st.step+1}/${total}</span>
+    </div>
+    <p class="muted" style="font-size:13px">Responde con sinceridad: la varita mide tu carácter para encontrar su núcleo y su madera.</p>
+    <div class="box" style="width:100%;text-align:left;display:grid;gap:8px">
+      <p style="font-weight:700;color:var(--gold)">Pregunta ${st.step+1}: ${esc(q.q)}</p>
+      ${q.opts.map((o,i)=>`<button class="btn" type="button" data-do="wandAnswer" data-i="${i}" style="justify-content:flex-start;text-align:left">${esc(o)}</button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" data-do="closeModal" type="button">Salir de la tienda</button></div>
+  </div>`;
+  openModal(html, true);
+}
+
+function answerWandCeremony(i){
+  const st = wandCeremonyState; if (!st) return;
+  st.answers.push(Number(i));
+  st.step += 1;
+  if (st.step >= WAND_QUIZ.length) { submitWandCeremony(); return; }
+  renderWandCeremony();
+}
+
+function submitWandCeremony(){
+  const st = wandCeremonyState;
+  if (!st) return;
+  const answers = st.answers.slice();
+  wandCeremonyState = null;
+  // El servidor deriva el núcleo de las respuestas y aplica la pasiva real.
+  socket.emit('wand:choose', { answers });
+  openModal(`<div style="width:100%;text-align:left">
+    <div class="row"><span class="pawn big">🪄</span><div><h3 style="margin:0;font-size:20px;color:var(--gold)">Ollivanders</h3><small class="muted">«…y la varita elige al mago.»</small></div></div>
+    <p class="muted" style="margin-top:10px">El Sr. Ollivander revuelve entre montones de cajas polvorientas y te tiende una varita temblorosa…</p>
+  </div>`, true);
+  setTimeout(()=>{ const m=$('modalRoot'); if(m&&!m.hidden&&m.innerHTML.includes('Ollivanders')) closeModal(); }, 1600);
+}
+
+/* ===== MI EXPEDIENTE MÁGICO (Tandas 4 y 8) ===== */
+// Resumen de progreso real del jugador (coincide con lo validado en el servidor).
+function magicProfileProgress(u){
+  const cromoCount = CROMOS_MAGOS.filter(c=>{ const v=(u.cromos||{})[c.id]; return ((typeof v==='number')?v:(v&&v.count)||0)>0; }).length;
+  return {
+    merlin:(Array.isArray(u.merlinTrials)?u.merlinTrials.length:0), merlinTotal:MERLIN_TRIALS.length,
+    demiguise:(Array.isArray(u.demiguiseCollected)?u.demiguiseCollected.length:0), demiguiseTotal:DEMIGUISE_STATUES.length,
+    cromos:cromoCount, cromosTotal:CROMOS_MAGOS.length,
+    guide:(Array.isArray(u.guidePages)?u.guidePages.length:0),
+    bestiary:(Array.isArray(u.bestiary)?u.bestiary.length:0), bestiaryTotal:Object.keys(CREATURES).length,
+    spells:(Array.isArray(u.spells)?u.spells.length:0)
+  };
+}
+
+function openMagicProfileModal(){
+  const u = me(); must(u, 'Inicia sesión con tu personaje primero');
+  const p = magicProfileProgress(u);
+  const core = WAND_CORES[wandCoreOf(u)];
+  const wandHTML = u.wand
+    ? `<div class="box" style="border-left:3px solid var(--gold)">
+        <div class="row" style="justify-content:space-between"><strong>🪄 Tu varita</strong><span class="pill gold">${core?core.icon+' '+esc(core.name):'Núcleo mágico'}</span></div>
+        <p style="font-size:13px;margin-top:4px">${esc(WAND_WOOD_LABEL[u.wand.wood]||u.wand.wood)}, ${u.wand.length} cm</p>
+        <p class="muted" style="font-size:12px">${core?esc(core.desc):''}</p>
+      </div>`
+    : `<div class="box" style="border-left:3px solid var(--line)">
+        <strong>🪄 Sin varita</strong>
+        <p class="muted" style="font-size:12px;margin-top:4px">Visita Ollivanders en el Callejón Diagon para completar la ceremonia y desbloquear tu pasiva de núcleo.</p>
+        <button class="btn sm gold" type="button" data-do="openWandCeremony" style="margin-top:6px">Ir a la Ceremonia</button>
+      </div>`;
+
+  const bar = (label,val,total,icon)=>`<div class="box" style="display:flex;flex-direction:column;gap:4px">
+      <div class="row" style="justify-content:space-between"><span>${icon} ${label}</span><b class="mono">${val}${total!=null?'/'+total:''}</b></div>
+      ${total?`<span class="stat-bar"><i style="width:${Math.min(100,Math.round(val/total*100))}%;background:var(--gold)"></i></span>`:''}
+    </div>`;
+
+  // Títulos: equipables (validados en el servidor).
+  const titles = u.unlockedTitles||[];
+  const titlesHTML = titles.length
+    ? titles.map(id=>{ const t=TITLES[id]; const on=u.title===id;
+        return `<button class="chip ${on?'on':''}" type="button" data-do="equipTitle" data-id="${id}" title="${esc(t.desc)}">${t.icon} ${esc(t.name)}${on?' ✓':''}</button>`; }).join('')
+    : '<p class="muted" style="font-size:13px">Aún no has desbloqueado títulos. Completa logros del castillo para conseguirlos.</p>';
+
+  // Guardarropa: prendas desbloqueadas y equipables.
+  const cos = u.unlockedCosmetics||[];
+  const cosHTML = cos.length
+    ? cos.map(id=>{ const c=COSMETICS[id]; const on=(u.equippedCosmetics||[]).includes(id);
+        return `<button class="chip ${on?'on':''}" type="button" data-do="equipCosmetic" data-id="${id}" title="${esc(c.desc)}">${c.icon} ${esc(c.name)}${on?' ✓':''}</button>`; }).join('')
+    : '<p class="muted" style="font-size:13px">Sin prendas aún. Sube la amistad con los personajes del canon al máximo para desbloquear sus prendas icónicas.</p>';
+
+  // Bestiario: criaturas registradas y pendientes.
+  const best = u.bestiary||[];
+  const bestHTML = Object.values(CREATURES).map(c=>{
+    const seen=best.includes(c.id);
+    return `<div class="box" style="text-align:center;opacity:${seen?1:.5}">
+      <div style="font-size:26px">${seen?c.icon:'❓'}</div>
+      <strong style="font-size:13px">${seen?esc(c.name):'???'}</strong>
+      <p class="muted" style="font-size:11px">${seen?esc(c.desc):'Criatura por descubrir en '+esc(roomName(c.room))}</p>
+    </div>`; }).join('');
+
+  let html = `<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+    <div><h3 style="font-size:20px;color:var(--gold)">📜 Mi Expediente Mágico</h3>
+      <p class="muted" style="font-size:13px">${esc(u.username)}${u.title&&TITLES[u.title]?` · ${TITLES[u.title].icon} ${esc(TITLES[u.title].name)}`:''}</p></div>
+    <span class="pill gold mono">🪙 ${u.galeones||0}</span>
+  </div>
+  <div class="grid g2" style="width:100%;text-align:left;gap:10px">
+    ${wandHTML}
+    <div class="box" style="display:flex;flex-direction:column;gap:6px">
+      <strong>🏅 Títulos equipables</strong>
+      <div class="chips">${titlesHTML}</div>
+    </div>
+    <div class="box" style="display:flex;flex-direction:column;gap:6px">
+      <strong>👗 Guardarropa</strong>
+      <div class="chips">${cosHTML}</div>
+    </div>
+    <div class="box" style="display:flex;flex-direction:column;gap:6px">
+      <strong>📊 Progreso de colecciones</strong>
+      <div class="grid g2" style="gap:6px">
+        ${bar('Pruebas de Merlín',p.merlin,p.merlinTotal,'🌿')}
+        ${bar('Lunas Demiguise',p.demiguise,p.demiguiseTotal,'🌙')}
+        ${bar('Cromos',p.cromos,p.cromosTotal,'🐸')}
+        ${bar('Páginas de Guía',p.guide,null,'📖')}
+        ${bar('Criaturas avistadas',p.bestiary,p.bestiaryTotal,'🦅')}
+        ${bar('Hechizos',p.spells,null,'✨')}
+      </div>
+    </div>
+    <div class="box" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
+      <strong>🦅 Álbum de Criaturas Mágicas (Bestiario)</strong>
+      <div class="grid g4" style="gap:6px">${bestHTML}</div>
+    </div>
+  </div>
+  <div class="row" style="margin-top:12px;justify-content:center"><button class="btn sm" data-do="closeModal" type="button">Cerrar</button></div>`;
+  openModal(html, true);
+}
+
 function openShopRoomModal(shopId){
   const shop=MACRO_SHOPS[shopId];
   const u=me();
   if(!u||!u.house) return toast('Inicia sesión con tu personaje para entrar a la tienda');
   if(!shop) return toast('Tienda no disponible');
+  // Ollivanders: la primera visita abre la ceremonia de la varita (Tanda 4).
+  if(shopId==='ollivanders' && !u.wand) return openWandCeremony();
   const def=SHOP_ROOMS[shopId]||{name:shop.name,icon:shop.icon};
   let html=`<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
     <h3 style="font-size:20px;color:var(--gold)">${def.icon} ${esc(shop.name)}</h3>
@@ -4667,6 +4992,7 @@ function renderAll(){
   renderStudents();
   renderCourses();
   renderClock();
+  renderOnlineIndicator();
   updateSocialBadge();
   updateLettersBadge();
 }
@@ -4677,6 +5003,9 @@ function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 styl
 function finishMinigame(k,hit,msgWin,msgLose){
   try{
     const r=API.trainMinigame(k,hit);
+    // Bestiario: interactuar con las criaturas de la clase las registra (Tanda 4.5).
+    if(hit && k==='criaturas'){ seeCreature('hipogrifo'); seeCreature('duendecillo'); }
+    if(hit && k==='herbologia'){ seeCreature('mandragora'); seeCreature('lazo_diablo'); }
     closeModal();
     toast((hit?(msgWin||'¡Excelente!'):(msgLose||'Buen intento'))+`: +${r.pts} pts${r.fx?` · +${r.fx} XP`:''}`);
   }catch(err){
@@ -5600,11 +5929,63 @@ socket.on('exploration:update',(data)=>{
   if(typeof data.points==='number') u.points=data.points;
   if(typeof data.attrSabiduria==='number') u.attrSabiduria=data.attrSabiduria;
   if(typeof data.attrValentia==='number') u.attrValentia=data.attrValentia;
+  if(Array.isArray(data.newTitles)&&data.newTitles.length){
+    data.newTitles.forEach(id=>{ if(!Array.isArray(u.unlockedTitles)) u.unlockedTitles=[]; if(!u.unlockedTitles.includes(id)) u.unlockedTitles.push(id); });
+    const names=data.newTitles.map(id=>TITLES[id]?`${TITLES[id].icon} ${TITLES[id].name}`:id).join(', ');
+    toast(`🏅 Nuevo título: ${names}`);
+  }
   if(data.event==='pickup') toast(`🌙 Luna de Demiguise recogida (llevas ${data.carrying}). Entrégala en tu Sala Común.`);
   if(data.event==='turnIn') toast(`🪄 ¡Entregaste ${data.delivered} Luna(s)! +${data.reward.galeones} Galeones · +${data.reward.valentia} Valentía · Alohomora Nv. ${u.alohomoraLevel}`);
   renderYou(); renderMap();
 });
 socket.on('exploration:error',(data)=>{ if(data&&data.message) toast(data.message); });
+
+/* ===== PERFIL: VARITA, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) ===== */
+socket.on('wand:result',(data)=>{
+  if(!data) return;
+  if(!data.ok){ if(data.message) toast(data.message); return; }
+  const u=me();
+  if(u&&data.wand){ u.wand=data.wand; }
+  if(u&&data.profile){
+    if(data.profile.title!==undefined) u.title=data.profile.title;
+    if(Array.isArray(data.profile.unlockedTitles)) u.unlockedTitles=data.profile.unlockedTitles;
+  }
+  const core=WAND_CORES[data.wand&&data.wand.core];
+  fanfare();
+  toast(`🪄 ¡Ollivanders te entregó tu varita de ${WAND_WOOD_LABEL[data.wand.wood]||data.wand.wood}, ${data.wand.length} cm, con ${core?core.name:'núcleo mágico'}!`);
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  renderAll();
+});
+socket.on('profile:update',(data)=>{
+  if(!data) return;
+  const u=db.users.find(x=>Number(x.id)===Number(data.userId));
+  if(u){
+    if(data.title!==undefined) u.title=data.title;
+    if(Array.isArray(data.unlockedTitles)) u.unlockedTitles=data.unlockedTitles;
+    if(Array.isArray(data.unlockedCosmetics)) u.unlockedCosmetics=data.unlockedCosmetics;
+    if(Array.isArray(data.equippedCosmetics)) u.equippedCosmetics=data.equippedCosmetics;
+    if(Array.isArray(data.bestiary)) u.bestiary=data.bestiary;
+    if(Array.isArray(data.guidePages)) u.guidePages=data.guidePages;
+    if(data.wand!==undefined) u.wand=data.wand;
+  }
+  if(data.event==='creature'&&CREATURES[data.creatureId]){
+    const c=CREATURES[data.creatureId];
+    toast(`📖 ¡${c.name} registrado en tu Bestiario! ${c.icon}`);
+  }
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  renderAll();
+});
+socket.on('world:magicFindResult',(data)=>{
+  if(!data||!data.found) return;
+  const f=data.find||{};
+  toast(`✨ Hallazgo: ${f.icon||'🪄'} ${f.name} (+${f.pts||0} pts${f.xp?` · +${f.xp} XP`:''}${f.galeones?` · +${f.galeones} 🪙`:''})`);
+});
+socket.on('presence:update',(data)=>{
+  if(!data) return;
+  onlineIds=Array.isArray(data.ids)?data.ids.map(Number):[];
+  onlineList=Array.isArray(data.users)?data.users:[];
+  renderOnlineIndicator(); renderMap();
+});
 
 const exploreCanvas=$('exploreCanvas');
 const exploreCtx=exploreCanvas?exploreCanvas.getContext('2d'):null;
@@ -6217,8 +6598,8 @@ function tryUnlockCosmetic(npcUser){
   const u=me(); if(!u||!npcUser) return false;
   const cosmetic=cosmeticFor(npcUser); if(!cosmetic) return false;
   u.unlockedCosmetics=Array.isArray(u.unlockedCosmetics)?u.unlockedCosmetics:[];
-  if(u.unlockedCosmetics.some(c=>c&&c.id===cosmetic.id)) return false;
-  u.unlockedCosmetics.push({...cosmetic,from:npcUser.username,at:Date.now()});
+  if(u.unlockedCosmetics.some(c=>c&&((typeof c==='object')?c.id===cosmetic.id:c===cosmetic.id))) return false;
+  u.unlockedCosmetics.push(cosmetic.id);
   fanfare();
   toast(`🎁 ¡Amistad máxima con ${npcUser.username}! Desbloqueaste: ${cosmetic.icon} ${cosmetic.name}`);
   return true;
@@ -6233,7 +6614,12 @@ function checkFriendshipUnlock(npcUser){
 function cosmeticsBadgesHTML(u){
   const list=Array.isArray(u&&u.unlockedCosmetics)?u.unlockedCosmetics:[];
   if(!list.length) return '';
-  return list.map(c=>`<span class="pill gold" title="Prenda icónica${c.from?` · amistad máxima con ${esc(c.from)}`:''}">${c.icon||'🎁'} ${esc(c.name||'Prenda')}</span>`).join('');
+  return list.map(c=>{
+    const id=(c&&typeof c==='object')?c.id:c;
+    const def=COSMETICS[id]||(c&&typeof c==='object'?c:null);
+    if(!def) return '';
+    return `<span class="pill gold" title="Prenda icónica">${def.icon||'🎁'} ${esc(def.name||'Prenda')}</span>`;
+  }).join('');
 }
 
 /* ===== 4. REPUTACIÓN CON PROFESORES (CONSECUENCIAS) ===== */
@@ -7015,13 +7401,13 @@ function tradeOffersHTML(u) {
 /* ===== 3. CHISMES Y RUMORES (IA) ===== */
 function canListenGossip(u) {
   if (!u || !u.house) return false;
-  if ((Number(u.attrEmpatia) || 0) < 3) return false;
+  if (effectiveAttrLevel(u, 'empatia') < 3) return false;
   const loc = userLoc(u);
   return loc === 'patio' || loc === u.house;
 }
 async function listenGossip() {
   const u = me(); must(u && u.house, 'Inicia sesión con tu personaje primero');
-  must((Number(u.attrEmpatia) || 0) >= 3, 'Necesitas Empatía Nv. 3 para escuchar chismes');
+  must(effectiveAttrLevel(u, 'empatia') >= 3, 'Necesitas Empatía Nv. 3 para escuchar chismes');
   const loc = userLoc(u);
   must(loc === 'patio' || loc === u.house, 'Solo puedes escuchar chismes en el Patio o en tu Sala Común');
   const cdKey = 'gossip';
@@ -8659,6 +9045,15 @@ document.addEventListener('click',e=>{
     case 'useItem':API.useItem(d.id);openHogsmeadeModal(d.t||'Zonko');break;
     case 'openAlbum':openAlbumModal();break;
     case 'openGrimorio':openGrimorioModal();break;
+    case 'openMagicProfile':openMagicProfileModal();break;
+    case 'openWandCeremony':openWandCeremony();break;
+    case 'wandAnswer':answerWandCeremony(Number(d.i));break;
+    case 'toggleNpcChat':chatHideNpc=!chatHideNpc;renderChat();break;
+    case 'equipTitle':socket.emit('title:equip',{titleId:d.id});break;
+    case 'equipCosmetic':socket.emit('cosmetic:equip',{cosmeticId:d.id});break;
+    case 'seeCreature':seeCreature(d.id);break;
+    case 'observeCreatures':observeCreatures();break;
+    case 'openOnlinePlayers':openOnlinePlayersModal();break;
     case 'summonPatronus':summonPatronus();break;
     case 'summonAnimagus':summonAnimagus();break;
     case 'ansClassTrivia':answerClassTrivia(d.k,Number(d.i),Number(d.c));break;
