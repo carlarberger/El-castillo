@@ -1180,12 +1180,20 @@ const EYE_COLORS=['#3a2a1d','#2f6bd0','#2f9a5d','#7a8a96','#e8b930','#c43b34','#
 const EYE_COLORN=['Marrón','Azul','Verde','Gris','Ámbar','Rojo','Violeta'];
 const EYE_VARIANTS=['glasses','happy','open','sleep','sunglasses','wink'];
 const EYE_VARIATSN=['Gafas','Feliz','Abierto','Dormido','Gafas de sol','Guiño'];
-const HAIR_STYLES=['buzzcut','fade','shortCombover','long','extraLong','curly','curlyBun','bunUndercut','pigtails','mohawk'];
-const HAIR_STYLEN=['Buzzcut','Fade','Combover','Largo','Extra largo','Rizado','Moño rizado','Moño undercut','Coletas','Mohawk'];
+// Catálogo de peinados de DiceBear (personas). Los índices nuevos se AÑADEN al
+// final para no romper los guardados antiguos (que referencian por posición).
+const HAIR_STYLES=['buzzcut','fade','shortCombover','long','extraLong','curly','curlyBun','bunUndercut','pigtails','mohawk',
+  'sideShave','curlyHighTop','bobCut','bobBangs','straightBun','shortComboverChops','bald','balding','cap','beanie'];
+const HAIR_STYLEN=['Buzzcut','Degradado','Raya al lado','Melena larga','Melena ondulada','Rizos afro','Moño rizado','Undercut con moño','Dos coletas','Mohawk',
+  'Rapado lateral','Rizos altos','Bob clásico','Flequillo con media melena','Moño alto elegante','Despeinado buscador','Calvo','Entradas','Gorra','Gorro'];
 const FEATURES=['none','freckles','blush','birthmark'];
 const FEATUREN=['Ninguno','Pecas','Rubor','Marca'];
 const CLOTHING=['checkered','rounded','small','squared'];
 const CLOTHINGN=['Cuadros','Redondeado','Pequeño','Cuadrado'];
+// Bocas de DiceBear. El chupón (pacifier) NO es una boca por defecto: solo se
+// aplica si el jugador lo activa expresamente (look.pacifier === true).
+const MOUTH_DEFAULT=['smile','frown','surprise','bigSmile','smirk','lips'];
+const PACIFIER_MOUTH='pacifier';
 const FACIAL_HAIRS=[['none','Ninguna'],['walrus','Bigote'],['shadow','Corta'],['goatee','Perilla']];
 const FACIAL_HAIR_IDS=FACIAL_HAIRS.map(f=>f[0]);
 const STYLES=[['corto','Corto'],['largo','Largo'],['rizado','Rizado']];
@@ -1569,6 +1577,10 @@ function ensureDbIntegrity(){
     if(typeof lk.clothing!=='number') lk.clothing=0;
     if(!lk.style) lk.style='corto';
     if(typeof lk.eyes!=='number') lk.eyes=0;
+    // El chupón es opcional: si el guardado es antiguo (sin el campo) queda en
+    // falso para que ningún personaje lo lleve por defecto.
+    if(typeof lk.pacifier!=='boolean') { lk.pacifier=false; changed=true; }
+    if(!(Number.isInteger(lk.hair)&&lk.hair>=0&&lk.hair<HAIR_STYLES.length)) { lk.hair=0; changed=true; }
     if(typeof u.yearOffset!=='number') u.yearOffset=0;
     if(!GENDER_IDS.includes(u.gender)) { u.gender = FEMALES.includes(u.username) ? 'f' : 'm'; changed = true; }
     if(!ROMANCE_PREF_IDS.includes(u.romancePref)) { u.romancePref = 'todos'; changed = true; }
@@ -2058,7 +2070,7 @@ const me=()=>{
 };
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
-const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0,facialHair:FACIAL_HAIR_IDS.includes(d.facialHair)?d.facialHair:'none'});
+const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0,facialHair:FACIAL_HAIR_IDS.includes(d.facialHair)?d.facialHair:'none',pacifier:d.pacifier===true});
 // Apariencia de los profesores: por defecto la del canon (PROFESSORS), con
 // posibilidad de sobrescribirla desde el panel de admin (db.profLooks[id]).
 const profLook=p=>{
@@ -2632,13 +2644,17 @@ const API={
       if(Math.random() < 0.30){
         const prof = pickCatchingProfessor();
         u.happiness = Math.max(0, (u.happiness||50) - 5);
-        const res = applyCatchConsequence(u, prof, 10);
-        if(res.warned){
-          toast(`🧑‍🏫 ${prof.name} te ha pillado en los pasillos… pero tu buena reputación te salva: solo te da un aviso (-0 pts).`);
-        } else {
-          toast(`¡El profesor ${prof.name} te ha pillado en los pasillos! Detención${res.doubled?' y castigo doble':''}: -${res.pts} pts.`);
-        }
-        startDetentionMinigame(prof.name);
+        // Tanda 3.5: el jugador puede defenderse verbalmente ante el profesor.
+        const applyNormal = ()=>{
+          const res = applyCatchConsequence(u, prof, 10);
+          if(res.warned){
+            toast(`🧑‍🏫 ${prof.name} te ha pillado en los pasillos… pero tu buena reputación te salva: solo te da un aviso (-0 pts).`);
+          } else {
+            toast(`¡El profesor ${prof.name} te ha pillado en los pasillos! Detención${res.doubled?' y castigo doble':''}: -${res.pts} pts.`);
+          }
+          startDetentionMinigame(prof.name);
+        };
+        openDefenseModal(prof.name, prof.id, 10, applyNormal);
       }
     }
     u.loc=roomId;u.locSlot=slotKey();
@@ -2661,7 +2677,7 @@ const API={
     const caught = !immune && !petProtected && (Math.random() < 0.45);
     if(caught){
       // El toque de queda lo vigila Snape: con afinidad baja el castigo es doble.
-      const res = applyCatchConsequence(u, {id:'snape',name:'Severus Snape'}, 10);
+      const prof = {id:'snape',name:'Severus Snape'};
       u.happiness = Math.max(0, u.happiness - 10);
       // Al huir de Filch se puede caer una Luna de Demiguise que llevabas encima.
       let moonMsg = '';
@@ -2670,7 +2686,17 @@ const API={
         moonMsg = ' ¡Se te cayó una Luna de Demiguise al huir!';
       }
       u.loc = u.house;
-      toast(`¡Filch y la Sra. Norris te atraparon! -${res.pts} pts${res.doubled?' (Snape te tiene en su punto de mira: castigo doble)':''}, -10 Felicidad y de vuelta a tu Sala Común.${moonMsg}`);
+      // Tanda 3.5: se ofrece una defensa verbal ante Snape; si la rechaza, se
+      // aplica el castigo normal. El castigo aceptado se valida localmente igual
+      // que siempre (la defensa la valida el servidor si se envía).
+      commit('Escabullirse de noche');
+      toast(`¡Filch y la Sra. Norris te atraparon!${moonMsg} Puedes intentar defenderte ante Snape.`);
+      openDefenseModal(prof.name, prof.id, 10, ()=>{
+        const res = applyCatchConsequence(u, prof, 10);
+        toast(`Aceptaste el castigo de ${prof.name}: -${res.pts} pts${res.doubled?' (Snape te tiene en su punto de mira: castigo doble)':''}.`);
+        commit('Castigo aceptado de noche');
+      });
+      return;
     }else{
       const msg = petProtected ? '🐱 ¡Tu gato distrajo a la Sra. Norris!' : '¡Esquivaste a Filch y encontraste un secreto!';
       u.points += 8;
@@ -3037,7 +3063,7 @@ const API={
     const used=new Set(db.users.map(u=>u.username.toLowerCase()));
     let baseName=NAMES.find(n=>!used.has(n.toLowerCase()))||('Mago IA #'+(db.users.length+1));
     const newId=Math.max(112,...db.users.map(x=>x.id))+1;
-    const look={skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0};
+    const look={skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pacifier:false};
     const npc=U(newId,baseName,targetHouse,30+Math.floor(Math.random()*40),10+Math.floor(Math.random()*20),'student',false,look,true,'',targetHouse);
     db.users.push(npc);
     commit(`Nuevo alumno IA: ${baseName} (${HOUSE(targetHouse).name})`);
@@ -3420,8 +3446,14 @@ function closeModal(){
   if(mgClean){mgClean();mgClean=null}
   socialModalOpen=false;
   quizState=null;studyState=null;animagusTestState=null;
+  // Detiene el minijuego de herbología (temporizador propio) para que no
+  // reabra el modal tras cerrarlo.
+  if(typeof herbGame!=='undefined'&&herbGame){ if(herbGame.timer) clearInterval(herbGame.timer); herbGame=null; }
   const m=$('modalRoot');m.hidden=true;m.innerHTML='';
 }
+// Oculta el modal genérico antes de abrir un minijuego en Canvas (evita que
+// ambos queden superpuestos en las transiciones de pociones/exámenes).
+function hideGenericModal(){ const m=$('modalRoot'); if(m){ m.hidden=true; m.innerHTML=''; } }
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closeModal();if(typeof closeMinigame==='function')closeMinigame();}
   if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.room.go')){e.preventDefault();e.target.click()}
@@ -3442,9 +3474,14 @@ function avatar(l,house,w=40,seed=null){
   const clothing = CLOTHING[l.clothing ?? 0] ?? CLOTHING[0];
   const facialHair = FACIAL_HAIR_IDS.includes(l.facialHair) ? l.facialHair : 'none';
   const seedName = seed || l.name || l.username || l.id || 'Harry';
+  // Boca: por defecto NUNCA chupón. Se elige de forma determinista (según la
+  // semilla) entre las bocas neutras; solo si `pacifier === true` se activa.
+  const pacifier = l.pacifier === true;
+  const seedHash = String(seedName).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const mouth = pacifier ? PACIFIER_MOUTH : MOUTH_DEFAULT[seedHash % MOUTH_DEFAULT.length];
   const houseColors = {gryffindor:'c43b34',slytherin:'2f9a5d',ravenclaw:'4a6ee0',hufflepuff:'e8b930'};
   const clothingColor = houseColors[house] || '6b7280';
-  const params = ['seed='+encodeURIComponent(seedName),'backgroundColor=transparent','skinColor='+skinHex,'hairColor='+hairColorHex,'hair='+hairStyle,'eyes='+eyesVariant,'clothing='+clothing,'clothingColor='+clothingColor,'facialHairProbability='+(facialHair==='none'?'0':'100')];
+  const params = ['seed='+encodeURIComponent(seedName),'backgroundColor=transparent','skinColor='+skinHex,'hairColor='+hairColorHex,'hair='+hairStyle,'eyes='+eyesVariant,'mouth='+mouth,'clothing='+clothing,'clothingColor='+clothingColor,'facialHairProbability='+(facialHair==='none'?'0':'100')];
   if(facialHair!=='none')params.push('facialHair='+facialHair);
   const url = 'https://api.dicebear.com/9.x/personas/svg?'+params.join('&');
   const border = house ? 'var(--hc)' : 'var(--muted)';
@@ -3458,7 +3495,7 @@ let chatHideNpc=true;
 // Región del Mapa del Mundo activa en el mapa micro (null = vista completa del Castillo).
 let macroRegion=null;
 let relFilterMode='all';
-let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
+let draft={name:'',pass:'',house:'ravenclaw',skin:0,hair:0,hairColor:0,eyeColor:0,features:0,clothing:0,style:'corto',eyes:0,pet:null,facialHair:'none',pacifier:false,gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
 
 function creatorHTML(){
   const d=draft;
@@ -3480,6 +3517,10 @@ function creatorHTML(){
       <select id="cBirthMonth" style="width:auto" aria-label="Mes de cumpleaños"><option value="">Mes</option>${MONTH_NAMES.map((m,i)=>`<option value="${i+1}" ${Number(d.birthMonth)===i+1?'selected':''}>${m}</option>`).join('')}</select>
     </div>
     <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="draftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
+    <div class="swrow"><span>Chupón (opcional)</span>
+      <button type="button" class="chip ${d.pacifier?'on':''}" data-do="draftPacifier" data-v="1">Sí, con chupón</button>
+      <button type="button" class="chip ${!d.pacifier?'on':''}" data-do="draftPacifier" data-v="0">No (por defecto)</button>
+    </div>
     ${draftNew?`<div><span class="hint">Mascota (opcional, para siempre)</span>
   <div class="chips" style="margin-top:6px">
     <button type="button" class="chip ${!d.pet?'on':''}" data-do="draftPet" data-id="">Sin mascota</button>
@@ -3716,6 +3757,18 @@ function socialActivitiesBar(u,loc){
   // Tanda 2: Mesas de Astronomía en la Torre.
   if(loc==='astronomia'&&at&&P2_READY()&&P2.constellations.some(c=>!p2Owned(u,'constellations',c.id))){
     btns+=`<button class="btn sm gold" type="button" data-do="openAstronomy" title="Traza constelaciones mágicas en la Mesa de Astronomía">🔭 Mesa de Astronomía</button>`;
+  }
+  // Tanda 3.3: Caldero de Pociones por pasos en las Mazmorras.
+  if(loc==='mazmorras'&&at&&P3_READY()&&P3.potions.length){
+    btns+=`<button class="btn sm gold" type="button" data-do="openPotions" title="Elabora una poción paso a paso con el Profesor Snape">🧪 Caldero de Pociones</button>`;
+  }
+  // Tanda 3.4: Clasificación de plantas en los Invernaderos.
+  if(loc==='invernaderos'&&at&&P3_READY()&&P3.herbology.plants.length){
+    btns+=`<button class="btn sm gold" type="button" data-do="openHerbology" title="Cuida las plantas del invernadero con la Profesora Sprout">🌱 Clasificación de Plantas</button>`;
+  }
+  // Tanda 3.1: Exámenes oficiales en el Gran Comedor.
+  if(loc==='comedor'&&at&&P3_READY()&&Object.keys(P3.exams.types||{}).length){
+    btns+=`<button class="btn sm gold" type="button" data-do="openExams" title="Preséntate a los exámenes oficiales T.I.M.O. / É.X.T.A.S.I.S.">📝 Exámenes Oficiales</button>`;
   }
   if(u.house&&loc===u.house&&at){
     btns+=`<button class="btn sm gold" type="button" data-do="openQuestBoard" title="Tablón de encargos de la Sala Común">📋 Tablón de Encargos</button>`;
@@ -4539,9 +4592,20 @@ function openMagicProfileModal(){
   // Guardarropa: prendas desbloqueadas y equipables.
   const cos = u.unlockedCosmetics||[];
   const cosHTML = cos.length
-    ? cos.map(id=>{ const c=COSMETICS[id]; const on=(u.equippedCosmetics||[]).includes(id);
-        return `<button class="chip ${on?'on':''}" type="button" data-do="equipCosmetic" data-id="${id}" title="${esc(c.desc)}">${c.icon} ${esc(c.name)}${on?' ✓':''}</button>`; }).join('')
+    ? cos.map(id=>{ const c=COSMETICS[id]; if(!c) return ''; const on=(u.equippedCosmetics||[]).includes(id);
+        return `<button class="chip ${on?'on':''}" type="button" data-do="equipCosmetic" data-id="${id}" title="${esc(c.desc||'')}">${c.icon||'🎁'} ${esc(c.name||id)}${on?' ✓':''}</button>`; }).join('')
     : '<p class="muted" style="font-size:13px">Sin prendas aún. Sube la amistad con los personajes del canon al máximo para desbloquear sus prendas icónicas.</p>';
+
+  // Clubes extracurriculares (Tanda 3.2): barras de progreso paralelas.
+  const clubsHTML = P3_READY() ? P3.clubs.map(c=>{
+    const xp=clubXp(u,c.id), lvl=clubLevel(u,c.id), step=c.step||40;
+    const intoLvl=xp%step, pct=lvl>=c.maxLevel?100:Math.round(intoLvl/step*100);
+    return `<div class="box" style="display:flex;flex-direction:column;gap:4px;border-left:3px solid ${esc(c.color||'var(--gold)')}">
+      <div class="row" style="justify-content:space-between"><span>${c.icon} ${esc(c.name)}</span><b class="mono">Nv. ${lvl}</b></div>
+      <span class="stat-bar"><i style="width:${pct}%;background:${esc(c.color||'var(--gold)')}"></i></span>
+      <span class="muted" style="font-size:11px">${xp} XP${lvl>=c.maxLevel?' · nivel máximo':` · ${step-intoLvl} para el siguiente nivel`}</span>
+    </div>`; }).join('')
+    : '<p class="muted" style="font-size:13px">Cargando clubes…</p>';
 
   // Bestiario: criaturas registradas y pendientes.
   const best = u.bestiary||[];
@@ -4583,6 +4647,11 @@ function openMagicProfileModal(){
         ${bar('Cofres abiertos',p.chests,p.chestsTotal,'🧰')}
       </div>
       <p class="muted" style="font-size:12px">🔓 Nivel de Alohomora: <b style="color:var(--gold)">Nv. ${alohomoraLevelOf(u)}</b> (${(u.demiguiseCollected||[]).length} lunas entregadas · 3 → Nv. 2 · 6 → Nv. 3)</p>
+    </div>
+    <div class="box" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
+      <strong>🏅 Clubes extracurriculares</strong>
+      <div class="grid g3" style="gap:6px">${clubsHTML}</div>
+      <p class="muted" style="font-size:12px">La XP de cada club sube automáticamente al ganar XP en sus materias afines: <b>Esfinge</b> (Encantamientos/Astronomía/Transformaciones/Runas), <b>Hipogrifo</b> (Pociones/Herbología/Criaturas) y <b>Dragón</b> (DCAO/Vuelo).</p>
     </div>
     <div class="box" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
       <strong>🦅 Álbum de Criaturas Mágicas (Bestiario)</strong>
@@ -4905,6 +4974,8 @@ function doQuickClass(key){
   if(coop){ const bonus=Math.round((r.pts||0)*0.2); u.points=(u.points||0)+bonus; const hObj=db.houses.find(h=>h.id===u.house); if(hObj) hObj.points+=bonus; toast(`Bono cooperativo +${bonus} pts`); }
   u.classStars=u.classStars||{}; u.classStars[key]=(u.classStars[key]||0)+2;
   updateLastClassDate(u);
+  // Tanda 3.2: la clase alimenta el club de la materia afín (validado en servidor).
+  socket.emit('class:complete',{subject:key,stars:2});
   commit(`${u.username} completó Sesión Rápida en ${ACTS[key].name}`);
   toast(`Sesión Rápida completada · +2 ⭐ · +${r.pts} pts`);
 }
@@ -4924,6 +4995,8 @@ async function doIntensiveClass(key){
   const hObj=db.houses.find(h=>h.id===u2.house); if(hObj) hObj.points+=extraPts;
   u2.classStars=u2.classStars||{}; u2.classStars[key]=(u2.classStars[key]||0)+5;
   updateLastClassDate(u2);
+  // Tanda 3.2: sesión intensiva con práctica real (más XP de club).
+  socket.emit('class:complete',{subject:key,stars:5,practical:true});
   commit(`${u2.username} completó Sesión Intensiva en ${ACTS[key].name}`);
   toast(`Sesión Intensiva completada · +5 ⭐ · x1.5 pts`);
   setTimeout(()=>triggerProfessorInterruption(key), 300);
@@ -5195,6 +5268,10 @@ function npcEditHTML(){
     <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="npcDraftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="npcDraftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="npcDraftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
+    <div class="swrow"><span>Chupón</span>
+      <button type="button" class="chip ${d.pacifier?'on':''}" data-do="npcDraftPacifier" data-v="1">Sí</button>
+      <button type="button" class="chip ${!d.pacifier?'on':''}" data-do="npcDraftPacifier" data-v="0">No</button>
+    </div>
     <div class="row"><button class="btn gold" type="button" data-do="saveNpcEdit" data-id="${d.id}">💾 Guardar Cambios</button><button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
    </div></div>`;
 }
@@ -5231,6 +5308,10 @@ function profEditHTML(){
     <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="profDraftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="profDraftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
     <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="profDraftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
+    <div class="swrow"><span>Chupón</span>
+      <button type="button" class="chip ${d.pacifier?'on':''}" data-do="profDraftPacifier" data-v="1">Sí</button>
+      <button type="button" class="chip ${!d.pacifier?'on':''}" data-do="profDraftPacifier" data-v="0">No</button>
+    </div>
     <div class="row"><button class="btn gold" type="button" data-do="saveProfEdit" data-id="${d.id}">💾 Guardar Cambios</button>${(db.profLooks&&db.profLooks[d.id])?`<button class="btn danger" type="button" data-do="resetProfLook" data-id="${d.id}">↩️ Restaurar aspecto original</button>`:''}<button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
    </div></div>`;
 }
@@ -5829,7 +5910,7 @@ function mgRunas(){
 
 function newStudent(){
   draftNew=true;
-  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none',gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
+  draft={name:'',pass:'',house:'ravenclaw',skin:Math.floor(Math.random()*SKIN.length),hair:Math.floor(Math.random()*HAIR_STYLES.length),hairColor:Math.floor(Math.random()*HAIR_COLORS.length),eyeColor:Math.floor(Math.random()*EYE_COLORS.length),features:Math.floor(Math.random()*FEATURES.length),clothing:Math.floor(Math.random()*CLOTHING.length),style:'corto',eyes:0,pet:null,facialHair:'none',pacifier:false,gender:'m',romancePref:'todos',birthDay:null,birthMonth:null};
   openModal(`<h3 style="font-size:20px">✨ Crea tu personaje</h3><p class="muted" style="font-size:13px">Ponle una contraseña para poder abrir tu mago desde cualquier otro dispositivo.</p>${creatorHTML()}`,true);
   setTimeout(()=>$('cName')&&$('cName').focus(),30);
 }
@@ -5859,7 +5940,7 @@ function openEditChar(){
   const u=me();if(!u)return newStudent();
   draftNew=false;
   const lk=u.look||DEFAULT_LOOKS[0];
-  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none',gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),birthDay:u.birthDay||null,birthMonth:u.birthMonth||null};
+  draft={name:u.username,pass:'',house:u.house||'ravenclaw',skin:lk.skin??0,hair:lk.hair??0,hairColor:lk.hairColor??0,eyeColor:lk.eyeColor??0,features:lk.features??0,clothing:lk.clothing??0,style:lk.style||'corto',eyes:lk.eyes??0,pet:null,facialHair:FACIAL_HAIR_IDS.includes(lk.facialHair)?lk.facialHair:'none',pacifier:lk.pacifier===true,gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),birthDay:u.birthDay||null,birthMonth:u.birthMonth||null};
   openModal(`<h3 style="font-size:20px">🎨 Editar apariencia y contraseña</h3>${creatorHTML()}`,true);
 }
 function customEvent(){openModal(`<h3 style="font-size:20px">Convocar evento</h3><input id="evName" type="text" value="Exámenes T.I.M.O." style="width:100%" aria-label="Nombre"><input id="evDesc" type="text" value="Todas las clases otorgan triple puntuación." style="width:100%" aria-label="Descripción"><select id="evMult" style="width:100%" aria-label="Multiplicador"><option value="1.5">x1.5</option><option value="2">x2</option><option value="3" selected>x3</option><option value="5">x5</option></select><div class="row"><button class="btn" data-do="closeModal" type="button">Cancelar</button><button class="btn gold" data-do="evGo" type="button">Activar</button></div>`)}
@@ -6355,6 +6436,108 @@ socket.on('exploration:catalog',(data)=>{
   renderMap(); renderYou();
 });
 
+/* ===== TANDA 3: CLUBES, POCIONES, HERBOLOGÍA Y EXÁMENES =====
+   El servidor es la fuente de verdad: aquí solo se dibuja y se envía la partida. */
+let P3 = { clubs: [], potions: [], herbology: { plants: [], actions: [] }, exams: { types: {}, subjects: {} } };
+const P3_READY = () => Array.isArray(P3.clubs) && P3.clubs.length > 0;
+socket.on('phase3:catalog',(data)=>{
+  if(!data) return;
+  P3 = {
+    clubs: Array.isArray(data.clubs)?data.clubs:[],
+    potions: Array.isArray(data.potions)?data.potions:[],
+    herbology: data.herbology&&Array.isArray(data.herbology.plants)?data.herbology:{plants:[],actions:[]},
+    exams: data.exams||{types:{},subjects:{}}
+  };
+  renderAll();
+});
+// XP de club acumulada por el jugador (para dibujar las barras del expediente).
+function clubXp(u,id){ return Math.max(0, Number((u&&u.clubs&&u.clubs[id])||0)); }
+function clubLevel(u,id){
+  const step=(P3.clubs.find(c=>c.id===id)||{}).step||40;
+  const maxLvl=(P3.clubs.find(c=>c.id===id)||{}).maxLevel||10;
+  return Math.max(1, Math.min(maxLvl, Math.floor(clubXp(u,id)/step)+1));
+}
+function applyClubsUpdate(u,clubs){
+  if(!u||!Array.isArray(clubs)) return;
+  u.clubs=u.clubs||{};
+  clubs.forEach(c=>{ if(c&&c.id) u.clubs[c.id]=Number(c.xp)||0; });
+}
+socket.on('club:update',(data)=>{
+  if(!data) return;
+  const u=me();
+  applyClubsUpdate(u,data.clubs);
+  if(data.club&&data.club.levelUp){
+    const meta=P3.clubs.find(c=>c.id===data.clubId)||{};
+    toast(`🏆 ${meta.icon||'🏅'} ¡Tu ${meta.name||'club'} subió al nivel ${data.club.level}! ${(data.club.rewards||[]).join(' · ')}`);
+    if(data.club.rewards&&data.club.rewards.length) fanfare();
+  }
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  renderAll();
+});
+socket.on('potion:result',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(!data.ok){ buzzSnd(); toast('🧪 '+data.message); return; }
+  if(data.profile){ applyProfileData(u,data.profile); }
+  applyClubsUpdate(u,data.profile&&data.profile.clubs);
+  fanfare();
+  toast(`🧪 ¡${data.potion.icon} ${data.potion.name} elaborada! +${data.reward.points} pts · +${data.reward.galeones} 🪙 · +${data.reward.xp} XP`);
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  if(data.club&&data.club.levelUp){ const meta=P3.clubs.find(c=>c.id===data.clubId)||{}; toast(`🏆 ¡${meta.name||'Club'} al nivel ${data.club.level}!`); }
+  closeMinigame(); renderAll();
+});
+socket.on('herbology:result',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(!data.ok){ buzzSnd(); toast('🌱 '+data.message); return; }
+  if(data.profile){ applyProfileData(u,data.profile); }
+  applyClubsUpdate(u,data.profile&&data.profile.clubs);
+  fanfare();
+  toast(`🌱 ¡${data.plant.icon} ${data.plant.name} cuidada! +${data.reward.points} pts · +${data.reward.galeones} 🪙 · +${data.reward.xp} XP`);
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  closeMinigame(); renderAll();
+});
+socket.on('exam:questions',(data)=>{ if(data) openExamModal(data); });
+socket.on('exam:error',(data)=>{ if(data&&data.message) toast('📝 '+data.message); });
+socket.on('exam:result',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(!data.ok){ buzzSnd(); toast('📝 '+data.message); closeExamModal(); return; }
+  if(data.profile){ applyProfileData(u,data.profile); }
+  applyClubsUpdate(u,data.profile&&data.profile.clubs);
+  fanfare();
+  toast(`📝 ¡${data.examType==='extasis'?'É.X.T.A.S.I.S.':'T.I.M.O.'} superado! Nota ${data.score}/100${data.distinction?' · ¡Distinción!':''}`);
+  if(data.title&&TITLES[data.title]) toast(`🏅 Título permanente: ${TITLES[data.title].icon} ${TITLES[data.title].name}`);
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  closeExamModal(); renderAll();
+});
+socket.on('defense:result',(data)=>{
+  if(!data) return;
+  const u=me();
+  // El castigo/recompensa y la afinidad los aplica y persiste el servidor, que
+  // además difunde el estado con sync_db: el cliente solo refleja el resumen.
+  if(data.profile){ applyProfileData(u,data.profile); }
+  if(data.success){
+    fanfare();
+    toast(`🗣️ ${data.professor}: “${data.reply}” ${data.penalty>0?`(castigo reducido a -${data.penalty} pts)`:''}`);
+  } else {
+    buzzSnd();
+    toast(`🗣️ ${data.professor}: “${data.reply}” (-${data.penalty} pts)`);
+  }
+  closeModal(); renderAll();
+});
+// Aplica un resumen de perfil (profileSummary del servidor) al usuario local.
+function applyProfileData(u,profile){
+  if(!u||!profile) return;
+  if(profile.title!==undefined) u.title=profile.title;
+  ['unlockedTitles','unlockedCosmetics','equippedCosmetics','bestiary','guidePages','arithmancyDoors','secretPassages','constellations','chests'].forEach(k=>{
+    if(Array.isArray(profile[k])) u[k]=profile[k];
+  });
+  if(profile.exams&&typeof profile.exams==='object') u.exams=profile.exams;
+  if(typeof profile.examAttempts==='number') u.examAttempts=profile.examAttempts;
+  if(typeof profile.defenseCount==='number') u.defenseCount=profile.defenseCount;
+}
+
 /* ===== PERFIL: VARITA, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) ===== */
 // Catálogo oficial de varitas (maderas y núcleos) enviado por el servidor.
 socket.on('wand:catalog',(data)=>{
@@ -6366,6 +6549,11 @@ socket.on('wand:catalog',(data)=>{
   }
   if(Array.isArray(data.cores)) data.cores.forEach(c=>{ if(c&&c.id) WAND_CORES[c.id]=c; });
   else if(data.cores&&typeof data.cores==='object') Object.assign(WAND_CORES,data.cores);
+  // Catálogo de prendas del servidor: fuente de verdad para el Guardarropa.
+  if(data.cosmetics&&typeof data.cosmetics==='object'){
+    Object.keys(data.cosmetics).forEach(id=>{ if(!COSMETICS[id]) COSMETICS[id]=data.cosmetics[id]; });
+  }
+  renderAll();
 });
 socket.on('wand:result',(data)=>{
   if(!data) return;
@@ -6878,6 +7066,292 @@ function openAstronomyModal(){
     <div class="grid g3" style="gap:8px;margin-top:8px">${cards}</div>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
   </div>`,true);
+}
+
+/* ===== TANDA 3.3: CALDERO DE POCIONES POR PASOS (Mazmorras) =====
+   Flujo secuencial: machacar ingredientes en orden → revolver en círculo sobre
+   el Canvas → avivar el fuego con Incendio en el momento justo → toque de varita.
+   El servidor valida cada paso contra la receta antes de dar recompensa. */
+let potionGame = null;
+function openPotionsModal(){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  must(userLoc(u)==='mazmorras','El caldero está en las Mazmorras.');
+  const list=P3.potions;
+  if(!list.length) return toast('El servidor aún no ha enviado las recetas.');
+  const yr=userYear(u);
+  const cards=list.map(r=>{
+    const locked=yr<r.year;
+    return `<div class="box" style="text-align:left;opacity:${locked?.6:1}">
+      <div class="row" style="justify-content:space-between"><strong>${r.icon} ${esc(r.name)}</strong><span class="pill ${locked?'warn':'gold'}">${r.year}.º</span></div>
+      <p class="muted" style="font-size:11px;margin:4px 0">${esc(r.desc)}</p>
+      ${locked?`<span class="muted" style="font-size:11px">🔒 Requiere ${r.year}.º curso</span>`
+        :`<button class="btn sm gold" type="button" data-do="startPotion" data-id="${r.id}">Elaborar</button>`}
+    </div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">🧪 Caldero de Pociones</h3>
+    <p class="muted" style="font-size:13px;text-align:center">Sigue cada paso con precisión: el Profesor Snape no perdona un error.</p>
+    <div class="grid g3" style="gap:8px;margin-top:8px">${cards}</div>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function startPotionGame(recipeId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const recipe=P3.potions.find(r=>r.id===recipeId); must(recipe,'Receta desconocida');
+  must(userYear(u)>=recipe.year,`Necesitas ${recipe.year}.º curso.`);
+  potionGame={ recipe, step:0, order:[], stirs:0, heatHits:0, heatFrames:0 };
+  renderPotionStep();
+}
+function renderPotionStep(){
+  const g=potionGame; if(!g) return;
+  const r=g.recipe;
+  if(g.step===0){
+    // Paso 1: añadir los ingredientes en el orden correcto.
+    const shuffled=r.ingredients.slice().sort(()=>Math.random()-0.5);
+    openModal(`<div style="width:100%;text-align:left">
+      <h3 style="font-size:18px;color:var(--gold);text-align:center">${r.icon} ${esc(r.name)} — Paso 1/4</h3>
+      <p class="muted" style="font-size:12px;text-align:center">Añade los ingredientes <b>en el orden correcto</b>.</p>
+      <div id="potionOrder" class="row" style="justify-content:center;gap:6px;min-height:34px"></div>
+      <div class="grid g2" style="gap:8px;margin-top:8px" id="potionIngs">
+        ${shuffled.map(i=>`<button class="btn" type="button" data-do="potionAddIng" data-id="${i.id}">${i.icon} ${esc(i.name)}</button>`).join('')}
+      </div>
+      <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cancelar</button></div>
+    </div>`,true);
+  } else if(g.step===1){
+    // Paso 2: revolver en círculo sobre el Canvas. El objetivo es el mínimo de
+    // vueltas que exige la receta (validado luego por el servidor).
+    hideGenericModal();
+    const needStirs=Math.max(1,(g.recipe.stirs&&g.recipe.stirs[0])||4);
+    openCanvasModal('🧪 Revolver la poción','Arrastra en círculos sobre el caldero para remover.',`Gira al menos ${needStirs} vueltas completas.`,false);
+    const cx=400, cy=200; g.stirs=0;
+    let ang=0, drag=false, prev=null, done=false;
+    const onDown=e=>{ const p=mgPos(e); drag=true; prev=Math.atan2(p.y-cy,p.x-cx); };
+    const onMove=e=>{ if(!drag||done) return; const p=mgPos(e); const a=Math.atan2(p.y-cy,p.x-cx); let d=a-prev; if(d>Math.PI)d-=Math.PI*2; if(d<-Math.PI)d+=Math.PI*2; ang+=Math.abs(d); prev=a; const turns=Math.floor(ang/(Math.PI*2)); if(turns!==g.stirs){ g.stirs=turns; if(turns>=needStirs){ done=true; setTimeout(()=>{ if(!potionGame)return; g.step=2; renderPotionStep(); },600); } } };
+    const onUp=()=>{ drag=false; };
+    potionCanvasHandlers(onDown,onMove,onUp);
+    const loop=()=>{ if(!potionGame||potionGame.step!==1) return; ctx.clearRect(0,0,800,400); ctx.fillStyle='#1a0f22'; ctx.fillRect(0,0,800,400); ctx.beginPath(); ctx.arc(cx,cy,90,0,Math.PI*2); ctx.fillStyle='#2e7d5b'; ctx.fill(); ctx.strokeStyle='#7ef0b0'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#cfe8d8'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('🔄 '+g.stirs+' / '+needStirs+' vueltas', cx, cy+140); $('mgCanvasHud').textContent=`Vueltas: ${g.stirs}/${needStirs}`; gameLoop=requestAnimationFrame(loop); };
+    loop();
+  } else if(g.step===2){
+    // Paso 3: avivar el fuego con Incendio en el momento justo. Se exige un
+    // número de aciertos dentro del rango de la receta (validado en el servidor).
+    hideGenericModal();
+    const needHeat=Math.max(1,(g.recipe.heat&&g.recipe.heat[0])||3);
+    openCanvasModal('🔥 Avivar el fuego','Pulsa o toca cuando la marca esté en la zona dorada.',`Consigue ${needHeat} aciertos de fuego.`,false);
+    let frame=0; g.heatHits=0;
+    const pos=()=> (Math.sin(frame*0.06)*0.5+0.5); // 0..1
+    mgClickHandler=()=>{ const p=pos(); if(p>=0.42&&p<=0.62){ g.heatHits++; if(g.heatHits>=needHeat){ mgClickHandler=null; setTimeout(()=>{ if(!potionGame)return; g.step=3; renderPotionStep(); },500); } } else { buzzSnd(); toast('🔥 ¡El fuego bajó! Vuelve a intentarlo.'); } };
+    const loop=()=>{ if(!potionGame||potionGame.step!==2) return; frame++; ctx.clearRect(0,0,800,400); ctx.fillStyle='#1a0f22'; ctx.fillRect(0,0,800,400); const bw=560,bx=120,by=200; ctx.fillStyle='#3a2a3a'; ctx.fillRect(bx,by,bw,26); ctx.fillStyle='rgba(255,215,120,.5)'; ctx.fillRect(bx+bw*0.42,by,bw*0.2,26); ctx.fillStyle='#ff9a3c'; ctx.fillRect(bx+bw*pos()-3,by-8,6,42); ctx.fillStyle='#cfe8d8'; ctx.font='16px sans-serif'; ctx.textAlign='center'; ctx.fillText('🔥 Aciertos: '+g.heatHits+' / '+needHeat, 400, by+70); $('mgCanvasHud').textContent=`Aciertos: ${g.heatHits}/${needHeat}`; gameLoop=requestAnimationFrame(loop); };
+    loop();
+  } else {
+    // Paso 4: toque de varita final.
+    openModal(`<div style="width:100%;text-align:center">
+      <h3 style="font-size:18px;color:var(--gold)">🪄 Paso 4/4 — Toque de varita</h3>
+      <p class="muted" style="font-size:13px">Da el toque final con tu varita para sellar la poción.</p>
+      <button class="btn gold" type="button" data-do="potionFinish">✨ Toque de varita</button>
+      <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cancelar</button></div>
+    </div>`,true);
+  }
+}
+// Posición del puntero en coordenadas del canvas del minijuego (gameCanvas 800x400).
+function mgPos(e){ const r=canvas.getBoundingClientRect(); return { x:(e.clientX-r.left)*(canvas.width/r.width), y:(e.clientY-r.top)*(canvas.height/r.height) }; }
+// Handlers de puntero removibles para los minijuegos de la Tanda 3 (se limpian al
+// cerrar el minijuego para no acumular listeners entre partidas).
+let mgPointerHandlers = [];
+function potionCanvasHandlers(onDown,onMove,onUp){
+  mgPointerHandlers.forEach(([t,h])=>canvas.removeEventListener(t,h));
+  mgPointerHandlers=[];
+  const add=(t,h)=>{ if(h){ canvas.addEventListener(t,h); mgPointerHandlers.push([t,h]); } };
+  add('pointerdown',onDown); add('pointermove',onMove); add('pointerup',onUp);
+}
+function potionAddIng(ingId){
+  const g=potionGame; if(!g||g.step!==0) return;
+  g.order.push(ingId);
+  const holder=$('potionOrder'); if(holder) holder.innerHTML=g.order.map(id=>{ const i=g.recipe.ingredients.find(x=>x.id===id); return `<span class="pill gold">${i?i.icon:''}</span>`; }).join('');
+  if(g.order.length>=g.recipe.ingredients.length){ g.step=1; setTimeout(()=>{ if(potionGame) renderPotionStep(); },400); }
+}
+function potionFinish(){
+  const g=potionGame; if(!g) return;
+  const u=me(); must(u,'Inicia sesión');
+  socket.emit('potion:brew',{ recipeId:g.recipe.id, ingredients:g.order, stirs:g.stirs, heat:g.heatHits });
+  potionGame=null; closeMinigame();
+}
+
+/* ===== TANDA 3.4: CLASIFICACIÓN DE PLANTAS (Invernaderos) =====
+   Minijuego de reflejos: aparece una planta y hay que pulsar la acción correcta
+   antes de que se agote el tiempo. El servidor valida la acción elegida. */
+let herbGame=null;
+function openHerbologyModal(){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  must(userLoc(u)==='invernaderos','Las plantas se cuidan en los Invernaderos.');
+  const plants=P3.herbology.plants;
+  if(!plants.length) return toast('El servidor aún no ha enviado las plantas.');
+  const cards=plants.map(p=>`<div class="box" style="text-align:center">
+      <div style="font-size:30px">${p.icon}</div>
+      <strong style="font-size:13px">${esc(p.name)}</strong>
+      <p class="muted" style="font-size:11px">${esc(p.hint)}</p>
+      <button class="btn sm gold" type="button" data-do="startHerbology" data-id="${p.id}">Cuidar</button>
+    </div>`).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">🌱 Clasificación de Plantas</h3>
+    <p class="muted" style="font-size:13px;text-align:center">¡Rápido! Elige la acción correcta antes de que se agote el tiempo.</p>
+    <div class="grid g2" style="gap:8px;margin-top:8px">${cards}</div>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function startHerbologyGame(plantId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const plant=P3.herbology.plants.find(p=>p.id===plantId); must(plant,'Planta desconocida');
+  let timeLeft=6;
+  herbGame={ plant, timer:null };
+  const actions=P3.herbology.actions.slice().sort(()=>Math.random()-0.5);
+  const render=()=>openModal(`<div style="width:100%;text-align:center">
+      <h3 style="font-size:18px;color:var(--gold)">${plant.icon} ${esc(plant.name)}</h3>
+      <p class="muted" style="font-size:12px">${esc(plant.hint)}</p>
+      <div style="font-size:34px;font-weight:bold;color:${timeLeft<=2?'var(--bad)':'var(--gold)'}">⏱️ ${timeLeft}s</div>
+      <div class="grid g2" style="gap:8px;margin-top:8px">
+        ${actions.map(a=>`<button class="btn" type="button" data-do="herbAction" data-id="${a.id}">${a.icon} ${esc(a.label)}</button>`).join('')}
+      </div>
+    </div>`,true);
+  render();
+  herbGame.timer=setInterval(()=>{
+    timeLeft--;
+    if(timeLeft<=0){ clearInterval(herbGame.timer); herbGame=null; toast('⌛ ¡Se acabó el tiempo! La planta se revolvió.'); closeModal(); return; }
+    render();
+  },1000);
+}
+function herbAction(actionId){
+  const g=herbGame; if(!g) return;
+  if(g.timer) clearInterval(g.timer);
+  herbGame=null;
+  socket.emit('herbology:care',{ plantId:g.plant.id, action:actionId });
+  closeModal();
+}
+
+/* ===== TANDA 3.1: EXÁMENES OFICIALES T.I.M.O. / É.X.T.A.S.I.S. ===== */
+let examState=null;
+function openExamsModal(){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const types=P3.exams.types||{}; const subjects=P3.exams.subjects||{};
+  const typeIds=Object.keys(types);
+  if(!typeIds.length) return toast('El servidor aún no ha enviado los exámenes.');
+  const yr=userYear(u);
+  const typeCards=typeIds.map(tid=>{
+    const t=types[tid]; const ok=yr>=t.year;
+    return `<div class="box" style="text-align:center;opacity:${ok?1:.6}">
+      <strong style="font-size:15px">📝 ${esc(t.name)}</strong>
+      <p class="muted" style="font-size:11px">${t.year}.º curso · ${t.questionCount} preguntas + práctica</p>
+      ${ok?`<button class="btn sm gold" type="button" data-do="openExamType" data-id="${tid}">Presentarse</button>`
+        :`<span class="muted" style="font-size:11px">🔒 Requiere ${t.year}.º curso</span>`}
+    </div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">📝 Exámenes Oficiales</h3>
+    <p class="muted" style="font-size:13px;text-align:center">Demuestra lo aprendido ante el Ministerio de Magia. Una distinción otorga un título permanente.</p>
+    <div class="grid g2" style="gap:8px;margin-top:8px">${typeCards}</div>
+    <p class="muted" style="font-size:11px;margin-top:8px">Asignaturas: ${Object.values(subjects).map(s=>esc(s.name)).join(' · ')}</p>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+function openExamTypeModal(examType){
+  const u=me(); must(u&&u.house,'Inicia sesión');
+  const t=(P3.exams.types||{})[examType]; must(t,'Examen desconocido');
+  must(userYear(u)>=t.year,`Los exámenes ${t.name} son de ${t.year}.º curso o superior.`);
+  const subjects=P3.exams.subjects||{};
+  const best=u.exams||{};
+  const cards=Object.keys(subjects).map(sid=>{
+    const s=subjects[sid]; const rec=best[sid];
+    return `<div class="box" style="display:flex;justify-content:space-between;align-items:center">
+      <span>${esc(s.name)}${rec?` <span class="muted" style="font-size:11px">· mejor ${rec.best}/100${rec.distinction?' 🏅':''}</span>`:''}</span>
+      <button class="btn sm gold" type="button" data-do="startExam" data-type="${examType}" data-subject="${sid}">Examinar</button>
+    </div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:19px;color:var(--gold);text-align:center">📝 ${esc(t.name)}</h3>
+    <p class="muted" style="font-size:13px;text-align:center">Elige la asignatura. Necesitas acertar al menos el ${Math.round(t.passRatio*100)}% y superar la prueba práctica.</p>
+    <div class="grid" style="gap:6px;margin-top:8px">${cards}</div>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="openExams">Volver</button></div>
+  </div>`,true);
+}
+function openExamModal(data){
+  examState={ examType:data.examType, subjectKey:data.subjectKey, questions:data.questions, answers:data.questions.map(()=>-1), idx:0, practical:false };
+  renderExamQuestion();
+}
+function renderExamQuestion(){
+  const s=examState; if(!s) return;
+  if(s.idx>=s.questions.length){ renderExamPractical(); return; }
+  const q=s.questions[s.idx];
+  openModal(`<div style="width:100%;text-align:left">
+    <div class="row" style="justify-content:space-between"><span class="pill gold">${esc(s.examType==='extasis'?'É.X.T.A.S.I.S.':'T.I.M.O.')}</span><span class="mono">${s.idx+1}/${s.questions.length}</span></div>
+    <h3 style="font-size:16px;margin:8px 0">${esc(q.question)}</h3>
+    <div class="grid" style="gap:6px">
+      ${q.options.map((o,i)=>`<button class="btn ${s.answers[s.idx]===i?'gold':''}" type="button" data-do="examAnswer" data-i="${i}">${esc(o)}</button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:10px;justify-content:space-between">
+      <button class="btn sm" type="button" data-do="examPrev" ${s.idx===0?'disabled':''}>← Anterior</button>
+      <button class="btn sm gold" type="button" data-do="examNext">${s.idx===s.questions.length-1?'Ir a la práctica →':'Siguiente →'}</button>
+    </div>
+  </div>`,true);
+}
+function examAnswer(i){ const s=examState; if(!s) return; s.answers[s.idx]=i; renderExamQuestion(); }
+function examPrev(){ const s=examState; if(!s||s.idx===0) return; s.idx--; renderExamQuestion(); }
+function examNext(){ const s=examState; if(!s) return; if(s.answers[s.idx]<0) return toast('Elige una respuesta antes de continuar.'); s.idx++; renderExamQuestion(); }
+function renderExamPractical(){
+  const s=examState; if(!s) return;
+  // Prueba práctica: detener la barra en la zona dorada (una oportunidad).
+  hideGenericModal();
+  openCanvasModal('🪄 Prueba Práctica','Detén la barra en la zona dorada para superar la prueba.','Pulsa o toca para detener.',false);
+  let t=0, stopped=false, result=null;
+  const pos=()=> (Math.sin(t*0.05)*0.5+0.5);
+  mgClickHandler=()=>{ if(stopped) return; stopped=true; result=(pos()>=0.40&&pos()<=0.60); setTimeout(()=>{ if(!examState) return; examState.practical=!!result; submitExam(); },500); };
+  const loop=()=>{ if(!examState) return; t++; ctx.clearRect(0,0,800,400); ctx.fillStyle='#0f1a2a'; ctx.fillRect(0,0,800,400); const bw=560,bx=120,by=200; ctx.fillStyle='#2a3a4a'; ctx.fillRect(bx,by,bw,28); ctx.fillStyle='rgba(255,215,120,.5)'; ctx.fillRect(bx+bw*0.40,by,bw*0.20,28); if(!stopped){ ctx.fillStyle='#8fd0ff'; ctx.fillRect(bx+bw*pos()-3,by-10,6,48); } else { ctx.fillStyle=result?'#7ef0b0':'#ff6b6b'; ctx.font='20px sans-serif'; ctx.textAlign='center'; ctx.fillText(result?'✅ ¡Hechizo perfecto!':'❌ Hechizo impreciso',400,by-30); } $('mgCanvasHud').textContent=stopped?(result?'✅ Acierto':'❌ Fallo'):'⏱️ ¡Ahora!'; gameLoop=requestAnimationFrame(loop); };
+  loop();
+}
+function submitExam(){
+  const s=examState; if(!s) return;
+  socket.emit('exam:submit',{ answers:s.answers, practical:s.practical });
+  examState=null; closeMinigame();
+}
+function closeExamModal(){ examState=null; closeMinigame(); }
+
+/* ===== TANDA 3.5: DEFENSA VERBAL ANTE McGONAGALL / PREFECTOS ===== */
+let pendingCatch = null;
+function openDefenseModal(professorName, professorId, basePenalty, onDecline){
+  const u=me(); must(u&&u.house,'Inicia sesión');
+  pendingCatch = (typeof onDecline === 'function') ? onDecline : null;
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:19px;color:var(--gold);text-align:center">🗣️ Defensa ante ${esc(professorName)}</h3>
+    <p class="muted" style="font-size:13px">Te han sorprendido fuera de la cama. Escribe tu excusa: cuanto mejor argumentes (según tu Valentía, Empatía y Sabiduría), menor será el castigo.</p>
+    <div class="row" style="gap:8px;justify-content:center;margin:6px 0">
+      <span class="pill">⚔️ Valentía ${effectiveAttrOf(u,'attrValentia')}</span>
+      <span class="pill">💚 Empatía ${effectiveAttrOf(u,'attrEmpatia')}</span>
+      <span class="pill">📖 Sabiduría ${effectiveAttrOf(u,'attrSabiduria')}</span>
+    </div>
+    <textarea id="defenseText" class="input" rows="4" maxlength="500" placeholder="Profesora, la razón por la que estaba fuera es…" style="width:100%"></textarea>
+    <div class="row" style="margin-top:10px;justify-content:center;gap:8px">
+      <button class="btn gold" type="button" data-do="submitDefense" data-prof="${esc(professorName)}" data-pid="${esc(professorId)}" data-pen="${Number(basePenalty)||10}">Argumentar</button>
+      <button class="btn sm" type="button" data-do="declineDefense">Aceptar el castigo</button>
+    </div>
+  </div>`,true);
+}
+function declineDefense(){
+  const p=pendingCatch; pendingCatch=null;
+  closeModal();
+  if(typeof p==='function') p();
+}
+function submitDefense(professorName, professorId, basePenalty){
+  const u=me(); must(u,'Inicia sesión');
+  const el=$('defenseText'); const msg=el?String(el.value||'').trim():'';
+  if(!msg) return toast('Escribe tu excusa antes de defenderte.');
+  pendingCatch=null;
+  socket.emit('defense:argue',{ message:msg, professor:professorName, professorId, basePenalty });
+}
+// Atributo efectivo en cliente (incluye pasiva de varita), coherente con el servidor.
+function effectiveAttrOf(u,key){
+  let base=Number(u&&u[key])||0;
+  const core=u&&u.wand&&u.wand.core;
+  if(core==='dragon'&&key==='attrValentia') base+=1;
+  if(core==='unicornio'&&key==='attrEmpatia') base+=1;
+  return base;
 }
 
 /* ===== TANDA 2: COFRES CON NIVEL DE ALOHOMORA (2.5) ===== */
@@ -8719,6 +9193,10 @@ canvas.addEventListener('pointerdown', e => {
 function closeMinigame() {
   mgActive = false;
   mgClickHandler = null;
+  if (typeof mgPointerHandlers !== 'undefined') {
+    mgPointerHandlers.forEach(([t,h])=>canvas.removeEventListener(t,h));
+    mgPointerHandlers = [];
+  }
   if (gameLoop) { cancelAnimationFrame(gameLoop); gameLoop = null; }
   Object.keys(keys).forEach(k => keys[k] = false);
   const modal = document.getElementById('minigameModal');
@@ -9621,6 +10099,7 @@ document.addEventListener('click',e=>{
     case 'draftFeature':draft.features=Number(d.v);refreshCreator();break;
     case 'draftClothing':draft.clothing=Number(d.v);refreshCreator();break;
     case 'draftFacialHair':draft.facialHair=d.id||'none';refreshCreator();break;
+    case 'draftPacifier':draft.pacifier=d.v==='1';refreshCreator();break;
     case 'draftGender':draft.gender=normGender(d.id);refreshCreator();break;
     case 'draftRomance':draft.romancePref=normRomancePref(d.id);refreshCreator();break;
     case 'draftHouse':draft.house=d.id;refreshCreator();break;
@@ -9647,6 +10126,21 @@ document.addEventListener('click',e=>{
     case 'usePassage':usePassage(d.id);break;
     case 'openAstronomy':openAstronomyModal();break;
     case 'startAstronomy':startAstronomyTable(d.id);break;
+    // Tanda 3: pociones, herbología, exámenes y defensa verbal.
+    case 'openPotions':openPotionsModal();break;
+    case 'startPotion':startPotionGame(d.id);break;
+    case 'potionAddIng':potionAddIng(d.id);break;
+    case 'potionFinish':potionFinish();break;
+    case 'openHerbology':openHerbologyModal();break;
+    case 'startHerbology':startHerbologyGame(d.id);break;
+    case 'herbAction':herbAction(d.id);break;
+    case 'openExams':openExamsModal();break;
+    case 'openExamType':openExamTypeModal(d.id);break;
+    case 'startExam':{const u=me();if(u&&u.house)socket.emit('exam:start',{examType:d.type,subject:d.subject});break;}
+    case 'examAnswer':examAnswer(Number(d.i));break;
+    case 'examPrev':examPrev();break;
+    case 'examNext':examNext();break;
+    case 'submitDefense':submitDefense(d.prof,d.pid,Number(d.pen));break;
     case 'openChest':openChestModal(d.id);break;
     case 'openChestNow':openChestNow(d.id);break;
     case 'openMacroMap':openMacroMapModal();break;
@@ -9777,6 +10271,7 @@ document.addEventListener('click',e=>{
     case 'npcDraftEyes':window.npcDraft.eyes=Number(d.v);refreshNpcDraft();break;
     case 'npcDraftClothing':window.npcDraft.clothing=Number(d.v);refreshNpcDraft();break;
     case 'npcDraftFacialHair':window.npcDraft.facialHair=d.id||'none';refreshNpcDraft();break;
+    case 'npcDraftPacifier':window.npcDraft.pacifier=d.v==='1';refreshNpcDraft();break;
     case 'npcDraftGender':window.npcDraft.gender=normGender(d.id);refreshNpcDraft();break;
     case 'npcDraftRomance':window.npcDraft.romancePref=normRomancePref(d.id);refreshNpcDraft();break;
     case 'animagusAnswer':answerAnimagusTest(Number(d.i));break;
@@ -9789,6 +10284,7 @@ document.addEventListener('click',e=>{
     case 'profDraftEyes':window.profDraft.eyes=Number(d.v);refreshProfDraft();break;
     case 'profDraftClothing':window.profDraft.clothing=Number(d.v);refreshProfDraft();break;
     case 'profDraftFacialHair':window.profDraft.facialHair=d.id||'none';refreshProfDraft();break;
+    case 'profDraftPacifier':window.profDraft.pacifier=d.v==='1';refreshProfDraft();break;
     case 'saveProfEdit':API.editProfLook(d.id,window.profDraft);break;
     case 'resetProfLook':API.resetProfLook(d.id);break;
     case 'saveNpcEdit':refreshNpcDraft();API.editNpc(Number(d.id),window.npcDraft);break;
