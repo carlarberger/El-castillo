@@ -94,6 +94,10 @@ const AI_TIMEOUT_MS = 12000;
 let LORE = [];
 // Catálogos de exploración de la Tanda 2 (se cargan desde lore.json al arrancar).
 let PHASE2_CATALOGS = { guidePages: [], arithmancyDoors: [], secretPassages: [], constellations: [], chests: [] };
+// Catálogo oficial de varitas de Ollivanders (Tanda 4): maderas y núcleos con su
+// lore completo. Se carga desde lore.json; si falta, se usan los valores por defecto.
+let WAND_WOOD_CATALOG = [];
+let WAND_CORE_CATALOG = [];
 try {
   const lorePath = path.join(__dirname, 'lore.json');
   const rawLore = JSON.parse(fs.readFileSync(lorePath, 'utf8'));
@@ -120,7 +124,11 @@ try {
       constellations: catalogOf('_constelaciones', 'constellations'),
       chests: catalogOf('_cofres', 'chests')
     };
+    // Catálogo oficial de varitas (Tanda 4): maderas y núcleos con lore.
+    WAND_WOOD_CATALOG = catalogOf('_varitas', 'wandWoods');
+    WAND_CORE_CATALOG = catalogOf('_varitas', 'wandCores');
     console.log(`🗺️ Catálogos de exploración: ${PHASE2_CATALOGS.guidePages.length} páginas, ${PHASE2_CATALOGS.arithmancyDoors.length} puertas, ${PHASE2_CATALOGS.secretPassages.length} pasadizos, ${PHASE2_CATALOGS.constellations.length} constelaciones, ${PHASE2_CATALOGS.chests.length} cofres.`);
+    console.log(`🪄 Catálogo de Ollivanders: ${WAND_WOOD_CATALOG.length} maderas y ${WAND_CORE_CATALOG.length} núcleos.`);
   }
 } catch (err) {
   console.error('⚠️ No se pudo cargar lore.json:', err.message);
@@ -1294,50 +1302,151 @@ const SERVER_NPC_LINES = [
    La ceremonia de varita de Ollivanders asigna madera, longitud y núcleo. El
    núcleo concede una pasiva REAL que el servidor aplica y valida (nunca solo el
    cliente): Fénix = hallazgos mágicos, Unicornio = Empatía, Dragón = Valentía. */
+// Núcleos oficiales de Ollivanders. `axis` es la inclinación del test de la que
+// hereda la pasiva real (Fénix = hallazgos, Unicornio = Empatía, Dragón =
+// Valentía); `tier` distingue los tres núcleos supremos de los exóticos (más
+// raros). `passive` es la pasiva REAL que aplica el servidor.
 const WAND_CORES = {
-  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',            icon: '🪶', desc: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.' },
-  unicornio: { id: 'unicornio', name: 'Pelo de Unicornio',         icon: '🦄', desc: '+1 de Empatía efectiva en interacciones y diálogos.' },
-  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', desc: '+1 de Valentía efectiva en duelos y pruebas de acción.' }
+  // Los Tres Núcleos Supremos (máxima calidad de Ollivanders).
+  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',             icon: '🪶', tier: 'supremo', axis: 'fenix',
+               passive: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.',
+               desc: 'El núcleo más raro. Ofrece el mayor rango de magia, gran iniciativa propia y una lealtad muy difícil de ganar.' },
+  unicornio: { id: 'unicornio', name: 'Pelo de Cola de Unicornio',  icon: '🦄', tier: 'supremo', axis: 'unicornio',
+               passive: '+1 de Empatía efectiva en interacciones y diálogos; estabilidad mágica.',
+               desc: 'Produce la magia más consistente, estable y fiel; es difícil inclinarla hacia las Artes Oscuras.' },
+  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', tier: 'supremo', axis: 'dragon',
+               passive: '+1 de Valentía efectiva en duelos y pruebas de acción.',
+               desc: 'Otorga el mayor poder y hechizos extravagantes; aprende rápido y se vincula con fuerza, aunque es temperamental.' },
+  // Núcleos exóticos / especiales (resultados raros del test).
+  trueno:    { id: 'trueno',    name: 'Pluma de Ave del Trueno',    icon: '⚡', tier: 'exotico', axis: 'dragon',
+               passive: 'Bono en duelos y encantamientos de gran potencia.',
+               desc: 'Poderosa y difícil de dominar; premia a quien logra someterla.' },
+  thestral:  { id: 'thestral',  name: 'Pelo de Thestral',           icon: '🐴', tier: 'exotico', axis: 'fenix',
+               passive: 'Bono en exploración y en el descubrimiento de misterios.',
+               desc: 'Inestable y extremadamente rara; solo se deja ver por quien comprende los misterios.' },
+  augurey:   { id: 'augurey',   name: 'Cola de Augurey',            icon: '🪶', tier: 'exotico', axis: 'unicornio',
+               passive: 'Bono de Sabiduría y en artes adivinatorias.',
+               desc: 'Precisa y afinada para la Adivinación; susurra presagios a su dueño.' },
+  billywig:  { id: 'billywig',  name: 'Aguijón de Billywig',        icon: '🐝', tier: 'exotico', axis: 'fenix',
+               passive: 'Fuerte Encantamiento de Alegría; bono social y de carisma.',
+               desc: 'Ligera y juguetona; canaliza con fuerza el Encantamiento de la Alegría.' },
+  basilisco: { id: 'basilisco', name: 'Cuerno de Basilisco',        icon: '🐍', tier: 'exotico', axis: 'dragon',
+               passive: 'Poder inmenso; exige un dueño de voluntad férrea.',
+               desc: 'De poder inmenso y naturaleza temible; exige un dueño de voluntad férrea.' },
+  veela:     { id: 'veela',     name: 'Pelo de Veela',              icon: '💫', tier: 'exotico', axis: 'unicornio',
+               passive: 'Realza el encanto natural de su portador.',
+               desc: 'Fascinante y seductora; realza el encanto natural de su portador.' },
+  serpiente_cornuda: { id: 'serpiente_cornuda', name: 'Cuerno de Serpiente Cornuda', icon: '🐲', tier: 'exotico', axis: 'dragon',
+               passive: 'Resistencia a las maldiciones y a la magia oscura.',
+               desc: 'Resistente a las maldiciones; protege a su dueño de la magia oscura.' },
+  monstruo_rio: { id: 'monstruo_rio', name: 'Espina del Monstruo del Río Blanco', icon: '🌊', tier: 'exotico', axis: 'unicornio',
+               passive: 'Instinto protector; ideal para quien defiende a los suyos.',
+               desc: 'Salvaje y protectora; ideal para magos que defienden a los suyos.' },
+  lebrilope: { id: 'lebrilope', name: 'Astas de Lebrílope',         icon: '🐇', tier: 'exotico', axis: 'fenix',
+               passive: 'Reflejos rápidos y suerte en la huida.',
+               desc: 'Ágil y huidiza; otorga reflejos rápidos y suerte en la huida.' },
+  acromantula: { id: 'acromantula', name: 'Telaraña de Acromántula', icon: '🕷️', tier: 'exotico', axis: 'unicornio',
+               passive: 'Tenaz y sigilosa; favorece la magia de control.',
+               desc: 'Tenaz y sigilosa; teje trampas y favorece la magia de control.' },
+  kelpie:    { id: 'kelpie',    name: 'Pelo de Kelpie',             icon: '🐎', tier: 'exotico', axis: 'unicornio',
+               passive: 'Afinidad con el agua; tan traicionera como el mar.',
+               desc: 'Afinada a las aguas; tan traicionera como el mar que la vio nacer.' },
+  rougarou:  { id: 'rougarou',  name: 'Pelo de Rougarou',           icon: '🐺', tier: 'exotico', axis: 'dragon',
+               passive: 'Magia salvaje y primigenia.',
+               desc: 'Feroz y cambiante; canaliza una magia salvaje y primigenia.' },
+  trol:      { id: 'trol',      name: 'Bigote de Trol',             icon: '🧌', tier: 'exotico', axis: 'dragon',
+               passive: 'Tosca pero potente; resiste hechizos simples.',
+               desc: 'Tosca pero sorprendentemente potente; resiste hechizos simples.' }
 };
-const WAND_WOODS = ['acebo', 'sauce', 'espino', 'tejo', 'caoba', 'fresno', 'nogal', 'manzano'];
-const WAND_LENGTHS = [24, 26, 28, 30, 32, 34];
+// Las 20 maderas oficiales de Ollivanders, con el lore que se muestra en el
+// Expediente. El catálogo de lore.json puede ampliarlo (se fusiona al arrancar).
+const WAND_WOODS = [
+  { id: 'acacia',  name: 'Acacia',  lore: 'Sutileza extrema; se niega a realizar magia para cualquiera que no sea su dueño legítimo. Ideal para magos discretos y de talento sutil.' },
+  { id: 'aliso',   name: 'Aliso',   lore: 'Servicial y considerado; se adapta bien a hechizos no verbales y busca a un dueño amable y generoso.' },
+  { id: 'manzano', name: 'Manzano', lore: 'Para quienes tienen altos ideales y un gran corazón; muy querida y poderosa en manos de un mago bondadoso.' },
+  { id: 'fresno',  name: 'Fresno',  lore: 'Fiel a un único dueño durante toda la vida; obstinada y valiente, jamás arrogante.' },
+  { id: 'alamo',   name: 'Álamo',   lore: 'De aspecto marfil; ideal para duelistas de mente fuerte y decidida.' },
+  { id: 'haya',    name: 'Haya',    lore: 'De comprensión amplia y corazón lleno de empatía; rinde mejor en manos de quien comprende a los demás.' },
+  { id: 'abedul',  name: 'Abedul',  lore: 'Asociada a la purificación y a los nuevos comienzos.' },
+  { id: 'sauco',   name: 'Saúco',   lore: 'Caprichosa y difícil; solo se somete a un dueño verdaderamente excepcional.' },
+  { id: 'espino',  name: 'Espino',  lore: 'Una paradoja: sirve tanto a sanadores como a quienes lanzan maldiciones; refleja el conflicto interno de su dueño.' },
+  { id: 'acebo',   name: 'Acebo',   lore: 'Protectora; ayuda a superar la ira y la impulsividad, y acompaña en las búsquedas peligrosas.' },
+  { id: 'tejo',    name: 'Tejo',    lore: 'Concede poder sobre la vida y la muerte; la eligen magos de gran destino.' },
+  { id: 'roble',   name: 'Roble',   lore: 'Símbolo de fuerza, lealtad y supervivencia, con instinto de autoridad.' },
+  { id: 'sauce',   name: 'Sauce',   lore: 'De gran poder curativo, misterio y afinidad por la magia no verbal.' },
+  { id: 'cerezo',  name: 'Cerezo',  lore: 'Combina poder, elegancia y un carácter fuerte; destaca en manos decididas.' },
+  { id: 'castano', name: 'Castaño', lore: 'Versátil; sus dueños suelen ser jueces expertos del carácter ajeno.' },
+  { id: 'cipres',  name: 'Ciprés',  lore: 'De nobleza y misterio; acompaña a valientes dispuestos al sacrificio.' },
+  { id: 'abeto',   name: 'Abeto',   lore: 'Madera de supervivientes; resistente, decidida y difícil de doblegar.' },
+  { id: 'avellano',name: 'Avellano',lore: 'Sensible y de intuición excepcional; forja una conexión natural con su dueño.' },
+  { id: 'olmo',    name: 'Olmo',    lore: 'De gran presencia, dignidad y elegancia; favorece a magos de porte distinguido.' },
+  { id: 'vid',     name: 'Vid',     lore: 'Busca las profundidades ocultas y una visión más allá de lo ordinario.' }
+];
+const WAND_WOOD_IDS = WAND_WOODS.map(w => w.id);
+const WAND_LENGTHS = [22, 24, 26, 28, 30, 32, 34, 36];
 
-// Cuestionario de personalidad de Ollivanders. El orden de las preguntas y de
-// sus opciones DEBE coincidir con WAND_QUIZ de index.html.
+// Cuestionario de personalidad de Ollivanders. Cada opción declara su eje
+// (`axis`) y, opcionalmente, un núcleo exótico (`exotic`) que se concede cuando
+// esa respuesta concreta gana por mayoría. El orden de preguntas y opciones
+// DEBE coincidir con WAND_QUIZ de index.html.
 const WAND_QUIZ = [
   { q: '¿Qué cualidad valoras más en un mago?', opts: [
-    { t: 'La capacidad de renacer y seguir adelante', core: 'fenix' },
-    { t: 'La bondad y la lealtad', core: 'unicornio' },
-    { t: 'El coraje para enfrentar el peligro', core: 'dragon' } ] },
+    { t: 'La capacidad de renacer y seguir adelante', axis: 'fenix' },
+    { t: 'La bondad y la lealtad', axis: 'unicornio' },
+    { t: 'El coraje para enfrentar el peligro', axis: 'dragon' } ] },
   { q: 'Elige tu lugar favorito del castillo:', opts: [
-    { t: 'La Torre de Astronomía, entre las estrellas', core: 'fenix' },
-    { t: 'Los Invernaderos, entre plantas y criaturas', core: 'unicornio' },
-    { t: 'El Aula de Duelos, con la varita en alto', core: 'dragon' } ] },
+    { t: 'La Torre de Astronomía, entre las estrellas', axis: 'fenix' },
+    { t: 'Los Invernaderos, entre plantas y criaturas', axis: 'unicornio' },
+    { t: 'El Aula de Duelos, con la varita en alto', axis: 'dragon' } ] },
   { q: 'Un amigo está en apuros. ¿Qué haces?', opts: [
-    { t: 'Busco una solución ingeniosa y creativa', core: 'fenix' },
-    { t: 'Lo consuelo y lo escucho con calma', core: 'unicornio' },
-    { t: 'Salgo a defenderlo sin dudarlo', core: 'dragon' } ] },
+    { t: 'Busco una solución ingeniosa y creativa', axis: 'fenix' },
+    { t: 'Lo consuelo y lo escucho con calma', axis: 'unicornio' },
+    { t: 'Salgo a defenderlo sin dudarlo', axis: 'dragon' } ] },
   { q: '¿Qué tipo de magia te atrae más?', opts: [
-    { t: 'Encantamientos versátiles y transformadores', core: 'fenix' },
-    { t: 'Herbología y cuidado de criaturas', core: 'unicornio' },
-    { t: 'Defensa contra las Artes Oscuras', core: 'dragon' } ] },
+    { t: 'Encantamientos versátiles y transformadores', axis: 'fenix' },
+    { t: 'Herbología y cuidado de criaturas', axis: 'unicornio' },
+    { t: 'Defensa contra las Artes Oscuras', axis: 'dragon' } ] },
   { q: 'Ante una derrota, tú…', opts: [
-    { t: 'Aprendes y te reinventas para la próxima', core: 'fenix' },
-    { t: 'Reflexionas y apoyas a los tuyos', core: 'unicornio' },
-    { t: 'Te levantas y vuelves a intentarlo con más fuerza', core: 'dragon' } ] }
+    { t: 'Aprendes y te reinventas para la próxima', axis: 'fenix' },
+    { t: 'Reflexionas y apoyas a los tuyos', axis: 'unicornio' },
+    { t: 'Te levantas y vuelves a intentarlo con más fuerza', axis: 'dragon' } ] }
 ];
 
-// Deriva el núcleo de la varita a partir de las respuestas (suma por inclinación).
+// Deriva el núcleo de la varita a partir de las respuestas. El eje ganador
+// (Fénix, Unicornio o Dragón) es la inclinación dominante del test. Cuando el
+// perfil es DECIDIDO (un eje con al menos 4 de 5 respuestas, sin empates), el
+// jugador puede recibir un núcleo exótico de ese eje; el exótico concreto se
+// deriva de forma determinista del patrón exacto de respuestas (resultado raro
+// y específico). Si no, se entrega el núcleo supremo del eje ganador.
 function pickWandCore(answers) {
-  const tally = { fenix: 0, unicornio: 0, dragon: 0 };
-  (Array.isArray(answers) ? answers : []).forEach((a, i) => {
+  const list = Array.isArray(answers) ? answers : [];
+  const axisTally = { fenix: 0, unicornio: 0, dragon: 0 };
+  list.forEach((a, i) => {
     const q = WAND_QUIZ[i];
-    if (!q) return;
-    const opt = q.opts[Number(a)];
-    if (opt && tally[opt.core] !== undefined) tally[opt.core] += 1;
+    const opt = q && q.opts[Number(a)];
+    if (opt && axisTally[opt.axis] !== undefined) axisTally[opt.axis] += 1;
   });
-  return Object.keys(tally).sort((a, b) => tally[b] - tally[a] || 0)[0] || 'fenix';
+  const axis = Object.keys(axisTally).sort((a, b) => axisTally[b] - axisTally[a] || 0)[0] || 'fenix';
+  const top = axisTally[axis];
+  const tied = Object.values(axisTally).filter(v => v === top).length > 1;
+  if (!tied && top >= 4) {
+    const pool = Object.keys(WAND_CORES).filter(id => WAND_CORES[id].tier === 'exotico' && WAND_CORES[id].axis === axis);
+    if (pool.length) {
+      // Hash determinista del patrón de respuestas (mismo test -> mismo núcleo).
+      const h = list.reduce((acc, v, i) => (acc * 131 + (Number(v) + 1) * 17 + i * 3) % 1000003, 23);
+      // No todos los perfiles decididos dan un exótico: aproximadamente la mitad.
+      if (h % 2 === 0) return pool[(h >> 1) % pool.length];
+    }
+  }
+  return axis;
 }
+// ¿El núcleo tiene la pasiva de un eje concreto (p. ej. Valentía del Dragón)?
+function wandAxisOf(coreId) { return WAND_CORES[coreId] ? WAND_CORES[coreId].axis : null; }
+// Nombre y lore de una madera (catálogo fusionado).
+function wandWoodInfo(id) {
+  return WAND_WOODS.find(w => w.id === id) || null;
+}
+function wandCoreInfo(id) { return WAND_CORES[id] || null; }
 
 // Títulos equipables: visibles junto al nombre en el chat y el registro.
 const TITLES = {
@@ -1421,12 +1530,13 @@ function wandCore(user) {
   const c = user && user.wand && user.wand.core;
   return WAND_CORES[c] ? c : null;
 }
-// Pasiva de Fénix: +10 % de probabilidad de hallazgos mágicos.
-function wandFindBonus(user) { return wandCore(user) === 'fenix' ? 0.10 : 0; }
-// Pasiva de Unicornio: +1 de Empatía efectiva.
-function wandEmpatiaBonus(user) { return wandCore(user) === 'unicornio' ? 1 : 0; }
-// Pasiva de Dragón: +1 de Valentía efectiva.
-function wandValentiaBonus(user) { return wandCore(user) === 'dragon' ? 1 : 0; }
+// Pasiva del eje Fénix: +10 % de probabilidad de hallazgos mágicos (los núcleos
+// exóticos con eje Fénix, como Thestral o Lebrílope, la heredan).
+function wandFindBonus(user) { return wandAxisOf(wandCore(user)) === 'fenix' ? 0.10 : 0; }
+// Pasiva del eje Unicornio: +1 de Empatía efectiva.
+function wandEmpatiaBonus(user) { return wandAxisOf(wandCore(user)) === 'unicornio' ? 1 : 0; }
+// Pasiva del eje Dragón: +1 de Valentía efectiva.
+function wandValentiaBonus(user) { return wandAxisOf(wandCore(user)) === 'dragon' ? 1 : 0; }
 // Nivel efectivo de un atributo = base (1 + puntos/10) + bonus de la varita.
 function effectiveAttrLevel(user, key) {
   const prop = ATTR_PROP[key];
@@ -1870,6 +1980,37 @@ function isRealUser(u) {
 //      vaciarle la contraseña); se conserva la versión del servidor.
 //   3. Sí se aceptan registros nuevos (ids que el servidor no tenía) y las
 //      actualizaciones normales de cada jugador.
+// Fusiona un usuario entrante (posiblemente obsoleto) con la versión del
+// servidor. Los campos que el servidor concede y valida (varita, títulos,
+// guardarropa, bestiario y colecciones de exploración) NUNCA se pierden por un
+// autosave anterior. El resto de campos (puntos, galeones, posición, etc.) sigue
+// tomándose del cliente para no romper el flujo normal de guardado.
+// Conjuntos de DESBLOQUEO: solo crecen, así que la unión evita que un cliente
+// obsoleto los reduzca. No se incluyen campos mutables (título equipado, prendas
+// equipadas) porque ahí el cliente es la autoridad.
+const SERVER_AUTHORITY_FIELDS = ['unlockedTitles', 'unlockedCosmetics', 'bestiary',
+  'guidePages', 'arithmancyDoors', 'secretPassages', 'constellations', 'chests'];
+function mergeServerAuthority(serverUser, incomingUser) {
+  const out = { ...incomingUser };
+  // La varita asignada por el servidor es autoritativa mientras el cliente no
+  // envíe otra varita distinta (p. ej. una receremonia permitida).
+  if (serverUser.wand && !incomingUser.wand) out.wand = serverUser.wand;
+  // Los desbloqueos son acumulativos: unión de ambos conjuntos.
+  SERVER_AUTHORITY_FIELDS.forEach(field => {
+    const sv = Array.isArray(serverUser[field]) ? serverUser[field] : [];
+    const inc = Array.isArray(incomingUser[field]) ? incomingUser[field] : [];
+    if (sv.length) out[field] = [...new Set([...inc, ...sv])];
+  });
+  // Las prendas equipadas son mutables: si el cliente no las envía (autosave
+  // obsoleto) se conserva la selección del servidor; si las envía, mandan ellas.
+  if (!Array.isArray(incomingUser.equippedCosmetics) && Array.isArray(serverUser.equippedCosmetics)) {
+    out.equippedCosmetics = serverUser.equippedCosmetics;
+  }
+  // Contador de repeticiones de la ceremonia: solo crece (anti-abuso).
+  out.wandRedos = Math.max(0, Number(serverUser.wandRedos) || 0, Number(incomingUser.wandRedos) || 0);
+  return out;
+}
+
 function mergeUsers(serverUsers, incomingUsers) {
   const server = Array.isArray(serverUsers) ? serverUsers : [];
   const incoming = Array.isArray(incomingUsers) ? incomingUsers : [];
@@ -1884,10 +2025,12 @@ function mergeUsers(serverUsers, incomingUsers) {
     // Una cuenta protegida no puede quedar sin contraseña: un cliente obsoleto
     // (con `pass` vacío) no debe desactivar la protección de un jugador real.
     if (sv && isRealUser(sv) && !u.pass && sv.pass) {
-      merged.push({ ...u, pass: sv.pass });
+      merged.push(mergeServerAuthority(sv, { ...u, pass: sv.pass }));
       return;
     }
-    merged.push(u);
+    // Un cliente con datos obsoletos (autosave anterior a una recompensa del
+    // servidor) no puede borrar la varita ni los desbloqueos ya concedidos.
+    merged.push((sv && isRealUser(sv) && isRealUser(u)) ? mergeServerAuthority(sv, u) : u);
   });
 
   const preserved = [];
@@ -2021,7 +2164,16 @@ function sanitizeState(state) {
     // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
     // Retrocompatibilidad: un guardado antiguo sin estos campos queda con
     // valores por defecto seguros en lugar de provocar errores `undefined`.
-    if (u.wand && (typeof u.wand !== 'object' || !WAND_CORES[u.wand.core])) u.wand = null;
+    // Normaliza la varita: núcleo válido, madera del catálogo y longitud sensata.
+    if (u.wand && (typeof u.wand !== 'object' || !WAND_CORES[u.wand.core])) {
+      u.wand = null;
+    } else if (u.wand) {
+      if (!WAND_WOOD_IDS.includes(u.wand.wood)) u.wand.wood = WAND_WOOD_IDS[(Number(u.id) || 0) % WAND_WOOD_IDS.length];
+      const _len = Math.floor(Number(u.wand.length));
+      u.wand.length = (Number.isFinite(_len) && _len >= 15 && _len <= 45) ? _len : WAND_LENGTHS[(Number(u.id) || 0) % WAND_LENGTHS.length];
+      u.wand.chosenAt = Number(u.wand.chosenAt) || Date.now();
+    }
+    u.wandRedos = Math.max(0, Math.floor(Number(u.wandRedos) || 0));
     if (u.title != null && !TITLES[u.title]) u.title = null;
     u.unlockedTitles = cleanIds(u.unlockedTitles).filter(id => !!TITLES[id]);
     if (!u.unlockedTitles.length && u.wand) u.unlockedTitles.push('elegido_varita');
@@ -2681,6 +2833,8 @@ io.on('connection', async (socket) => {
     // Catálogos de la Tanda 2 (páginas, aritmancia, pasadizos, constelaciones,
     // cofres): el servidor es la fuente de verdad de sus definiciones.
     socket.emit('exploration:catalog', PHASE2_CATALOGS);
+    // Catálogo oficial de varitas (maderas y núcleos con lore) para el Expediente.
+    socket.emit('wand:catalog', { woods: WAND_WOODS, cores: WAND_CORES });
 
     // ⬅️ AÑADIDO: rate-limit por socket (máx. ~20 sync/s)
     let lastSyncAt = 0;
@@ -3662,7 +3816,13 @@ io.on('connection', async (socket) => {
       try {
         const u = profileUser();
         if (!u) return;
-        if (u.wand) { socket.emit('wand:result', { ok: false, message: 'Ya tienes tu varita de Ollivanders.' }); return; }
+        // Ya tiene varita: solo se permite UNA repetición de la ceremonia (por si
+        // hubo un error), y solo si el cliente la pide explícitamente con `retry`.
+        const wantsRetry = !!(data && data.retry);
+        if (u.wand && !(wantsRetry && (Number(u.wandRedos) || 0) < 1)) {
+          socket.emit('wand:result', { ok: false, message: 'Ya tienes tu varita de Ollivanders.' });
+          return;
+        }
         const answers = Array.isArray(data && data.answers) ? data.answers.slice(0, WAND_QUIZ.length) : [];
         if (answers.length < WAND_QUIZ.length) {
           socket.emit('wand:result', { ok: false, message: 'Debes responder todas las preguntas de Ollivanders.' });
@@ -3670,17 +3830,18 @@ io.on('connection', async (socket) => {
         }
         const core = pickWandCore(answers);
         const seed = Number(u.id) || 0;
-        const wand = {
-          core,
-          wood: WAND_WOODS[seed % WAND_WOODS.length],
-          length: WAND_LENGTHS[seed % WAND_LENGTHS.length],
-          chosenAt: Date.now()
-        };
+        // La madera y la longitud se derivan del perfil de respuestas (y del id),
+        // de forma determinista pero variada entre jugadores.
+        const sum = answers.reduce((a, b) => a + (Number(b) || 0), 0);
+        const wood = WAND_WOOD_IDS[(seed + sum * 7) % WAND_WOOD_IDS.length];
+        const length = WAND_LENGTHS[(seed + sum) % WAND_LENGTHS.length];
+        const wand = { core, wood, length, chosenAt: Date.now() };
+        if (u.wand) u.wandRedos = (Number(u.wandRedos) || 0) + 1;
         u.wand = wand;
         const newly = syncTitleUnlocks(u);
         await saveState(memoryState);
         io.emit('sync_db', { db: memoryState, reason: null });
-        socket.emit('wand:result', { ok: true, wand, title: u.title, newTitles: newly, profile: profileSummary(u) });
+        socket.emit('wand:result', { ok: true, wand, wandRedos: u.wandRedos, title: u.title, newTitles: newly, profile: profileSummary(u) });
       } catch (err) {
         console.error('Error en la ceremonia de la varita:', err.message);
       }
@@ -3942,15 +4103,24 @@ module.exports = {
   reconcileLetterGrants,
   isRealUser,
   mergeUsers,
+  mergeServerAuthority,
   pickWandCore,
   wandFindBonus,
   wandEmpatiaBonus,
   wandValentiaBonus,
+  wandAxisOf,
+  wandWoodInfo,
+  wandCoreInfo,
   effectiveAttrLevel,
   grantTitle,
   syncTitleUnlocks,
   WAND_QUIZ,
   WAND_CORES,
+  WAND_WOODS,
+  WAND_WOOD_IDS,
+  WAND_LENGTHS,
+  WAND_WOOD_CATALOG,
+  WAND_CORE_CATALOG,
   TITLES,
   COSMETICS,
   CREATURES,
