@@ -92,16 +92,35 @@ const AI_TIMEOUT_MS = 12000;
 // Se carga una sola vez al arrancar. Si el archivo falta o está corrupto, el juego
 // sigue funcionando sin contexto adicional en lugar de caerse.
 let LORE = [];
+// Catálogos de exploración de la Tanda 2 (se cargan desde lore.json al arrancar).
+let PHASE2_CATALOGS = { guidePages: [], arithmancyDoors: [], secretPassages: [], constellations: [], chests: [] };
 try {
   const lorePath = path.join(__dirname, 'lore.json');
   const rawLore = JSON.parse(fs.readFileSync(lorePath, 'utf8'));
   if (Array.isArray(rawLore)) {
     LORE = rawLore
-      .filter(e => e && typeof e.info === 'string' && Array.isArray(e.keywords))
+      .filter(e => e && typeof e.info === 'string' && Array.isArray(e.keywords)
+        // Las entradas de catálogo (categoría `_...`) alimentan mecánicas de
+        // exploración, no el archivo canónico que usa Groq.
+        && !String(e.categoria || '').startsWith('_'))
       // Cada entrada declara el año escolar mínimo para conocerla (minYear).
       // Si no lo declara, se asume que es conocimiento básico (Año 1).
       .map(e => ({ ...e, minYear: Math.max(1, Math.min(7, Number(e.minYear) || 1)) }));
     console.log(`📚 Cerebro de Hogwarts cargado: ${LORE.length} entradas canónicas.`);
+    // Catálogos de exploración (Tanda 2): páginas, aritmancia, pasadizos,
+    // constelaciones y cofres. Se validan aquí y se exponen por socket.
+    const catalogOf = (cat, key) => {
+      const entry = rawLore.find(e => e && e.categoria === cat);
+      return (entry && Array.isArray(entry[key])) ? entry[key] : [];
+    };
+    PHASE2_CATALOGS = {
+      guidePages: catalogOf('_guia_campo', 'guidePages'),
+      arithmancyDoors: catalogOf('_arithmancy', 'arithmancyDoors'),
+      secretPassages: catalogOf('_pasadizos', 'secretPassages'),
+      constellations: catalogOf('_constelaciones', 'constellations'),
+      chests: catalogOf('_cofres', 'chests')
+    };
+    console.log(`🗺️ Catálogos de exploración: ${PHASE2_CATALOGS.guidePages.length} páginas, ${PHASE2_CATALOGS.arithmancyDoors.length} puertas, ${PHASE2_CATALOGS.secretPassages.length} pasadizos, ${PHASE2_CATALOGS.constellations.length} constelaciones, ${PHASE2_CATALOGS.chests.length} cofres.`);
   }
 } catch (err) {
   console.error('⚠️ No se pudo cargar lore.json:', err.message);
@@ -1205,6 +1224,13 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   demiguiseCarrying: [],
   alohomoraLevel: 1,
   bagCapacity: 5,
+  // Exploración avanzada (Tanda 2): páginas de la Guía de Campo, puertas de
+  // Aritmancia abiertas, pasadizos secretos, constelaciones y cofres.
+  guidePages: [],
+  arithmancyDoors: [],
+  secretPassages: [],
+  constellations: [],
+  chests: [],
   // Perfil: varita de Ollivanders, títulos, guardarropa y bestiario (Tandas 4 y 8).
   wand: null,
   title: null,
@@ -1212,7 +1238,6 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   unlockedCosmetics: [],
   equippedCosmetics: [],
   bestiary: [],
-  guidePages: [],
   look: { facialHair: 'none', ...(look || {}) },
   created_at: id
 });
@@ -1322,7 +1347,12 @@ const TITLES = {
   demiguise:      { id: 'demiguise',      name: 'Cazador de Lunas',       icon: '🌙', desc: 'Recuperaste todas las Estatuas Demiguise.' },
   coleccionista:  { id: 'coleccionista',  name: 'Coleccionista de Cromos', icon: '🐸', desc: 'Completaste el Álbum de Cromos.' },
   magizoologo:    { id: 'magizoologo',    name: 'Magizoólogo',            icon: '🦅', desc: 'Registraste muchas criaturas en tu Bestiario.' },
-  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' }
+  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' },
+  // Tanda 2: exploración avanzada.
+  aritmante:      { id: 'aritmante',      name: 'Aritmante',              icon: '🔢', desc: 'Resolviste una puerta de Aritmancia.' },
+  contrabandista: { id: 'contrabandista', name: 'Contrabandista',         icon: '🗺️', desc: 'Descubriste un pasadizo secreto del castillo.' },
+  astronomo:      { id: 'astronomo',      name: 'Astrónomo',              icon: '🔭', desc: 'Trazaste todas las constelaciones mágicas.' },
+  ladron_experto: { id: 'ladron_experto', name: 'Ladrón Experto',         icon: '🗝️', desc: 'Abriste todos los cofres con Alohomora.' }
 };
 
 // Guardarropa: prendas cosméticas desbloqueables y equipables. Debe incluir
@@ -1427,6 +1457,13 @@ function syncTitleUnlocks(user) {
   if (cromoCount >= CROMO_IDS.length) earned.push('coleccionista');
   if (Array.isArray(user.bestiary) && user.bestiary.length >= 4) earned.push('magizoologo');
   if (Array.isArray(user.guidePages) && user.guidePages.length >= 5) earned.push('enciclopedista');
+  // Tanda 2: títulos de exploración avanzada.
+  if (Array.isArray(user.arithmancyDoors) && user.arithmancyDoors.length >= 1) earned.push('aritmante');
+  if (Array.isArray(user.secretPassages) && user.secretPassages.length >= 1) earned.push('contrabandista');
+  if (PHASE2_CATALOGS.constellations.length && Array.isArray(user.constellations)
+      && user.constellations.length >= PHASE2_CATALOGS.constellations.length) earned.push('astronomo');
+  if (PHASE2_CATALOGS.chests.length && Array.isArray(user.chests)
+      && user.chests.length >= PHASE2_CATALOGS.chests.length) earned.push('ladron_experto');
   const newly = [];
   earned.forEach(id => { if (grantTitle(user, id)) newly.push(id); });
   return newly;
@@ -1974,6 +2011,13 @@ function sanitizeState(state) {
     u.alohomoraLevel = (_alo >= 1 && _alo <= 3) ? _alo : 1;
     const _bag = Math.floor(Number(u.bagCapacity));
     u.bagCapacity = (_bag >= 5 && _bag <= 99) ? _bag : 5;
+    // Exploración avanzada (Tanda 2): ids de páginas, puertas, pasadizos,
+    // constelaciones y cofres recogidos/abiertos.
+    u.guidePages = cleanIds(u.guidePages);
+    u.arithmancyDoors = cleanIds(u.arithmancyDoors);
+    u.secretPassages = cleanIds(u.secretPassages);
+    u.constellations = cleanIds(u.constellations);
+    u.chests = cleanIds(u.chests);
     // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
     // Retrocompatibilidad: un guardado antiguo sin estos campos queda con
     // valores por defecto seguros en lugar de provocar errores `undefined`.
@@ -1985,7 +2029,6 @@ function sanitizeState(state) {
     u.unlockedCosmetics = cleanCosmeticIds(u.unlockedCosmetics).filter(id => !!COSMETICS[id]);
     u.equippedCosmetics = cleanIds(u.equippedCosmetics).filter(id => u.unlockedCosmetics.includes(id));
     u.bestiary = cleanIds(u.bestiary).filter(id => !!CREATURES[id]);
-    u.guidePages = cleanIds(u.guidePages);
     // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
     const bm = Math.floor(Number(u.birthMonth));
     const bd = Math.floor(Number(u.birthDay));
@@ -2525,6 +2568,81 @@ function runNpcLetterTick(state, now = Date.now()) {
 const MERLIN_TRIAL_IDS = ['merlin_patio', 'merlin_lago', 'merlin_bosque', 'merlin_quidditch', 'merlin_invernaderos', 'merlin_puente'];
 const DEMIGUISE_STATUE_IDS = ['demi_biblioteca', 'demi_astronomia', 'demi_pociones', 'demi_pasillo3', 'demi_comedor', 'demi_encantamientos', 'demi_enfermeria', 'demi_mazmorras'];
 
+/* ===== TANDA 2: ayudantes de los catálogos de exploración ===== */
+// Valor numérico de cada criatura en el alfabeto de Aritmancia (guía del modal).
+const ARITHMANCY_CREATURES = {
+  demiguise: { name: 'Demiguise', value: 0, icon: '🐒' },
+  unicornio: { name: 'Unicornio', value: 1, icon: '🦄' },
+  graphorn:  { name: 'Graphorn',  value: 2, icon: '🐗' },
+  runespoor: { name: 'Runespoor', value: 3, icon: '🐍' },
+  fwooper:   { name: 'Fwooper',   value: 4, icon: '🦜' },
+  quintaped: { name: 'Quintaped', value: 5, icon: '🦂' },
+  salamandra:{ name: 'Salamandra',value: 6, icon: '🦎' },
+  hidra:     { name: 'Hidra',     value: 9, icon: '🐉' },
+  acromantula:{ name: 'Acromántula', value: 8, icon: '🕷️' }
+};
+// Nivel de Alohomora según las Lunas de Demiguise entregadas (Tanda 2.5).
+function alohomoraLevelFor(collected) {
+  const n = Array.isArray(collected) ? collected.length : 0;
+  if (n >= 6) return 3;
+  if (n >= 3) return 2;
+  return 1;
+}
+// Busca una entrada del catálogo por id (null si no existe).
+function catalogById(list, id) {
+  if (!Array.isArray(list)) return null;
+  return list.find(x => x && String(x.id) === String(id)) || null;
+}
+// Entrega un cromo del pool de la rareza indicada (o cualquiera si no hay).
+function grantCromoByRarity(user, rarity) {
+  if (!user) return null;
+  const ids = rarity ? cromoIdsByRarity(rarity) : CROMO_IDS;
+  const pool = ids.length ? ids : CROMO_IDS;
+  if (!pool.length) return null;
+  const cromoId = pool[Math.floor(Math.random() * pool.length)];
+  user.cromos = (user.cromos && typeof user.cromos === 'object') ? user.cromos : {};
+  const entry = user.cromos[cromoId];
+  const count = (typeof entry === 'number') ? entry : ((entry && entry.count) || 0);
+  user.cromos[cromoId] = { count: count + 1, image: (entry && entry.image) || undefined };
+  return cromoId;
+}
+// Aplica una recompensa del catálogo (Galeones, XP, puntos, atributo, cromo,
+// prenda) y devuelve un resumen legible. Todo se valida contra el catálogo.
+function applyCatalogReward(user, reward) {
+  if (!user || !reward || typeof reward !== 'object') return { lines: [], cromo: null, cosmetic: null };
+  const lines = [];
+  if (reward.galeones) {
+    const g = Math.max(0, Math.min(500, Math.floor(Number(reward.galeones) || 0)));
+    if (g) { user.galeones = (Number(user.galeones) || 0) + g; lines.push(`+${g} 🪙`); }
+  }
+  if (reward.xp) {
+    const x = Math.max(0, Math.min(200, Math.floor(Number(reward.xp) || 0)));
+    if (x) { user.flight_xp = (Number(user.flight_xp) || 0) + x; lines.push(`+${x} XP`); }
+  }
+  if (reward.points) {
+    const p = Math.max(0, Math.min(200, Math.floor(Number(reward.points) || 0)));
+    if (p) { user.points = (Number(user.points) || 0) + p; lines.push(`+${p} pts`); }
+  }
+  if (reward.sabiduria) user.attrSabiduria = (Number(user.attrSabiduria) || 0) + Math.max(0, Math.min(100, Math.floor(Number(reward.sabiduria) || 0)));
+  if (reward.valentia) user.attrValentia = (Number(user.attrValentia) || 0) + Math.max(0, Math.min(100, Math.floor(Number(reward.valentia) || 0)));
+  if (reward.empatia) user.attrEmpatia = (Number(user.attrEmpatia) || 0) + Math.max(0, Math.min(100, Math.floor(Number(reward.empatia) || 0)));
+  let cromo = null;
+  if (reward.cromoRarity) {
+    cromo = grantCromoByRarity(user, reward.cromoRarity);
+    if (cromo) lines.push(`🃏 Cromo ${reward.cromoRarity}`);
+  }
+  let cosmetic = null;
+  if (reward.cosmetic && COSMETICS[reward.cosmetic]) {
+    cosmetic = reward.cosmetic;
+    user.unlockedCosmetics = Array.isArray(user.unlockedCosmetics) ? user.unlockedCosmetics : [];
+    if (!user.unlockedCosmetics.includes(cosmetic)) {
+      user.unlockedCosmetics.push(cosmetic);
+      lines.push(`👗 ${COSMETICS[cosmetic].name}`);
+    } else { cosmetic = null; }
+  }
+  return { lines, cromo, cosmetic };
+}
+
 // Hora del reloj del juego (coincide con la lógica del turno autónomo de NPCs).
 function gameHour(state) {
   if (state && state.clockMode === 'mock' && state.mockTime) {
@@ -2560,6 +2678,9 @@ io.on('connection', async (socket) => {
   try {
     const currentState = await loadState();
     socket.emit('init_db', currentState);
+    // Catálogos de la Tanda 2 (páginas, aritmancia, pasadizos, constelaciones,
+    // cofres): el servidor es la fuente de verdad de sus definiciones.
+    socket.emit('exploration:catalog', PHASE2_CATALOGS);
 
     // ⬅️ AÑADIDO: rate-limit por socket (máx. ~20 sync/s)
     let lastSyncAt = 0;
@@ -2713,6 +2834,12 @@ io.on('connection', async (socket) => {
         demiguiseCarrying: user.demiguiseCarrying,
         alohomoraLevel: user.alohomoraLevel,
         bagCapacity: user.bagCapacity,
+        // Tanda 2: colecciones de exploración avanzada.
+        guidePages: user.guidePages,
+        arithmancyDoors: user.arithmancyDoors,
+        secretPassages: user.secretPassages,
+        constellations: user.constellations,
+        chests: user.chests,
         galeones: user.galeones,
         points: user.points,
         attrSabiduria: user.attrSabiduria,
@@ -2785,7 +2912,7 @@ io.on('connection', async (socket) => {
         const total = user.demiguiseCollected.length;
         user.galeones = (Number(user.galeones) || 0) + 40 * delivered.length;
         user.attrValentia = (Number(user.attrValentia) || 0) + 20 * delivered.length;
-        user.alohomoraLevel = total >= 6 ? 3 : (total >= 3 ? 2 : 1);
+        user.alohomoraLevel = alohomoraLevelFor(user.demiguiseCollected);
 
         const newly = syncTitleUnlocks(user);
         await persistExploration();
@@ -2798,6 +2925,176 @@ io.on('connection', async (socket) => {
         });
       } catch (err) {
         console.error('Error entregando Lunas Demiguise:', err.message);
+      }
+    });
+
+    /* ===== TANDA 2: Páginas de la Guía de Campo (Revelio) ===== */
+    socket.on('exploration:fieldPage', async (data) => {
+      try {
+        const pageId = String((data && data.pageId) || '');
+        const page = catalogById(PHASE2_CATALOGS.guidePages, pageId);
+        const user = explorationUser();
+        if (!user || !page) return;
+        user.guidePages = Array.isArray(user.guidePages) ? user.guidePages : [];
+        if (user.guidePages.includes(pageId)) return;
+        // El jugador debe estar realmente en la sala de la página.
+        if (String(user.loc || '') !== String(page.roomId || '')) {
+          socket.emit('exploration:error', { message: 'Esa página no está en esta sala.' });
+          return;
+        }
+        user.guidePages.push(pageId);
+        // XP de exploración; la pasiva de Fénix da un 10% extra.
+        const baseXp = 15;
+        const bonus = Math.round(baseXp * wandFindBonus(user));
+        const xp = baseXp + bonus;
+        user.flight_xp = (Number(user.flight_xp) || 0) + xp;
+        const newly = syncTitleUnlocks(user);
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'fieldPage', pageId, xp, bonus, total: user.guidePages.length,
+          totalPages: PHASE2_CATALOGS.guidePages.length, newTitles: newly
+        });
+      } catch (err) {
+        console.error('Error recogiendo página de la Guía de Campo:', err.message);
+      }
+    });
+
+    /* ===== TANDA 2: Puertas de Aritmancia ===== */
+    socket.on('exploration:arithmancy', async (data) => {
+      try {
+        const doorId = String((data && data.doorId) || '');
+        const door = catalogById(PHASE2_CATALOGS.arithmancyDoors, doorId);
+        const user = explorationUser();
+        if (!user || !door) return;
+        user.arithmancyDoors = Array.isArray(user.arithmancyDoors) ? user.arithmancyDoors : [];
+        if (user.arithmancyDoors.includes(doorId)) {
+          socket.emit('exploration:arithmancyResult', { ok: true, alreadyOpen: true, doorId });
+          return;
+        }
+        if (String(user.loc || '') !== String(door.roomId || '')) {
+          socket.emit('exploration:error', { message: 'Esa puerta no está en esta sala.' });
+          return;
+        }
+        // La solución la conoce solo el servidor: se valida el número enviado.
+        const vertices = Array.isArray(door.vertices) ? door.vertices : [];
+        const missingIdx = door.missing === 'left' ? 0 : (door.missing === 'right' ? 1 : 2);
+        const others = vertices.filter((_, i) => i !== missingIdx);
+        const target = Math.floor(Number(door.target) || 0);
+        const othersSum = others.reduce((s, v) => s + (Math.floor(Number(v.value)) || 0), 0);
+        const expected = target - othersSum;
+        const answer = Math.floor(Number(data && data.answer));
+        if (!Number.isFinite(answer) || answer !== expected) {
+          socket.emit('exploration:arithmancyResult', { ok: false, doorId });
+          return;
+        }
+        user.arithmancyDoors.push(doorId);
+        const granted = applyCatalogReward(user, door.reward);
+        const newly = syncTitleUnlocks(user);
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'arithmancy', doorId, rewardLines: granted.lines, cromo: granted.cromo, newTitles: newly
+        });
+        socket.emit('exploration:arithmancyResult', { ok: true, doorId, rewardLines: granted.lines, cromo: granted.cromo });
+      } catch (err) {
+        console.error('Error resolviendo puerta de Aritmancia:', err.message);
+      }
+    });
+
+    /* ===== TANDA 2: Pasadizos Secretos ===== */
+    socket.on('exploration:passage', async (data) => {
+      try {
+        const passageId = String((data && data.passageId) || '');
+        const passage = catalogById(PHASE2_CATALOGS.secretPassages, passageId);
+        const user = explorationUser();
+        if (!user || !passage) return;
+        user.secretPassages = Array.isArray(user.secretPassages) ? user.secretPassages : [];
+        if (!user.secretPassages.includes(passageId)) {
+          if (String(user.loc || '') !== String(passage.roomId || '')) {
+            socket.emit('exploration:error', { message: 'Ese pasadizo no está en esta sala.' });
+            return;
+          }
+          user.secretPassages.push(passageId);
+          user.flight_xp = (Number(user.flight_xp) || 0) + 10;
+        }
+        // El atajo teletransporta al jugador a la sala destino.
+        user.loc = String(passage.targetRoom || user.loc);
+        user.locSlot = '';
+        const newly = syncTitleUnlocks(user);
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'passage', passageId, targetRoom: user.loc, total: user.secretPassages.length, newTitles: newly
+        });
+      } catch (err) {
+        console.error('Error usando pasadizo secreto:', err.message);
+      }
+    });
+
+    /* ===== TANDA 2: Mesas de Astronomía (constelaciones) ===== */
+    socket.on('exploration:constellation', async (data) => {
+      try {
+        const constId = String((data && data.constellationId) || '');
+        const c = catalogById(PHASE2_CATALOGS.constellations, constId);
+        const user = explorationUser();
+        if (!user || !c) return;
+        user.constellations = Array.isArray(user.constellations) ? user.constellations : [];
+        if (user.constellations.includes(constId)) return;
+        if (String(user.loc || '') !== 'astronomia') {
+          socket.emit('exploration:error', { message: 'Las mesas de Astronomía están en la Torre de Astronomía.' });
+          return;
+        }
+        user.constellations.push(constId);
+        const granted = applyCatalogReward(user, c.reward);
+        // La criatura asociada se registra en el Bestiario.
+        let newCreature = null;
+        if (c.creature && CREATURES[c.creature]) {
+          user.bestiary = Array.isArray(user.bestiary) ? user.bestiary : [];
+          if (!user.bestiary.includes(c.creature)) { user.bestiary.push(c.creature); newCreature = c.creature; }
+        }
+        const newly = syncTitleUnlocks(user);
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'constellation', constellationId: constId, rewardLines: granted.lines,
+          creature: newCreature, newTitles: newly
+        });
+      } catch (err) {
+        console.error('Error descubriendo constelación:', err.message);
+      }
+    });
+
+    /* ===== TANDA 2: Cofres con nivel de Alohomora ===== */
+    socket.on('exploration:chest', async (data) => {
+      try {
+        const chestId = String((data && data.chestId) || '');
+        const chest = catalogById(PHASE2_CATALOGS.chests, chestId);
+        const user = explorationUser();
+        if (!user || !chest) return;
+        user.chests = Array.isArray(user.chests) ? user.chests : [];
+        if (user.chests.includes(chestId)) {
+          socket.emit('exploration:chestResult', { ok: true, alreadyOpen: true, chestId });
+          return;
+        }
+        if (String(user.loc || '') !== String(chest.roomId || '')) {
+          socket.emit('exploration:error', { message: 'Ese cofre no está en esta sala.' });
+          return;
+        }
+        const level = alohomoraLevelFor(user.demiguiseCollected);
+        user.alohomoraLevel = level;
+        const need = Math.floor(Number(chest.lockLevel) || 1);
+        if (level < need) {
+          socket.emit('exploration:chestResult', { ok: false, chestId, need, level });
+          return;
+        }
+        user.chests.push(chestId);
+        const granted = applyCatalogReward(user, chest.reward);
+        const newly = syncTitleUnlocks(user);
+        await persistExploration();
+        emitExplorationUpdate(user, {
+          event: 'chest', chestId, rewardLines: granted.lines, cromo: granted.cromo,
+          cosmetic: granted.cosmetic, newTitles: newly
+        });
+        socket.emit('exploration:chestResult', { ok: true, chestId, rewardLines: granted.lines, cromo: granted.cromo, cosmetic: granted.cosmetic });
+      } catch (err) {
+        console.error('Error abriendo cofre:', err.message);
       }
     });
 
@@ -3339,11 +3636,19 @@ io.on('connection', async (socket) => {
         equippedCosmetics: u.equippedCosmetics || [],
         bestiary: u.bestiary || [],
         guidePages: u.guidePages || [],
+        arithmancyDoors: u.arithmancyDoors || [],
+        secretPassages: u.secretPassages || [],
+        constellations: u.constellations || [],
+        chests: u.chests || [],
         progress: {
           merlin: (u.merlinTrials || []).length, merlinTotal: MERLIN_TRIAL_IDS.length,
           demiguise: (u.demiguiseCollected || []).length, demiguiseTotal: DEMIGUISE_STATUE_IDS.length,
           cromos: cromoCount, cromosTotal: CROMO_IDS.length,
-          guide: (u.guidePages || []).length,
+          guide: (u.guidePages || []).length, guideTotal: PHASE2_CATALOGS.guidePages.length,
+          arithmancy: (u.arithmancyDoors || []).length, arithmancyTotal: PHASE2_CATALOGS.arithmancyDoors.length,
+          passages: (u.secretPassages || []).length, passagesTotal: PHASE2_CATALOGS.secretPassages.length,
+          constellations: (u.constellations || []).length, constellationsTotal: PHASE2_CATALOGS.constellations.length,
+          chests: (u.chests || []).length, chestsTotal: PHASE2_CATALOGS.chests.length,
           bestiary: (u.bestiary || []).length, bestiaryTotal: Object.keys(CREATURES).length,
           spells: Array.isArray(u.spells) ? u.spells.length : 0,
           classStars: u.classStars || {}
@@ -3648,5 +3953,12 @@ module.exports = {
   WAND_CORES,
   TITLES,
   COSMETICS,
-  CREATURES
+  CREATURES,
+  // Tanda 2: catálogos y ayudantes de exploración.
+  PHASE2_CATALOGS,
+  ARITHMANCY_CREATURES,
+  alohomoraLevelFor,
+  catalogById,
+  grantCromoByRarity,
+  applyCatalogReward
 };
