@@ -769,5 +769,263 @@
         }
       }
     ]
+  },
+  {
+    "categoria": "_varitas",
+    "minYear": 1,
+    "keywords": ["varitas de ollivanders", "nucleos de varita", "maderas de varita", "ollivanders"],
+    "info": "Catalogo oficial de maderas y nucleos de varita de Ollivanders (Tanda 4).",
+    "wandWoods": [
+      {
+        "id": "acacia",
+        "name": "Acacia",
+        "lore": "Sutileza extrema; se niega a realizar magia para cualquiera que no sea su dueño legítimo. Ideal para magos discretos y de talento sutil.",
+        "short": "Requiere un dueño de gran sutileza: se niega a hacer magia para otros que no sean su propietario."
+      },
+      {
+        "id": "aliso",
+        "name": "Aliso",
+        "lore": "Servicial y considerado; se adapta bien a hechizos no verbales y busca a un dueño amable y generoso.",
+        "short": "Madera servicial y considerada, perfecta para hechizos no verbales."
+      },
+      {
+        "id": "manzano",
+        "name": "Manzano",
+        "lore": "Para quienes tienen altos ideales y un gran corazón; muy querida y poderosa en manos de un mago bondadoso.",
+        "short": "Madera de altos ideales, muy querida por sus dueños."
+      },
+      {
+        "id": "fresno",
+        "name": "Fresno",
+        "lore": "Fiel a un único dueño durante toda la vida; obstinada y valiente, jamás arrogante.",
+        "short": "Fiel a un único dueño; obstinada y valiente sin arrogancia."
+      },
+      {
+        "id": "alamo",
+        "name": "Álamo",
+        "lore": "De aspecto marfil; ideal para duelistas de mente fuerte y decidida.",
+        "short": "Aspecto de marfil; elegida por duelistas de mente fuerte y decidida."
+      },
+      {
+        "id": "haya",
+        "name": "Haya",
+        "lore": "De comprensión amplia y corazón lleno de empatía; rinde mejor en manos de quien comprende a los demás.",
+        "short": "Comprensión amplia y corazón lleno de empatía."
+      },
+      {
+        "id": "abedul",
+        "name": "Abedul",
+        "lore": "Asociada a la purificación y a los nuevos comienzos.",
+        "short": "Madera de purificación y nuevos comienzos."
+      },
+      {
+        "id": "sauco",
+        "name": "Saúco",
+        "lore": "Caprichosa y difícil; solo se somete a un dueño verdaderamente excepcional.",
+        "short": "Caprichosa; solo se somete a un dueño excepcional."
+      },
+      {
+        "id": "espino",
+        "name": "Espino",
+        "lore": "Una paradoja: sirve tanto a sanadores como a quienes lanzan maldiciones; refleja el conflicto interno de su dueño.",
+        "short": "Paradoja viva: sana o maldice según el conflicto interno de su dueño."
+      },
+      {
+        "id": "acebo",
+        "name": "Acebo",
+        "lore": "Protectora; ayuda a superar la ira y la impulsividad, y acompaña en las búsquedas peligrosas.",
+        "short": "Protectora; ayuda a superar la ira y la impulsividad."
+      },
+      {
+        "id": "tejo",
+        "name": "Tejo",
+        "lore": "Concede poder sobre la vida y la muerte; la eligen magos de gran destino.",
+        "short": "Poder sobre la vida y la muerte; la eligen los grandes magos."
+      },
+      {
+        "id": "roble",
+        "name": "Roble",
+        "lore": "Símbolo de fuerza, lealtad y supervivencia, con instinto de autoridad.",
+        "short": "Fuerza, lealtad y supervivencia; con instinto de autoridad."
+      },
+      {
+        "id": "sauce",
+        "name": "Sauce",
+        "lore": "De gran poder curativo, misterio y afinidad por la magia no verbal.",
+        "short": "Curación, misterio y magia no verbal."
+      },
+      {
+        "id": "cerezo",
+        "name": "Cerezo",
+        "lore": "Combina poder, elegancia y un carácter fuerte; destaca en manos decididas.",
+        "short": "Poder, elegancia y carácter fuerte."
+      },
+      {
+        "id": "castano",
+        "name": "Castaño",
+        "lore": "Versátil; sus dueños suelen ser jueces expertos del carácter ajeno.",
+        "short": "Versátil; sus dueños juzgan con destreza el carácter ajeno."
+      },
+      {
+        "id": "cipres",
+        "name": "Ciprés",
+        "lore": "De nobleza y misterio; acompaña a valientes dispuestos al sacrificio.",
+        "short": "Nobleza y misterio; valentía dispuesta al sacrificio."
+      },
+      {
+        "id": "abeto",
+        "name": "Abeto",
+        "lore": "Madera de supervivientes; resistente, decidida y difícil de doblegar.",
+        "short": "Madera de supervivientes, resistente y decidida."
+      },
+      {
+        "id": "avellano",
+        "name": "Avellano",
+        "lore": "Sensible y de intuición excepcional; forja una conexión natural con su dueño.",
+        "short": "Sensible, de intuición excepcional y conexión natural."
+      },
+      {
+        "id": "olmo",
+        "name": "Olmo",
+        "lore": "De gran presencia, dignidad y elegancia; favorece a magos de porte distinguido.",
+        "short": "Presencia, dignidad y elegancia."
+      },
+      {
+        "id": "vid",
+        "name": "Vid",
+        "lore": "Busca las profundidades ocultas y una visión más allá de lo ordinario.",
+        "short": "Profundidades ocultas y visión más allá de lo ordinario."
+      }
+    ],
+    "wandCores": [
+      {
+        "id": "fenix",
+        "name": "Pluma de Fénix",
+        "icon": "🪶",
+        "tier": "supremo",
+        "lore": "El núcleo más raro. Ofrece el mayor rango de magia, gran iniciativa propia y una lealtad muy difícil de ganar.",
+        "passive": "+10 % de probabilidad de hallazgos mágicos y recompensas extra."
+      },
+      {
+        "id": "unicornio",
+        "name": "Pelo de Cola de Unicornio",
+        "icon": "🦄",
+        "tier": "supremo",
+        "lore": "Produce la magia más consistente, estable y fiel; es difícil inclinarla hacia las Artes Oscuras.",
+        "passive": "+1 de Empatía efectiva en interacciones y diálogos; estabilidad mágica."
+      },
+      {
+        "id": "dragon",
+        "name": "Fibra de Corazón de Dragón",
+        "icon": "🐉",
+        "tier": "supremo",
+        "lore": "Otorga el mayor poder y hechizos extravagantes; aprende rápido y se vincula con fuerza, aunque es temperamental.",
+        "passive": "+1 de Valentía efectiva en duelos y pruebas de acción."
+      },
+      {
+        "id": "trueno",
+        "name": "Pluma de Ave del Trueno",
+        "icon": "⚡",
+        "tier": "exotico",
+        "lore": "Poderosa y difícil de dominar; premia a quien logra someterla.",
+        "passive": "Bono en duelos y encantamientos de gran potencia."
+      },
+      {
+        "id": "thestral",
+        "name": "Pelo de Thestral",
+        "icon": "🐴",
+        "tier": "exotico",
+        "lore": "Inestable y extremadamente rara; solo se deja ver por quien comprende los misterios.",
+        "passive": "Bono en exploración y en el descubrimiento de misterios."
+      },
+      {
+        "id": "augurey",
+        "name": "Cola de Augurey",
+        "icon": "🪶",
+        "tier": "exotico",
+        "lore": "Precisa y afinada para la Adivinación; susurra presagios a su dueño.",
+        "passive": "Bono de Sabiduría y en artes adivinatorias."
+      },
+      {
+        "id": "billywig",
+        "name": "Aguijón de Billywig",
+        "icon": "🐝",
+        "tier": "exotico",
+        "lore": "Ligera y juguetona; canaliza con fuerza el Encantamiento de la Alegría.",
+        "passive": "Fuerte Encantamiento de Alegría; bono social y de carisma."
+      },
+      {
+        "id": "basilisco",
+        "name": "Cuerno de Basilisco",
+        "icon": "🐍",
+        "tier": "exotico",
+        "lore": "De poder inmenso y naturaleza temible; exige un dueño de voluntad férrea.",
+        "passive": "Poder inmenso; exige un dueño de voluntad férrea."
+      },
+      {
+        "id": "veela",
+        "name": "Pelo de Veela",
+        "icon": "💫",
+        "tier": "exotico",
+        "lore": "Fascinante y seductora; realza el encanto natural de su portador.",
+        "passive": "Realza el encanto natural de su portador."
+      },
+      {
+        "id": "serpiente_cornuda",
+        "name": "Cuerno de Serpiente Cornuda",
+        "icon": "🐲",
+        "tier": "exotico",
+        "lore": "Resistente a las maldiciones; protege a su dueño de la magia oscura.",
+        "passive": "Resistencia a las maldiciones y a la magia oscura."
+      },
+      {
+        "id": "monstruo_rio",
+        "name": "Espina del Monstruo del Río Blanco",
+        "icon": "🌊",
+        "tier": "exotico",
+        "lore": "Salvaje y protectora; ideal para magos que defienden a los suyos.",
+        "passive": "Instinto protector; ideal para quien defiende a los suyos."
+      },
+      {
+        "id": "lebrilope",
+        "name": "Astas de Lebrílope",
+        "icon": "🐇",
+        "tier": "exotico",
+        "lore": "Ágil y huidiza; otorga reflejos rápidos y suerte en la huida.",
+        "passive": "Reflejos rápidos y suerte en la huida."
+      },
+      {
+        "id": "acromantula",
+        "name": "Telaraña de Acromántula",
+        "icon": "🕷️",
+        "tier": "exotico",
+        "lore": "Tenaz y sigilosa; teje trampas y favorece la magia de control.",
+        "passive": "Tenaz y sigilosa; favorece la magia de control."
+      },
+      {
+        "id": "kelpie",
+        "name": "Pelo de Kelpie",
+        "icon": "🐎",
+        "tier": "exotico",
+        "lore": "Afinada a las aguas; tan traicionera como el mar que la vio nacer.",
+        "passive": "Afinidad con el agua; tan traicionera como el mar."
+      },
+      {
+        "id": "rougarou",
+        "name": "Pelo de Rougarou",
+        "icon": "🐺",
+        "tier": "exotico",
+        "lore": "Feroz y cambiante; canaliza una magia salvaje y primigenia.",
+        "passive": "Magia salvaje y primigenia."
+      },
+      {
+        "id": "trol",
+        "name": "Bigote de Trol",
+        "icon": "🧌",
+        "tier": "exotico",
+        "lore": "Tosca pero sorprendentemente potente; resiste hechizos simples.",
+        "passive": "Tosca pero potente; resiste hechizos simples."
+      }
+    ]
   }
 ]
