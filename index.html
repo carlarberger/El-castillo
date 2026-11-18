@@ -56,6 +56,22 @@ button,input,select,textarea{font:inherit;color:inherit}
 /* La fila de botones no se parte en varias líneas: si no cabe, se desliza. */
 .nav-in > .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%;padding:6px 2px}
 .nav-in > .row::-webkit-scrollbar{display:none}
+/* Los botones de la barra nunca se parten en dos líneas ni se recortan. */
+.nav-in .btn{white-space:nowrap;flex:0 0 auto}
+.nav-in .clock{flex:0 0 auto}
+/* Cintillo de El Profeta: banner ancho estilo periódico mágico. */
+.prophet-banner{display:flex;align-items:center;gap:16px;width:100%;max-width:1120px;margin:0 auto;padding:14px 20px;
+  border:1px solid var(--line);border-radius:14px;background:linear-gradient(100deg,color-mix(in srgb,var(--gold) 16%,var(--surface)) 0%,var(--surface) 60%);
+  cursor:pointer;text-align:left;transition:.15s;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.prophet-banner:hover{border-color:var(--gold);transform:translateY(-1px)}
+.prophet-banner .pb-masthead{font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:.03em;color:var(--gold);white-space:nowrap}
+.prophet-banner .pb-headline{flex:1;min-width:0;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prophet-banner .pb-cta{font-weight:700;font-size:13px;color:var(--gold);white-space:nowrap}
+@media (max-width:640px){
+  .prophet-banner{flex-direction:column;align-items:flex-start;gap:4px;padding:12px 16px}
+  .prophet-banner .pb-headline{white-space:normal}
+}
 .brand{font-family:var(--display);font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
 .brand svg{width:26px;height:26px}
 .links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
@@ -312,6 +328,12 @@ th{color:var(--gold)}
 .admin{border:1px dashed var(--gold);border-radius:16px;padding:20px;background:var(--surface)}
 .admin h4{font-size:12px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;letter-spacing:.12em}
 .box{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2)}
+/* Ficha de varita del Expediente Mágico. */
+.wand-card{background:linear-gradient(120deg,color-mix(in srgb,var(--gold) 10%,var(--surface-2)) 0%,var(--surface-2) 55%)}
+.wand-specs{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.wand-specs span{white-space:nowrap}
+.wand-passive{font-size:13px;color:var(--gold)}
+.wand-lore{font-size:12px;color:var(--muted);line-height:1.5}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
 
@@ -582,8 +604,6 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   <div class="row">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
     <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
-    <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
-    <button class="btn sm gold" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">📰 El Profeta</button>
     <button class="btn sm gold" type="button" data-do="openMagicProfile" title="Mi Expediente Mágico: varita, títulos, guardarropa y bestiario">📜 Expediente</button>
     <button class="btn sm" type="button" data-do="openOnlinePlayers" title="Jugadores conectados ahora y en qué sala están" id="onlineBtn">🟢 <span id="onlineCount">0</span> en línea</button>
     <button class="btn sm gold" type="button" data-do="openMacroMap" title="Mapa del Mundo: regiones del universo mágico">🗺️ Mapa del Mundo</button>
@@ -593,6 +613,7 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button>
     <button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
+    <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
   </div>
 </div></nav>
 
@@ -618,6 +639,13 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     </div>
     <div class="panel hl"><div class="glasses" id="glasses"></div><p class="muted center" id="copaTotal" style="text-align:center;margin-top:18px;font-size:13px"></p></div>
   </section>
+
+  <!-- Cintillo de El Profeta: periódico mágico dinámico (bajo los relojes de las Casas). -->
+  <button class="prophet-banner" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">
+    <span class="pb-masthead">📰 El Profeta</span>
+    <span class="pb-headline" id="prophetBannerHeadline">El seductor periódico del mundo mágico — pulsa para leer la edición de hoy</span>
+    <span class="pb-cta">Leer la edición →</span>
+  </button>
 
   <section class="block" id="directo">
     <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y tiempo libre: mira los personajes en cada sala o muévete por el mapa durante el recreo.</p></div>
@@ -1240,7 +1268,7 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   personality: personality,
   merlinTrials: [], demiguiseCollected: [], demiguiseCarrying: [], alohomoraLevel: 1, bagCapacity: 5,
   guidePages: [], arithmancyDoors: [], secretPassages: [], constellations: [], chests: [],
-  wand: null, title: null, unlockedTitles: [], equippedCosmetics: [], bestiary: [],
+  wand: null, wandRedos: 0, title: null, unlockedTitles: [], equippedCosmetics: [], bestiary: [],
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
   look:{facialHair:'none',...(look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length])},created_at:id
@@ -1497,6 +1525,7 @@ function ensureDbIntegrity(){
     if (typeof u.bagCapacity !== 'number' || isNaN(u.bagCapacity)) { u.bagCapacity = 5; changed = true; }
     // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
     if (u.wand && (typeof u.wand !== 'object' || !WAND_CORES[u.wand.core])) { u.wand = null; changed = true; }
+    if (typeof u.wandRedos !== 'number' || isNaN(u.wandRedos)) { u.wandRedos = 0; changed = true; }
     if (u.title != null && !TITLES[u.title]) { u.title = null; changed = true; }
     if (!Array.isArray(u.unlockedTitles)) { u.unlockedTitles = []; changed = true; }
     else { const f = u.unlockedTitles.filter(id => !!TITLES[id]); if (f.length !== u.unlockedTitles.length) { u.unlockedTitles = f; changed = true; } }
@@ -2243,10 +2272,24 @@ function quidditchStandings() {
 
 /* ===== PERFIL: VARITAS, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) =====
    Catálogos espejo de los del servidor. El servidor valida y persiste todo. */
+// Catálogo espejo del servidor. Se puede sobrescribir con `wand:catalog`.
 const WAND_CORES = {
-  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',            icon: '🪶', desc: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.' },
-  unicornio: { id: 'unicornio', name: 'Pelo de Unicornio',         icon: '🦄', desc: '+1 de Empatía efectiva en interacciones y diálogos.' },
-  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', desc: '+1 de Valentía efectiva en duelos y pruebas de acción.' }
+  fenix:     { id: 'fenix',     name: 'Pluma de Fénix',             icon: '🪶', tier: 'supremo', axis: 'fenix',     passive: '+10 % de probabilidad de hallazgos mágicos y recompensas extra.', desc: 'El núcleo más raro. Ofrece el mayor rango de magia, gran iniciativa propia y una lealtad muy difícil de ganar.' },
+  unicornio: { id: 'unicornio', name: 'Pelo de Cola de Unicornio',  icon: '🦄', tier: 'supremo', axis: 'unicornio', passive: '+1 de Empatía efectiva en interacciones y diálogos; estabilidad mágica.', desc: 'Produce la magia más consistente, estable y fiel; es difícil inclinarla hacia las Artes Oscuras.' },
+  dragon:    { id: 'dragon',    name: 'Fibra de Corazón de Dragón', icon: '🐉', tier: 'supremo', axis: 'dragon',    passive: '+1 de Valentía efectiva en duelos y pruebas de acción.', desc: 'Otorga el mayor poder y hechizos extravagantes; aprende rápido y se vincula con fuerza, aunque es temperamental.' },
+  trueno:    { id: 'trueno',    name: 'Pluma de Ave del Trueno',    icon: '⚡', tier: 'exotico', axis: 'dragon',    passive: 'Bono en duelos y encantamientos de gran potencia.', desc: 'Poderosa y difícil de dominar; premia a quien logra someterla.' },
+  thestral:  { id: 'thestral',  name: 'Pelo de Thestral',           icon: '🐴', tier: 'exotico', axis: 'fenix',     passive: 'Bono en exploración y en el descubrimiento de misterios.', desc: 'Inestable y extremadamente rara; solo se deja ver por quien comprende los misterios.' },
+  augurey:   { id: 'augurey',   name: 'Cola de Augurey',            icon: '🪶', tier: 'exotico', axis: 'unicornio', passive: 'Bono de Sabiduría y en artes adivinatorias.', desc: 'Precisa y afinada para la Adivinación; susurra presagios a su dueño.' },
+  billywig:  { id: 'billywig',  name: 'Aguijón de Billywig',        icon: '🐝', tier: 'exotico', axis: 'fenix',     passive: 'Fuerte Encantamiento de Alegría; bono social y de carisma.', desc: 'Ligera y juguetona; canaliza con fuerza el Encantamiento de la Alegría.' },
+  basilisco: { id: 'basilisco', name: 'Cuerno de Basilisco',        icon: '🐍', tier: 'exotico', axis: 'dragon',    passive: 'Poder inmenso; exige un dueño de voluntad férrea.', desc: 'De poder inmenso y naturaleza temible; exige un dueño de voluntad férrea.' },
+  veela:     { id: 'veela',     name: 'Pelo de Veela',              icon: '💫', tier: 'exotico', axis: 'unicornio', passive: 'Realza el encanto natural de su portador.', desc: 'Fascinante y seductora; realza el encanto natural de su portador.' },
+  serpiente_cornuda: { id: 'serpiente_cornuda', name: 'Cuerno de Serpiente Cornuda', icon: '🐲', tier: 'exotico', axis: 'dragon', passive: 'Resistencia a las maldiciones y a la magia oscura.', desc: 'Resistente a las maldiciones; protege a su dueño de la magia oscura.' },
+  monstruo_rio: { id: 'monstruo_rio', name: 'Espina del Monstruo del Río Blanco', icon: '🌊', tier: 'exotico', axis: 'unicornio', passive: 'Instinto protector; ideal para quien defiende a los suyos.', desc: 'Salvaje y protectora; ideal para magos que defienden a los suyos.' },
+  lebrilope: { id: 'lebrilope', name: 'Astas de Lebrílope',         icon: '🐇', tier: 'exotico', axis: 'fenix',     passive: 'Reflejos rápidos y suerte en la huida.', desc: 'Ágil y huidiza; otorga reflejos rápidos y suerte en la huida.' },
+  acromantula: { id: 'acromantula', name: 'Telaraña de Acromántula', icon: '🕷️', tier: 'exotico', axis: 'unicornio', passive: 'Tenaz y sigilosa; favorece la magia de control.', desc: 'Tenaz y sigilosa; teje trampas y favorece la magia de control.' },
+  kelpie:    { id: 'kelpie',    name: 'Pelo de Kelpie',             icon: '🐎', tier: 'exotico', axis: 'unicornio', passive: 'Afinidad con el agua; tan traicionera como el mar.', desc: 'Afinada a las aguas; tan traicionera como el mar que la vio nacer.' },
+  rougarou:  { id: 'rougarou',  name: 'Pelo de Rougarou',           icon: '🐺', tier: 'exotico', axis: 'dragon',    passive: 'Magia salvaje y primigenia.', desc: 'Feroz y cambiante; canaliza una magia salvaje y primigenia.' },
+  trol:      { id: 'trol',      name: 'Bigote de Trol',             icon: '🧌', tier: 'exotico', axis: 'dragon',    passive: 'Tosca pero potente; resiste hechizos simples.', desc: 'Tosca pero sorprendentemente potente; resiste hechizos simples.' }
 };
 // Orden de preguntas y opciones idéntico al WAND_QUIZ del servidor.
 const WAND_QUIZ = [
@@ -2256,7 +2299,31 @@ const WAND_QUIZ = [
   { q: '¿Qué tipo de magia te atrae más?', opts: ['Encantamientos versátiles y transformadores', 'Herbología y cuidado de criaturas', 'Defensa contra las Artes Oscuras'] },
   { q: 'Ante una derrota, tú…', opts: ['Aprendes y te reinventas para la próxima', 'Reflexionas y apoyas a los tuyos', 'Te levantas y vuelves a intentarlo con más fuerza'] }
 ];
-const WAND_WOOD_LABEL = { acebo: 'Acebo', sauce: 'Sauce', espino: 'Espino', tejo: 'Tejo', caoba: 'Caoba', fresno: 'Fresno', nogal: 'Nogal', manzano: 'Manzano' };
+// Las 20 maderas oficiales con su lore. Se puede sobrescribir con `wand:catalog`.
+const WAND_WOODS = [
+  { id: 'acacia',  name: 'Acacia',  lore: 'Sutileza extrema; se niega a realizar magia para cualquiera que no sea su dueño legítimo. Ideal para magos discretos y de talento sutil.' },
+  { id: 'aliso',   name: 'Aliso',   lore: 'Servicial y considerado; se adapta bien a hechizos no verbales y busca a un dueño amable y generoso.' },
+  { id: 'manzano', name: 'Manzano', lore: 'Para quienes tienen altos ideales y un gran corazón; muy querida y poderosa en manos de un mago bondadoso.' },
+  { id: 'fresno',  name: 'Fresno',  lore: 'Fiel a un único dueño durante toda la vida; obstinada y valiente, jamás arrogante.' },
+  { id: 'alamo',   name: 'Álamo',   lore: 'De aspecto marfil; ideal para duelistas de mente fuerte y decidida.' },
+  { id: 'haya',    name: 'Haya',    lore: 'De comprensión amplia y corazón lleno de empatía; rinde mejor en manos de quien comprende a los demás.' },
+  { id: 'abedul',  name: 'Abedul',  lore: 'Asociada a la purificación y a los nuevos comienzos.' },
+  { id: 'sauco',   name: 'Saúco',   lore: 'Caprichosa y difícil; solo se somete a un dueño verdaderamente excepcional.' },
+  { id: 'espino',  name: 'Espino',  lore: 'Una paradoja: sirve tanto a sanadores como a quienes lanzan maldiciones; refleja el conflicto interno de su dueño.' },
+  { id: 'acebo',   name: 'Acebo',   lore: 'Protectora; ayuda a superar la ira y la impulsividad, y acompaña en las búsquedas peligrosas.' },
+  { id: 'tejo',    name: 'Tejo',    lore: 'Concede poder sobre la vida y la muerte; la eligen magos de gran destino.' },
+  { id: 'roble',   name: 'Roble',   lore: 'Símbolo de fuerza, lealtad y supervivencia, con instinto de autoridad.' },
+  { id: 'sauce',   name: 'Sauce',   lore: 'De gran poder curativo, misterio y afinidad por la magia no verbal.' },
+  { id: 'cerezo',  name: 'Cerezo',  lore: 'Combina poder, elegancia y un carácter fuerte; destaca en manos decididas.' },
+  { id: 'castano', name: 'Castaño', lore: 'Versátil; sus dueños suelen ser jueces expertos del carácter ajeno.' },
+  { id: 'cipres',  name: 'Ciprés',  lore: 'De nobleza y misterio; acompaña a valientes dispuestos al sacrificio.' },
+  { id: 'abeto',   name: 'Abeto',   lore: 'Madera de supervivientes; resistente, decidida y difícil de doblegar.' },
+  { id: 'avellano',name: 'Avellano',lore: 'Sensible y de intuición excepcional; forja una conexión natural con su dueño.' },
+  { id: 'olmo',    name: 'Olmo',    lore: 'De gran presencia, dignidad y elegancia; favorece a magos de porte distinguido.' },
+  { id: 'vid',     name: 'Vid',     lore: 'Busca las profundidades ocultas y una visión más allá de lo ordinario.' }
+];
+const wandWoodInfo = id => WAND_WOODS.find(w => w.id === id) || null;
+const WAND_WOOD_LABEL = {}; WAND_WOODS.forEach(w => WAND_WOOD_LABEL[w.id] = w.name);
 const TITLES = {
   aprendiz:       { id: 'aprendiz',       name: 'Aprendiz de Primer Año', icon: '🎓', desc: 'Recién llegado a Hogwarts.' },
   elegido_varita: { id: 'elegido_varita', name: 'Elegido por la Varita',  icon: '🪄', desc: 'Completaste la ceremonia de Ollivanders.' },
@@ -4239,10 +4306,12 @@ function buyMacroItem(shopId,itemId){
 /* ===== CEREMONIA DE LA VARITA DE OLLIVANDERS (Tanda 4) ===== */
 let wandCeremonyState = null;
 
-function openWandCeremony(){
+function openWandCeremony(retry){
   const u = me(); must(u, 'Inicia sesión con tu personaje primero');
-  if (u.wand) { openShopRoomModal('ollivanders'); return; }
-  wandCeremonyState = { step: 0, answers: [] };
+  // Si ya tiene varita: solo se permite repetir UNA vez (por si hubo un error).
+  if (u.wand && !retry) { openShopRoomModal('ollivanders'); return; }
+  if (u.wand && (Number(u.wandRedos)||0) >= 1) { toast('Ya repetiste la ceremonia una vez; tu varita es definitiva.'); return; }
+  wandCeremonyState = { step: 0, answers: [], retry: !!retry };
   renderWandCeremony();
 }
 
@@ -4278,9 +4347,10 @@ function submitWandCeremony(){
   const st = wandCeremonyState;
   if (!st) return;
   const answers = st.answers.slice();
+  const retry = !!st.retry;
   wandCeremonyState = null;
   // El servidor deriva el núcleo de las respuestas y aplica la pasiva real.
-  socket.emit('wand:choose', { answers });
+  socket.emit('wand:choose', { answers, retry });
   openModal(`<div style="width:100%;text-align:left">
     <div class="row"><span class="pawn big">🪄</span><div><h3 style="margin:0;font-size:20px;color:var(--gold)">Ollivanders</h3><small class="muted">«…y la varita elige al mago.»</small></div></div>
     <p class="muted" style="margin-top:10px">El Sr. Ollivander revuelve entre montones de cajas polvorientas y te tiende una varita temblorosa…</p>
@@ -4311,11 +4381,25 @@ function openMagicProfileModal(){
   const u = me(); must(u, 'Inicia sesión con tu personaje primero');
   const p = magicProfileProgress(u);
   const core = WAND_CORES[wandCoreOf(u)];
+  const wood = u.wand ? wandWoodInfo(u.wand.wood) : null;
+  const woodName = (wood && wood.name) || WAND_WOOD_LABEL[u.wand && u.wand.wood] || (u.wand && u.wand.wood) || '';
   const wandHTML = u.wand
-    ? `<div class="box" style="border-left:3px solid var(--gold)">
-        <div class="row" style="justify-content:space-between"><strong>🪄 Tu varita</strong><span class="pill gold">${core?core.icon+' '+esc(core.name):'Núcleo mágico'}</span></div>
-        <p style="font-size:13px;margin-top:4px">${esc(WAND_WOOD_LABEL[u.wand.wood]||u.wand.wood)}, ${u.wand.length} cm</p>
-        <p class="muted" style="font-size:12px">${core?esc(core.desc):''}</p>
+    ? `<div class="box wand-card" style="border-left:3px solid var(--gold)">
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <strong style="font-size:15px">🪄 Mi varita de Ollivanders</strong>
+          <span class="pill ${core&&core.tier==='exotico'?'warn':'gold'}">${core?core.icon+' '+esc(core.name):'Núcleo mágico'}</span>
+        </div>
+        <div class="wand-specs" style="margin-top:8px">
+          <span><b>Madera:</b> ${esc(woodName)}</span>
+          <span><b>Longitud:</b> ${esc(String(u.wand.length))} cm</span>
+          <span><b>Núcleo:</b> ${core?esc(core.name):'—'}</span>
+          ${core&&core.tier==='exotico'?'<span><b>Calidad:</b> Exótica</span>':''}
+        </div>
+        ${core&&core.passive?`<p class="wand-passive" style="margin-top:8px"><b>✨ Pasiva activa:</b> ${esc(core.passive)}</p>`:''}
+        ${wood&&wood.lore?`<p class="wand-lore" style="margin-top:8px"><b>La madera:</b> ${esc(wood.lore)}</p>`:''}
+        ${core&&core.desc?`<p class="wand-lore" style="margin-top:6px"><b>El núcleo:</b> ${esc(core.desc)}</p>`:''}
+        <p class="muted" style="font-size:11px;margin-top:6px">«La varita elige al mago.» — Garrick Ollivander</p>
+        ${(Number(u.wandRedos)||0)<1?`<button class="btn sm" type="button" data-do="retryWandCeremony" style="margin-top:8px" title="Si crees que hubo un error, puedes repetir la ceremonia una única vez">🔁 Repetir la ceremonia (una vez)</button>`:''}
       </div>`
     : `<div class="box" style="border-left:3px solid var(--line)">
         <strong>🪄 Sin varita</strong>
@@ -4404,8 +4488,21 @@ function openShopRoomModal(shopId){
     <h3 style="font-size:20px;color:var(--gold)">${def.icon} ${esc(shop.name)}</h3>
     <span class="pill gold mono">🪙 ${u.galeones||0} Galeones</span>
   </div>
-  <p class="muted" style="font-size:13px;text-align:left">${esc(shop.blurb)}</p>
-  <div class="grid g2" style="width:100%;text-align:left">`;
+  <p class="muted" style="font-size:13px;text-align:left">${esc(shop.blurb)}</p>`;
+  // Con la varita ya elegida, Ollivanders repasa su lore y ofrece repetir la
+  // ceremonia una única vez (desde el Expediente también está disponible).
+  if(shopId==='ollivanders' && u.wand){
+    const wc=WAND_CORES[wandCoreOf(u)];
+    const ww=wandWoodInfo(u.wand.wood);
+    const wname=(ww&&ww.name)||WAND_WOOD_LABEL[u.wand.wood]||u.wand.wood;
+    html+=`<div class="box wand-card" style="width:100%;text-align:left;margin-bottom:10px;border-left:3px solid var(--gold)">
+      <strong>🪄 Tu varita: ${esc(wname)}, ${esc(String(u.wand.length))} cm</strong>
+      <p class="wand-passive" style="margin-top:4px">${wc?wc.icon+' '+esc(wc.name):'Núcleo mágico'}${wc&&wc.passive?' — '+esc(wc.passive):''}</p>
+      ${ww&&ww.lore?`<p class="wand-lore" style="margin-top:4px">${esc(ww.lore)}</p>`:''}
+      ${(Number(u.wandRedos)||0)<1?`<button class="btn sm" type="button" data-do="retryWandCeremony" style="margin-top:8px">🔁 Repetir la ceremonia (una vez)</button>`:''}
+    </div>`;
+  }
+  html+=`<div class="grid g2" style="width:100%;text-align:left">`;
   (shop.items||[]).forEach(it=>{
     const d=itemDef(it.id); if(!d) return;
     const qty=(u.inv||{})[it.id]||0;
@@ -6098,15 +6195,30 @@ socket.on('exploration:catalog',(data)=>{
 });
 
 /* ===== PERFIL: VARITA, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) ===== */
+// Catálogo oficial de varitas (maderas y núcleos) enviado por el servidor.
+socket.on('wand:catalog',(data)=>{
+  if(!data) return;
+  if(Array.isArray(data.woods)&&data.woods.length){
+    WAND_WOODS.length=0; data.woods.forEach(w=>WAND_WOODS.push(w));
+    Object.keys(WAND_WOOD_LABEL).forEach(k=>delete WAND_WOOD_LABEL[k]);
+    WAND_WOODS.forEach(w=>WAND_WOOD_LABEL[w.id]=w.name);
+  }
+  if(Array.isArray(data.cores)) data.cores.forEach(c=>{ if(c&&c.id) WAND_CORES[c.id]=c; });
+  else if(data.cores&&typeof data.cores==='object') Object.assign(WAND_CORES,data.cores);
+});
 socket.on('wand:result',(data)=>{
   if(!data) return;
   if(!data.ok){ if(data.message) toast(data.message); return; }
   const u=me();
   if(u&&data.wand){ u.wand=data.wand; }
+  if(u&&data.wandRedos!==undefined){ u.wandRedos=Number(data.wandRedos)||0; }
   if(u&&data.profile){
     if(data.profile.title!==undefined) u.title=data.profile.title;
     if(Array.isArray(data.profile.unlockedTitles)) u.unlockedTitles=data.profile.unlockedTitles;
   }
+  // Persiste el cambio de inmediato: si el jugador recarga justo después, el
+  // servidor (autoritativo) y el cliente ya tienen la varita guardada.
+  if(u){ ensureDbIntegrity(); commit('🪄 Varita de Ollivanders elegida'); }
   const core=WAND_CORES[data.wand&&data.wand.core];
   fanfare();
   toast(`🪄 ¡Ollivanders te entregó tu varita de ${WAND_WOOD_LABEL[data.wand.wood]||data.wand.wood}, ${data.wand.length} cm, con ${core?core.name:'núcleo mágico'}!`);
@@ -7871,8 +7983,17 @@ async function openProphetModal(){
   renderProphetModal();
 }
 
+// Actualiza el cintillo de El Profeta bajo los relojes de las Casas con el
+// titular de la última edición (preparado para titulares dinámicos futuros).
+function updateProphetBanner(p){
+  const el=$('prophetBannerHeadline'); if(!el||!p) return;
+  const headline=(p.lead&&p.lead.headline)||p.masthead||'';
+  el.textContent=headline?`“${headline}”`:'El seductor periódico del mundo mágico — pulsa para leer la edición de hoy';
+}
+
 function renderProphetModal(){
   const p=prophetIssue; if(!p) return;
+  updateProphetBanner(p);
   const secs=(p.sections||[]).map(s=>`<div class="prophet-section">
       <span class="s-cat">${esc(s.category||'HOGWARTS')}</span>
       <h4>${esc(s.title||'')}</h4>
@@ -9447,6 +9568,7 @@ document.addEventListener('click',e=>{
     case 'openGrimorio':openGrimorioModal();break;
     case 'openMagicProfile':openMagicProfileModal();break;
     case 'openWandCeremony':openWandCeremony();break;
+    case 'retryWandCeremony':openWandCeremony(true);break;
     case 'wandAnswer':answerWandCeremony(Number(d.i));break;
     case 'toggleNpcChat':chatHideNpc=!chatHideNpc;renderChat();break;
     case 'equipTitle':socket.emit('title:equip',{titleId:d.id});break;
