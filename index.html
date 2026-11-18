@@ -856,6 +856,11 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
       <p>Torneo oficial entre las cuatro casas: 6 partidos de eliminatoria (todos contra todos) y una Gran Final entre los 2 mejores, además de partidos amistosos.</p>
     </div>
     <div class="panel hl" style="margin-bottom:16px" id="quidditchStandingsBox"></div>
+    <div class="grid g2" style="margin-bottom:16px;align-items:start">
+      <div class="panel" id="hoopsPanel"></div>
+      <div class="panel" id="weeklyChallengePanel"></div>
+    </div>
+    <div class="panel" style="margin-bottom:16px" id="quidditchPassivesPanel"></div>
     <div class="grid g2" style="align-items:start">
       <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Partidos Activos y Convocatorias</h3><div id="matches"></div></div>
       <div class="panel"><h3 style="font-size:18px;margin-bottom:12px">Alineaciones</h3><div id="teams" class="grid" style="gap:10px"></div></div>
@@ -1497,7 +1502,7 @@ let db = {
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
  ],
    matches:[], cooldowns:{}, missions:{}, filchLoc: 'patio',
- letters:[], tradeOffers:[]
+ letters:[], tradeOffers:[], itemTrades:[], deletedUserIds:[]
 };
 
 const savedUid = Number(localStorage.getItem('castillo_uid')) || null;
@@ -1532,6 +1537,16 @@ function ensureDbIntegrity(){
   if(!db||!Array.isArray(db.users))return false;
   let changed=false;
   if(!db.schoolYear || db.schoolYear<1 || db.schoolYear>7){db.schoolYear=1;changed=true;}
+  // Lápida de usuarios eliminados (Parte 5): siempre un array saneado.
+  if(!Array.isArray(db.deletedUserIds)){db.deletedUserIds=[];changed=true;}
+  else { const _du=sanitizeDeletedUsers(db.deletedUserIds); if(_du.length!==db.deletedUserIds.length){db.deletedUserIds=_du;changed=true;} }
+  // Ninguna cuenta eliminada debe permanecer en la lista local (los NPC del
+  // canon quedan exentos y se re-siembran más abajo).
+  if(db.deletedUserIds.length){
+    const before=db.users.length;
+    db.users=db.users.filter(u=>u&&(u.is_npc||!isHardDeletedUser(u,db.deletedUserIds)));
+    if(db.users.length!==before)changed=true;
+  }
 
   const legacyNames=['carla r.','vicente d.','matilde s.','joaquín p.','antonia v.','benjamín l.'];
   const beforeLen=db.users.length;
@@ -1741,6 +1756,9 @@ function ensureDbIntegrity(){
   if(!Array.isArray(db.letters)){db.letters=[];changed=true;}
   if(!Array.isArray(db.tradeOffers)){db.tradeOffers=[];changed=true;}
   if(!Array.isArray(db.itemTrades)){db.itemTrades=[];changed=true;}
+  if(!db.weeklyChallenges || typeof db.weeklyChallenges!=='object' || !db.weeklyChallenges.houses){
+    db.weeklyChallenges={weekKey:0,houses:{}};changed=true;
+  }
   if(Array.isArray(db.matches)){
     db.matches.forEach(m=>{if(!m.type){m.type='amistoso';changed=true;}});
   }
@@ -1791,6 +1809,7 @@ socket.on('init_db', (serverDb) => {
   if (serverDb && serverDb.users) {
     db = serverDb;
     serverDbLoaded = true;
+    applyDeletedUsers(db.deletedUserIds);
     ensureDbIntegrity();
     validateLocalSession();
     identifySocket();
@@ -1805,6 +1824,10 @@ socket.on('sync_db', (data) => {
   if (data && data.db) {
     db = data.db;
     serverDbLoaded = true;
+    // La lista de usuarios es autoritativa del servidor: se aplica la lápida de
+    // bajas para que ninguna cuenta eliminada vuelva, y se limpia la sesión
+    // local si el personaje propio ya no existe en el servidor.
+    applyDeletedUsers(db.deletedUserIds);
     ensureDbIntegrity();
     validateLocalSession();
     if (data.reason) toast('En vivo: ' + data.reason);
@@ -1932,6 +1955,64 @@ socket.on('birthday_greeting',(data)=>{
   updateLettersBadge();
   renderAll();
 });
+
+/* ===== LÁPIDA DE USUARIOS ELIMINADOS (Parte 5) =====
+   Cuando el administrador elimina un jugador, se guarda su id y su nombre
+   normalizado en `db.deletedUserIds`. El servidor es la fuente de verdad: esa
+   lista se fusiona (solo crece) y descarta cualquier cuenta borrada que un
+   navegador con datos obsoletos intente reinyectar al reenviar `users`. */
+const DELETED_USERS_MAX = 100;
+function normUserName(name){
+  return String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+}
+function sanitizeDeletedUsers(list){
+  const out=[], seenIds=new Set(), seenNames=new Set();
+  (Array.isArray(list)?list:[]).forEach(e=>{
+    if(!e) return;
+    const id=Number(e.id); const hasId=Number.isFinite(id)&&id>0;
+    const name=normUserName(e.name||e.username);
+    if(!hasId&&!name) return;
+    if((hasId&&seenIds.has(id))||(name&&seenNames.has(name))) return;
+    if(hasId) seenIds.add(id);
+    if(name) seenNames.add(name);
+    out.push({id:hasId?id:null,name:name||null,at:Number(e.at)||Date.now()});
+  });
+  return out.slice(-DELETED_USERS_MAX);
+}
+function isHardDeletedUser(user,list){
+  if(!user) return false;
+  const id=Number(user.id); const name=normUserName(user.username);
+  return (Array.isArray(list)?list:[]).some(e=>e&&((e.id!=null&&Number(e.id)===id)||(!user.pass&&e.name&&e.name===name)));
+}
+function addDeletedUser(user){
+  if(!user) return;
+  db.deletedUserIds=sanitizeDeletedUsers([...(db.deletedUserIds||[]),{id:user.id,name:user.username,at:Date.now()}]);
+}
+// Al recrear una cuenta (registro o renombrado) se retira su lápida para que el
+// filtro local no la borre de inmediato; el servidor hace lo propio al fusionar.
+function reviveDeletedUser(user){
+  if(!user) return;
+  const id=Number(user.id); const name=normUserName(user.username);
+  db.deletedUserIds=sanitizeDeletedUsers((db.deletedUserIds||[]).filter(e=>{
+    if(!e) return false;
+    if(e.id!=null&&Number(e.id)===id) return false;
+    if(e.name&&name&&e.name===name) return false;
+    return true;
+  }));
+}
+// Aplica la lápida del servidor sobre la lista local de usuarios y limpia de
+// localStorage la sesión si el personaje propio fue eliminado.
+function applyDeletedUsers(list){
+  db.deletedUserIds=sanitizeDeletedUsers(list);
+  if(!db.deletedUserIds.length) return;
+  const before=db.users.length;
+  db.users=db.users.filter(u=>u&&(u.is_npc||!isHardDeletedUser(u,db.deletedUserIds)));
+  if(db.users.length!==before) db.users=db.users.slice();
+  if(session.uid){
+    const self=db.users.find(u=>u.id===session.uid);
+    if(!self) clearLocalSession();
+  }
+}
 
 function commit(reason){
   ensureDbIntegrity();
@@ -2658,6 +2739,7 @@ const API={
     if(existing){
       must(!existing.is_npc,'Ese nombre pertenece a un alumno NPC. Elige otro o inicia sesión.');
       if(existing.pass && existing.pass!==pHash) throw new Error('Ese personaje ya existe y la contraseña no coincide');
+      reviveDeletedUser(existing);
       existing.pass=pHash;
       if(look)existing.look=lookOf(look);
       if(look){existing.gender=normGender(look.gender);existing.romancePref=normRomancePref(look.romancePref);}
@@ -2680,6 +2762,7 @@ const API={
     u.birthDay = birthdayPart(look && look.birthDay,'day');
     u.birthMonth = birthdayPart(look && look.birthMonth,'month');
     db.users.push(u);
+    reviveDeletedUser(u);
     session.uid=u.id;session.passHash=pHash;
     localStorage.setItem('castillo_uid',String(u.id));
     localStorage.setItem('castillo_pass',pHash);
@@ -2728,6 +2811,7 @@ const API={
     const name=cleanName(d.name);must(name,'Escribe un nombre');
     must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
     u.username=name;
+    reviveDeletedUser(u);
     u.look=lookOf(d);
     u.gender=normGender(d.gender);
     u.romancePref=normRomancePref(d.romancePref);
@@ -3268,7 +3352,7 @@ const API={
   },
   resetPoints(){must(session.isAdmin,'Solo admin');db.houses.forEach(h=>h.points=0);db.users.forEach(u=>u.points=0);db.log=[];commit('Puntos reiniciados')},
   newMatch(a,b,type='amistoso'){must(session.isAdmin,'Solo admin');must(a!==b,'Deben ser casas distintas');
-    db.matches.push({id:'m'+Date.now(),a,b,type:type||'amistoso',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
+    db.matches.push({id:'m'+Date.now(),a,b,type:type||'amistoso',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,bets:[],betsSettled:false});
     commit(`Partido (${type}): ${a} vs ${b}`)},
   join(id){const u=me();must(u&&u.house,'Necesitas iniciar sesión con tu personaje');const m=db.matches.find(x=>x.id===id);must(m,'Partido no encontrado');
     must(m.status==='waiting','El partido ya comenzó');must(u.house===m.a||u.house===m.b,'No perteneces a estas casas');
@@ -3289,15 +3373,20 @@ const API={
   finish(m){
     m.resolving=false;m.last=m.round;
     const pl=(h,pos,a)=>m.players.filter(p=>p.house===h&&p.pos===pos&&p.action===a);
+    // Parte 4B: pasivas reales por posición (espejo de GAME_BALANCE.quidditch).
+    const hasBludger=(h)=>m.players.some(p=>p.house===h&&p.pos==='Golpeador'&&p.action==='hit');
+    const hunterBonus=(h)=>m.players.some(p=>p.house===h&&p.pos==='Cazador'&&p.action==='attack')?0.15:0;
+    const seekerBonus=(h)=>m.players.some(p=>p.house===h&&p.pos==='Buscador'&&p.action==='search')?0.18:0;
     const keepA=pl(m.a,'Guardián','block').length>0,keepB=pl(m.b,'Guardián','block').length>0;
     const cheerA=(m.cheerA||0)*0.02, cheerB=(m.cheerB||0)*0.02;
+    const bludA=hasBludger(m.a)?0.12:0, bludB=hasBludger(m.b)?0.12:0;
     
-    pl(m.a,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.6,(keepB?.17:.35)+cheerA)){m.sa+=10;m.log.push(`${HOUSE(m.a).name} +10`)}});
-    pl(m.b,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.6,(keepA?.17:.35)+cheerB)){m.sb+=10;m.log.push(`${HOUSE(m.b).name} +10`)}});
+    pl(m.a,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.75,(keepB?.17:.35)+cheerA+hunterBonus(m.a)-bludB)){m.sa+=10;m.log.push(`${HOUSE(m.a).name} +10`)}});
+    pl(m.b,'Cazador','attack').forEach(()=>{if(Math.random()<Math.min(0.75,(keepA?.17:.35)+cheerB+hunterBonus(m.b)-bludA)){m.sb+=10;m.log.push(`${HOUSE(m.b).name} +10`)}});
     
     if(m.round===m.snitch&&!m.caught){
-      if(pl(m.a,'Buscador','search').length&&Math.random()<Math.min(0.7,.5+cheerA)){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
-      else if(pl(m.b,'Buscador','search').length&&Math.random()<Math.min(0.7,.5+cheerB)){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
+      if(pl(m.a,'Buscador','search').length&&Math.random()<Math.min(0.85,.5+cheerA+seekerBonus(m.a))){m.caught=m.a;m.sa+=150;m.log.push(`¡${HOUSE(m.a).name} atrapa la Snitch! +150`);snitchSnd()}
+      else if(pl(m.b,'Buscador','search').length&&Math.random()<Math.min(0.85,.5+cheerB+seekerBonus(m.b))){m.caught=m.b;m.sb+=150;m.log.push(`¡${HOUSE(m.b).name} atrapa la Snitch! +150`);snitchSnd()}
       else{m.snitch+=5;m.log.push('La Snitch esquiva a todos')}}
       
     m.players.forEach(p=>{p.action=p.is_npc?(ACTIONS[p.pos]?.[0]?.[0]||'attack'):null});
@@ -3407,6 +3496,7 @@ const API={
     const name=cleanName(data.username);must(name,'Escribe un nombre');
     must(!db.users.some(x=>x.id!==u.id&&x.username.toLowerCase()===name.toLowerCase()),'Ese nombre ya está en uso');
     u.username=name;
+    reviveDeletedUser(u);
     if(data.house&&HOUSE(data.house)) u.house=data.house;
     if(u.is_npc&&typeof data.npc_trait==='string') u.npc_trait=data.npc_trait.trim().slice(0,80)||u.npc_trait;
     // Curso: se guarda como desplazamiento respecto al Año Escolar del Castillo.
@@ -3490,7 +3580,7 @@ const API={
   },
   awardGaleones(id,amt){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.galeones=Math.max(0,(t.galeones||0)+amt); commit(`Admin dio ${amt} 🪙 a ${t.username}`); },
   toggleQuidditch(id){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.quidditch_approved=!t.quidditch_approved; if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved&&!t.flight_xp)t.flight_xp=15;} commit(`${t.username} Quidditch: ${t.quidditch_approved}`); },
-  deleteUser(id){ must(session.isAdmin,'Solo admin'); const idx=db.users.findIndex(u=>u.id===id); must(idx!==-1,'No encontrado'); const nm=db.users[idx].username; db.users.splice(idx,1); commit(`Eliminado ${nm}`); },
+  deleteUser(id){ must(session.isAdmin,'Solo admin'); const idx=db.users.findIndex(u=>u.id===id); must(idx!==-1,'No encontrado'); const t=db.users[idx]; const nm=t.username; db.users.splice(idx,1); addDeletedUser(t); commit(`Eliminado ${nm}`); },
   deleteMatch(id){ must(session.isAdmin,'Solo admin'); const idx=db.matches.findIndex(m=>m.id===id); must(idx!==-1,'No encontrado'); db.matches.splice(idx,1); commit('Partido eliminado'); },
   resetMatches(){ must(session.isAdmin,'Solo admin'); db.matches=[]; commit('Partidos reiniciados'); },
   generateEliminatorias(){
@@ -3499,7 +3589,7 @@ const API={
     let added=0;
     pairs.forEach(([a,b],i)=>{
       if(!db.matches.some(m=>m.type==='eliminatoria'&&((m.a===a&&m.b===b)||(m.a===b&&m.b===a)))){
-        db.matches.push({id:'m'+Date.now()+'_'+i,a,b,type:'eliminatoria',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
+        db.matches.push({id:'m'+Date.now()+'_'+i,a,b,type:'eliminatoria',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,bets:[],betsSettled:false});
         added++;
       }
     });
@@ -3510,7 +3600,7 @@ const API={
     const elims=db.matches.filter(m=>m.type==='eliminatoria');
     must(elims.length>=6&&elims.every(m=>m.status==='finished'),'Faltan eliminatorias por terminar.');
     const top=quidditchStandings();
-    db.matches.push({id:'m'+Date.now()+'_final',a:top[0].id,b:top[1].id,type:'final',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0});
+    db.matches.push({id:'m'+Date.now()+'_final',a:top[0].id,b:top[1].id,type:'final',sa:0,sb:0,round:1,max:30,status:'waiting',players:[],snitch:8+Math.floor(Math.random()*20),caught:null,winner:null,log:[],last:0,deadline:null,resolving:false,cheerA:0,cheerB:0,bets:[],betsSettled:false});
     fanfare();commit(`¡Gran Final: ${HOUSE(top[0].id).name} vs ${HOUSE(top[1].id).name}!`);
   },
   animagusAdvance(){
@@ -4098,8 +4188,9 @@ function renderQuidditchStandings(){
     ${session.isAdmin ? `<div class="row">
       <button class="btn sm gold" type="button" data-do="genElims">⚽ Generar 6 Eliminatorias</button>
       <button class="btn sm gold" type="button" data-do="genFinal">🏆 Generar Gran Final</button>
+      <button class="btn sm gold" type="button" data-do="runCeremony" title="Corona al campeón, nombra MVPs y publica la clausura en El Profeta">🎓 Cerrar el Curso</button>
       <button class="btn sm danger" type="button" data-do="resetMatches">🗑️ Reiniciar Torneo</button>
-    </div>` : ''}
+    </div>` : `<div class="row"><button class="btn sm" type="button" data-do="openClosure">🎓 Ver Ceremonia de Clausura</button></div>`}
   </div>
   <div class="grid g4">${st.map((s,i)=>{
     const H = HOUSE(s.id);
@@ -4152,12 +4243,26 @@ function renderMatches(){
       btn+=` <button class="btn sm" data-do="fillNpcMatch" data-m="${m.id}" type="button">🤖 Rellenar con NPCs</button>`;
       if((session.isAdmin||my)&&m.players.some(p=>p.house===m.a)&&m.players.some(p=>p.house===m.b))btn+=` <button class="btn sm gold" data-do="start" data-m="${m.id}" type="button">Comenzar</button>`}
     if(session.isAdmin) btn+=` <button class="btn sm danger" data-do="delMatch" data-m="${m.id}" type="button">✕ Eliminar</button>`;
+
+    // Apuestas amistosas (Parte 4B): disponibles mientras el partido espera y
+    // si el jugador aún no tiene apuesta registrada en él.
+    let betBox='';
+    if(m.status==='waiting' && u && u.house){
+      const myBet=(m.bets||[]).find(b=>Number(b.uid)===u.id);
+      if(myBet) betBox=`<div class="box" style="margin-top:10px;padding:8px"><span class="pill gold">🎲 Tu apuesta: ${myBet.amount} 🪙 por ${HOUSE(myBet.house).name}</span></div>`;
+      else betBox=`<div class="box" style="margin-top:10px;padding:8px"><p class="muted" style="font-size:12px;margin-bottom:6px">🎲 Apuesta amistosa (máx. 20 🪙 · premio x2). Tu monedero: 🪙 ${u.galeones||0}</p>
+        <div class="row" style="flex-wrap:wrap;gap:6px;align-items:center">
+          <input id="betAmount_${m.id}" type="number" min="1" max="20" value="5" style="width:80px" aria-label="Cantidad a apostar">
+          <button class="btn sm" data-do="placeBet" data-m="${m.id}" data-h="${m.a}" type="button">por ${A.name}</button>
+          <button class="btn sm" data-do="placeBet" data-m="${m.id}" data-h="${m.b}" type="button">por ${B.name}</button>
+        </div></div>`;
+    }
     
     return `<div class="match">
       ${stadium}
       <div class="row" style="justify-content:space-between"><div class="row">${typeBadge}<strong>${A.name}</strong><span class="score mono">${m.sa} - ${m.sb}</span><strong>${B.name}</strong></div><span class="muted" style="font-size:12px">${state}</span></div>
       <div class="grid g2" style="margin-top:10px;gap:8px"><div>${row(m.a)}</div><div>${row(m.b)}</div></div>
-      ${cheerBtns}${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
+      ${cheerBtns}${betBox}${ctl}${btn?`<div class="row" style="margin-top:10px">${btn}</div>`:''}
       ${m.log.length?`<details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:13px">Registro (${m.log.length})</summary><div class="muted" style="font-size:12px;max-height:110px;overflow:auto">${m.log.slice(-10).map(l=>`<div>${esc(l)}</div>`).join('')}</div></details>`:''}</div>`}).join(''):`<p class="muted">No hay partidos pendientes o en juego. ${session.isAdmin?'Genera las eliminatorias o crea uno arriba.':'Pide al profesorado que convoque un partido.'}</p>`;
   $('matches').innerHTML=h;
 }
@@ -5564,8 +5669,148 @@ function renderQuidditchHistory() {
   const finished = db.matches.filter(m => m.status === 'finished').sort((a, b) => (b.id > a.id ? 1 : -1));
   box.innerHTML = finished.length ? finished.map(m => {
     const tLabel = m.type==='final'?'🏆 Final':m.type==='eliminatoria'?'⚔️ Eliminatoria':'🤝 Amistoso';
-    return `<div class="prow"><span><small class="muted">[${tLabel}]</small> <strong>${HOUSE(m.a).name}</strong> ${m.sa} - ${m.sb} <strong>${HOUSE(m.b).name}</strong></span><span class="pill ${m.winner==='empate'?'off':'gold'}">${m.winner==='empate'?'Empate':'Ganador: '+HOUSE(m.winner).name}</span></div>`;
+    const chr = (m.chronicle && Array.isArray(m.chronicle.lines) && m.chronicle.lines.length)
+      ? `<div class="muted" style="font-size:12px;margin-top:4px">🎙️ ${m.chronicle.lines.map(esc).join(' ')}</div>` : '';
+    return `<div class="prow" style="flex-direction:column;align-items:stretch"><div class="row" style="justify-content:space-between"><span><small class="muted">[${tLabel}]</small> <strong>${HOUSE(m.a).name}</strong> ${m.sa} - ${m.sb} <strong>${HOUSE(m.b).name}</strong></span><span class="pill ${m.winner==='empate'?'off':'gold'}">${m.winner==='empate'?'Empate':'Ganador: '+HOUSE(m.winner).name}</span></div>${chr}</div>`;
   }).join('') : '<p class="muted">Sin partidos terminados aún.</p>';
+}
+
+/* ===== PARTE 4B: QUIDDITCH AVANZADO Y COPA DE LAS CASAS (cliente) =====
+   Espejo de GAME_BALANCE.quidditch del servidor. El servidor valida todo. */
+const QUIDDITCH_PASSIVES = {
+  Buscador:  { icon: '🧹', desc: '+18 % de atrapar la Snitch (vale 150 pts).' },
+  Cazador:   { icon: '🏐', desc: '+15 % de anotar con la Quaffle (10 pts por gol).' },
+  Golpeador: { icon: '🏏', desc: 'Reduce un 12 % la precisión rival con las Bludgers.' },
+  Guardián:  { icon: '🥅', desc: '+20 % de parar los tiros rivales.' }
+};
+const HOOPS_XP_PER_RING = 3, HOOPS_GAL_PER_RING = 1;
+const WEEKLY_TARGET = { matches: 3, points: 300, snitches: 2 };
+
+function myQuidditchPos(u){
+  if(!u||!u.house) return null;
+  const team = (API.teams()[u.house]||[]);
+  const me2 = team.find(p=>p.id===u.id);
+  return me2 ? me2.pos : null;
+}
+
+function renderQuidditchPassives(){
+  const box = $('quidditchPassivesPanel'); if(!box) return;
+  const u = me();
+  const myPos = myQuidditchPos(u);
+  const cards = POSITIONS.filter((p,i)=>POSITIONS.indexOf(p)===i).map(pos=>{
+    const p = QUIDDITCH_PASSIVES[pos]||{icon:'🧹',desc:''};
+    const mine = myPos===pos;
+    return `<div class="box ${mine?'':''}" style="${mine?'border-color:var(--gold);box-shadow:0 0 12px rgba(227,187,78,.25)':''}">
+      <div class="row" style="justify-content:space-between"><strong>${p.icon} ${pos}</strong>${mine?'<span class="pill gold">Tu posición</span>':''}</div>
+      <p class="muted" style="font-size:12px;margin-top:4px">${esc(p.desc)}</p>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<h3 style="font-size:18px;margin-bottom:8px">🎯 Especialización por Posición</h3>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">Cada posición tiene una pasiva real que se aplica en el partido. Alinearte en tu mejor puesto te da ventaja.</p>
+    <div class="grid g4" style="gap:10px">${cards}</div>`;
+}
+
+function renderHoopsPanel(){
+  const box = $('hoopsPanel'); if(!box) return;
+  const u = me();
+  const canPlay = u && u.house;
+  box.innerHTML = `<h3 style="font-size:18px;margin-bottom:8px">⭕ Aros de Entrenamiento Aéreo</h3>
+    <p class="muted" style="font-size:13px">Entrena en los terrenos del castillo: atraviesa los aros dorados con tu escoba. Ganas <b>${HOOPS_XP_PER_RING} XP de vuelo</b> y <b>${HOOPS_GAL_PER_RING} 🪙</b> por aro, y subes el <b>Club del Dragón</b>.</p>
+    <p class="muted" style="font-size:12px;margin-top:6px">Tu XP de vuelo: <b class="mono">${u?Math.max(0,Number(u.flight_xp)||0):0}</b></p>
+    <div class="row" style="margin-top:10px"><button class="btn gold" type="button" data-do="startHoops" ${canPlay?'':'disabled'}>${canPlay?'🪁 Entrenar ahora':'Inicia sesión con tu personaje'}</button></div>`;
+}
+
+function renderWeeklyChallengePanel(){
+  const box = $('weeklyChallengePanel'); if(!box) return;
+  const u = me();
+  const wc = db.weeklyChallenges || { houses: {} };
+  const h = (u && u.house && wc.houses) ? wc.houses[u.house] : null;
+  if(!h){ box.innerHTML = `<h3 style="font-size:18px;margin-bottom:8px">🏅 Desafíos Semanales por Casa</h3><p class="muted" style="font-size:13px">Inicia sesión con tu personaje para ver los desafíos de tu casa.</p>`; return; }
+  const pct = (cur,goal)=>Math.max(0,Math.min(100,Math.round((cur/goal)*100)));
+  const goal = (cur,goal,label)=>`<div style="margin-top:6px"><div class="row" style="justify-content:space-between"><span class="muted" style="font-size:12px">${label}</span><span class="mono" style="font-size:12px">${Math.min(cur,goal)}/${goal}</span></div><span class="stat-bar" style="display:block"><i style="width:${pct(cur,goal)}%;background:var(--gold)"></i></span></div>`;
+  const met = h.matches>=WEEKLY_TARGET.matches && h.points>=WEEKLY_TARGET.points && h.snitches>=WEEKLY_TARGET.snitches;
+  box.innerHTML = `<h3 style="font-size:18px;margin-bottom:8px">🏅 Desafíos Semanales · ${HOUSE(u.house).name}</h3>
+    <p class="muted" style="font-size:13px">Coopera con tu casa esta semana. Se reinician cada lunes.</p>
+    ${goal(h.matches, WEEKLY_TARGET.matches, '⚔️ Partidos jugados')}
+    ${goal(h.points, WEEKLY_TARGET.points, '🎯 Puntos anotados')}
+    ${goal(h.snitches, WEEKLY_TARGET.snitches, '🧹 Snitch atrapada')}
+    <div class="row" style="margin-top:10px"><button class="btn ${met&&!h.claimed?'gold':''}" type="button" data-do="claimWeekly" ${met&&!h.claimed?'':'disabled'}>${h.claimed?'✅ Recompensa reclamada':met?'🎁 Reclamar recompensa':'Objetivos pendientes'}</button></div>`;
+}
+
+function openHoopsModal(){
+  const u = me();
+  must(u && u.house, 'Inicia sesión con tu personaje primero');
+  const DURATION = 18000;
+  openCanvasModal(
+    '⭕ Aros de Entrenamiento Aéreo',
+    'Vuela con tu escoba y atraviesa todos los aros dorados que puedas antes de que acabe el tiempo.',
+    'Controles: W/S o Flechas ▲/▼ (o botones táctiles) para subir y bajar.',
+    true
+  );
+  const flyer = { x: 120, y: 200, r: 16, color: houseHex(u.house), rings: 0 };
+  const hoops = [];
+  let start = Date.now(), tick = 0, lastSpawn = 0;
+
+  function loop(){
+    if(!mgActive) return;
+    const rem = Math.max(0, DURATION - (Date.now() - start));
+    if(rem <= 0){ finishHoops(); return; }
+
+    if(keys['ArrowUp']||keys['w']||keys['W']) flyer.y = Math.max(30, flyer.y - 5.4);
+    if(keys['ArrowDown']||keys['s']||keys['S']) flyer.y = Math.min(370, flyer.y + 5.4);
+
+    tick++;
+    if(tick - lastSpawn > 26){ lastSpawn = tick; hoops.push({ x: 830, y: 45 + Math.random()*310, r: 20, vx: -(6.6 + Math.random()*2.6), hit: false }); }
+
+    for(let i = hoops.length-1; i >= 0; i--){
+      const o = hoops[i];
+      o.x += o.vx;
+      if(o.x < -40){ hoops.splice(i,1); continue; }
+      if(!o.hit && Math.hypot(o.x - flyer.x, o.y - flyer.y) < o.r + flyer.r){ o.hit = true; flyer.rings++; tone([660,880],'sine',0.03,0.14,0.1); hoops.splice(i,1); }
+    }
+
+    ctx.clearRect(0,0,800,400);
+    const g = ctx.createLinearGradient(0,0,0,400); g.addColorStop(0,'#0c132c'); g.addColorStop(1,'#16203f');
+    ctx.fillStyle = g; ctx.fillRect(0,0,800,400);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    for(let i=0;i<7;i++){ const lx = 800 - ((tick*10 + i*130) % 900); ctx.beginPath(); ctx.moveTo(lx, 30+i*55); ctx.lineTo(lx+40, 30+i*55); ctx.stroke(); }
+    hoops.forEach(o=>{ ctx.strokeStyle='#e3bb4e'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,Math.PI*2); ctx.stroke(); ctx.strokeStyle='rgba(227,187,78,.4)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(o.x,o.y,o.r-5,0,Math.PI*2); ctx.stroke(); });
+    ctx.strokeStyle='#a8622a'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(flyer.x-26,flyer.y+6); ctx.lineTo(flyer.x+22,flyer.y+2); ctx.stroke();
+    ctx.fillStyle=flyer.color; ctx.beginPath(); ctx.arc(flyer.x,flyer.y-4,14,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#f6d7bd'; ctx.beginPath(); ctx.arc(flyer.x+4,flyer.y-14,7,0,Math.PI*2); ctx.fill();
+    $('mgCanvasHud').textContent = `⭕ Aros: ${flyer.rings} · ⏱️ ${(rem/1000).toFixed(1)} s`;
+    gameLoop = requestAnimationFrame(loop);
+  }
+
+  function finishHoops(){
+    const rings = flyer.rings, durationMs = DURATION;
+    socket.emit('flight:hoops', { rings, durationMs });
+    $('mgCanvasHud').textContent = `⭕ ${rings} aros · enviando…`;
+    // El servidor valida y paga; el modal se cierra al recibir la respuesta.
+    setTimeout(()=>{ if(mgActive) closeMinigame(); }, 1200);
+  }
+  loop();
+}
+
+function openClosureModal(){
+  const c = db.closure;
+  if(!c){ toast('La ceremonia de clausura aún no se ha celebrado.'); return; }
+  const champ = c.champion ? HOUSE(c.champion) : null;
+  const mvpRows = Object.keys(c.mvpByHouse||{}).map(hid=>{
+    const m = c.mvpByHouse[hid];
+    return `<div class="prow"><span>${crest(hid)} <strong>${HOUSE(hid).name}</strong></span><span>${m?`${esc(m.username)} · ${m.points} pts`:'<span class="muted">Sin alumnos</span>'}</span></div>`;
+  }).join('');
+  const prefRows = (c.prefects||[]).map(p=>`<span class="pill">🛡️ ${esc(p.username)}</span>`).join('') || '<span class="muted">—</span>';
+  const delRows = (c.delegates||[]).map(p=>`<span class="pill gold">👑 ${esc(p.username)}</span>`).join('') || '<span class="muted">—</span>';
+  openModal(`<h3 style="color:var(--gold);margin-bottom:8px">🎓 Ceremonia de Clausura del Curso</h3>
+    ${champ?`<p style="font-size:16px">🏆 Copa de las Casas: <strong style="color:var(--gold)">${champ.name}</strong> (${db.houses.find(h=>h.id===c.champion)?db.houses.find(h=>h.id===c.champion).points:0} pts)</p>`:'<p class="muted">Sin campeón definido.</p>'}
+    <h4 style="margin:12px 0 6px">🌟 Mejores alumnos por casa (MVP)</h4>
+    ${mvpRows}
+    <h4 style="margin:12px 0 6px">🛡️ Prefectos en ejercicio</h4>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${prefRows}</div>
+    <h4 style="margin:12px 0 6px">👑 Delegados (Premio Anual)</h4>
+    <div class="row" style="gap:6px;flex-wrap:wrap">${delRows}</div>
+    <div style="margin-top:14px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>`);
 }
 
 function renderAll(){
@@ -5588,6 +5833,9 @@ function renderAll(){
   renderTeams();
   renderMatches();
   renderQuidditchHistory();
+  renderQuidditchPassives();
+  renderHoopsPanel();
+  renderWeeklyChallengePanel();
   renderChat();
   renderAdmin();
   renderStudents();
@@ -6617,7 +6865,7 @@ function clubLevel(u,id){
 function applyClubsUpdate(u,clubs){
   if(!u||!Array.isArray(clubs)) return;
   u.clubs=u.clubs||{};
-  clubs.forEach(c=>{ if(c&&c.id) u.clubs[c.id]=Number(c.xp)||0; });
+  clubs.forEach(c=>{ if(!c) return; const id=c.id||c.clubId; if(id) u.clubs[id]=Number(c.xp)||0; });
 }
 socket.on('club:update',(data)=>{
   if(!data) return;
@@ -6782,6 +7030,48 @@ socket.on('gift:result',(data)=>{
   render();
 });
 socket.on('gift:error',(data)=>{ if(data&&data.message) toast(data.message); });
+
+/* ===== PARTE 4B: QUIDDITCH AVANZADO (listeners) ===== */
+socket.on('flight:hoopsResult',(data)=>{
+  if(!data||!data.ok) return;
+  const u=me();
+  if(u){ u.flight_xp=data.flight_xp; u.galeones=data.galeones_total; if(data.club) applyClubsUpdate(u,[data.club]); }
+  fanfare();
+  toast(`⭕ ¡Entrenamiento aéreo! ${data.rings} aros · +${data.xp} XP de vuelo · +${data.galeones} 🪙`);
+  (data.newTitles||[]).forEach(id=>{ if(TITLES[id]) toast(`🏅 Nuevo título: ${TITLES[id].icon} ${TITLES[id].name}`); });
+  closeMinigame(); render();
+});
+socket.on('flight:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('⭕ '+data.message); closeMinigame(); } });
+socket.on('quidditch:betResult',(data)=>{
+  if(!data||!data.ok) return;
+  const u=me(); if(u) u.galeones=data.galeones;
+  chime(); toast(`🎲 Apuesta registrada: ${data.amount} 🪙 por ${HOUSE(data.house).name} (premio x2).`);
+  render();
+});
+socket.on('quidditch:betError',(data)=>{ if(data&&data.message){ buzzSnd(); toast('🎲 '+data.message); } });
+socket.on('quidditch:weeklyResult',(data)=>{
+  if(!data||!data.ok) return;
+  const u=me(); if(u){ u.galeones=(Number(u.galeones)||0)+data.galeones; u.points=(Number(u.points)||0)+data.points; }
+  fanfare(); toast(`🏅 ¡Desafío semanal completado! +${data.points} pts · +${data.galeones} 🪙 para ti.`);
+  renderAll();
+});
+socket.on('quidditch:weeklyError',(data)=>{ if(data&&data.message){ buzzSnd(); toast('🏅 '+data.message); } });
+socket.on('quidditch:ceremonyError',(data)=>{ if(data&&data.message){ buzzSnd(); toast(data.message); } });
+socket.on('quidditch:chronicle',(data)=>{
+  if(!data||!data.chronicle) return;
+  const m=db.matches.find(x=>String(x.id)===String(data.matchId));
+  if(m) m.chronicle=data.chronicle;
+  toast('🎙️ ¡Lee Jordan ya tiene su crónica del partido!');
+  renderAll();
+});
+socket.on('quidditch:closure',(data)=>{
+  if(!data) return;
+  db.closure=data;
+  fanfare();
+  toast(`🎓 ¡Ceremonia de clausura! Campeón de la Copa de las Casas: ${data.champion?HOUSE(data.champion).name:'—'}`);
+  openClosureModal();
+  renderAll();
+});
 socket.on('presence:update',(data)=>{
   if(!data) return;
   onlineIds=Array.isArray(data.ids)?data.ids.map(Number):[];
@@ -10578,6 +10868,17 @@ document.addEventListener('click',e=>{
     case 'delMatch':API.deleteMatch(d.m);break;
     case 'genElims':API.generateEliminatorias();break;
     case 'genFinal':API.generateFinal();break;
+    case 'startHoops':openHoopsModal();break;
+    case 'claimWeekly':socket.emit('quidditch:claimWeekly');break;
+    case 'placeBet':{
+      const m=db.matches.find(x=>String(x.id)===String(d.m));
+      const amt=Number($('betAmount_'+d.m)?$('betAmount_'+d.m).value:0);
+      const house=d.h||(m?m.a:'');
+      socket.emit('quidditch:bet',{matchId:d.m,house,amount:amt});
+      break;
+    }
+    case 'openClosure':openClosureModal();break;
+    case 'runCeremony':socket.emit('quidditch:ceremony');break;
     case 'openCustomNpc':openCustomNpcModal();break;
     case 'saveCustomNpc':API.createCustomNpc({name:$('npcName').value,house:$('npcHouse').value,year:$('npcYear').value,pers:$('npcPers').value,trait:$('npcTrait').value,quidditch:$('npcQuid').checked});closeModal();break;
     case 'editNpc':openEditNpcModal(Number(d.id));break;
