@@ -2440,8 +2440,18 @@ const FIND_ITEMS = {
   grageas_bertie: { id: 'grageas_bertie', nombre: 'Grajeas Bertie Bott',        icon: '🍬', desc: 'Golosinas de todos los sabores… incluso los terribles.', vendible: 3 },
   pluma_fenix:    { id: 'pluma_fenix',    nombre: 'Pluma de Fénix',             icon: '🪶', desc: 'Una pluma cálida que nunca se apaga.', vendible: 8 }
 };
-// Busca un objeto entre la tienda, los regalos de NPC y los hallazgos tangibles.
-function itemDef(id){ return TIENDA_HOGSMEADE[id] || ITEMS_REGALO[id] || FIND_ITEMS[id] || null; }
+// Pociones elaborables (Tanda 3): el servidor las guarda en la Mochila al
+// elaborarlas, así que el catálogo debe reconocerlas para que se vean en la
+// Mochila y se puedan intercambiar en el Mercadillo. Se hidrata desde
+// `phase3:catalog` (el servidor es la fuente de verdad de las recetas).
+const POTION_ITEMS = {
+  filtro_paz: { id: 'filtro_paz', nombre: 'Filtro de la Paz', icon: '🫧', desc: 'Un brebaje calmante que serena los ánimos más exaltados.', vendible: 5 },
+  amortentia: { id: 'amortentia', nombre: 'Amortentia',       icon: '💗', desc: 'El filtro de amor más poderoso; cada quien huele lo que más le atrae.', vendible: 5 },
+  felix:      { id: 'felix',      nombre: 'Felix Felicis',    icon: '🍀', desc: 'La suerte líquida: requiere una destreza excepcional.', vendible: 5 }
+};
+// Busca un objeto entre la tienda, los regalos de NPC, los hallazgos tangibles
+// y las pociones elaborables.
+function itemDef(id){ return TIENDA_HOGSMEADE[id] || ITEMS_REGALO[id] || FIND_ITEMS[id] || POTION_ITEMS[id] || null; }
 function itemIcon(id){ const it=itemDef(id); return (it&&it.icon)||'📦'; }
 
 const CROMOS_MAGOS = [
@@ -3454,6 +3464,11 @@ const API={
       const valor=Math.max(1,Number(item.vendible)||2);
       u.galeones=(u.galeones||0)+valor;
       msg=`✨ Vendiste ${item.nombre} por +${valor} Galeones.`;
+    }
+    // Pociones elaboradas (Tanda 3): beberlas reconforta al alumno.
+    else if(POTION_ITEMS[itemId]){
+      u.happiness=Math.min(100,(Number(u.happiness)||50)+5);
+      msg=`🧪 Bebiste ${item.nombre}: +5 de Felicidad.`;
     }
     chime();commit(`${u.username} usó ${item.nombre}`);toast(msg);
   },
@@ -6853,6 +6868,10 @@ socket.on('phase3:catalog',(data)=>{
     herbology: data.herbology&&Array.isArray(data.herbology.plants)?data.herbology:{plants:[],actions:[]},
     exams: data.exams||{types:{},subjects:{}}
   };
+  // Hidrata el catálogo de objetos con las pociones oficiales: el servidor es la
+  // fuente de verdad de sus nombres e iconos (así la Mochila y el Mercadillo las
+  // muestran en cuanto se elaboran).
+  P3.potions.forEach(r=>{ if(r&&r.id) POTION_ITEMS[r.id]={ id:r.id, nombre:r.name||r.id, icon:r.icon||'🧪', desc:r.desc||'Una poción elaborada en clase de Pociones.', vendible:5 }; });
   renderAll();
 });
 // XP de club acumulada por el jugador (para dibujar las barras del expediente).
