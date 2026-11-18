@@ -1333,7 +1333,7 @@ let db = {
  apps:[], votes:[],
  events:[{name:'Copa Inaugural del Trimestre',desc:'Todas las clases y partidos otorgan puntos dobles.',mult:2,active:true}],
  period:'application',schoolYear:1,clockMode:'real',mockTime:null,mockDay:null,free:false,npcAi:true,
- relations:{}, officialCouples:[], profAffinity:{}, raidShield:100, friendRequests:[], friendRequestsDone:[],
+ relations:{}, officialCouples:[], profAffinity:{}, profLooks:{}, raidShield:100, friendRequests:[], friendRequestsDone:[],
  chat:[
   {id:1,u:'🤖 Hermione Granger',h:'gryffindor',role:'student',ch:'global',text:'¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!',time:'20:40'},
   {id:2,u:'🤖 Harry Potter',h:'gryffindor',role:'student',ch:'global',text:'¿Alguien me acompaña en una prueba o practicamos contra los Mortífagos?',time:'20:42'}
@@ -1401,7 +1401,9 @@ function ensureDbIntegrity(){
       changed=true;
     }else if(existing.is_npc){
       if(npc.is_canon && !existing.is_canon){existing.is_canon=true;changed=true;}
-      if(typeof existing.yearOffset!=='number' || existing.yearOffset!==npc.yearOffset){
+      // El curso del canon solo se re-siembra si el admin no lo fijó a mano
+      // (yearCustom). Así una edición manual sobrevive a cada sincronización.
+      if(!existing.yearCustom && (typeof existing.yearOffset!=='number' || existing.yearOffset!==npc.yearOffset)){
         existing.yearOffset=npc.yearOffset;
         existing.npc_trait=npc.npc_trait;
         changed=true;
@@ -1545,6 +1547,7 @@ function ensureDbIntegrity(){
   }
   if(!Array.isArray(db.friendRequestsDone)){db.friendRequestsDone=[];changed=true;}
   if(!db.profAffinity || typeof db.profAffinity!=='object') db.profAffinity={};
+  if(!db.profLooks || typeof db.profLooks!=='object') db.profLooks={};
   if(typeof db.raidShield!=='number') db.raidShield=100;
   if(typeof db.npcAi==='undefined') db.npcAi=true;
   if(!Array.isArray(db.letters)){db.letters=[];changed=true;}
@@ -1889,6 +1892,13 @@ const me=()=>{
 const activeEvent=()=>db.events.filter(e=>e.active).slice(-1)[0]||null;
 const must=(cond,msg)=>{if(!cond)throw new Error(msg)};
 const lookOf=d=>({skin:Number(d.skin)||0,hair:Number(d.hair)||0,hairColor:Number(d.hairColor)||0,eyeColor:Number(d.eyeColor)||Number(d.eyes)||0,features:Number(d.features)||0,clothing:Number(d.clothing)||0,style:d.style||'corto',eyes:Number(d.eyes)||0,facialHair:FACIAL_HAIR_IDS.includes(d.facialHair)?d.facialHair:'none'});
+// Apariencia de los profesores: por defecto la del canon (PROFESSORS), con
+// posibilidad de sobrescribirla desde el panel de admin (db.profLooks[id]).
+const profLook=p=>{
+  const base=(p&&p.look)||{};
+  const custom=(db.profLooks&&db.profLooks[p&&p.id])||null;
+  return custom?{...base,...custom}:{...base};
+};
 const cleanName=n=>(n||'').replace(/[<>&"']/g,'').trim().slice(0,18);
 
 const CURRICULUM = {
@@ -2925,6 +2935,15 @@ const API={
     u.username=name;
     if(data.house&&HOUSE(data.house)) u.house=data.house;
     if(u.is_npc&&typeof data.npc_trait==='string') u.npc_trait=data.npc_trait.trim().slice(0,80)||u.npc_trait;
+    // Curso: se guarda como desplazamiento respecto al Año Escolar del Castillo.
+    // Al fijarlo manualmente se marca yearCustom para que la re-siembra de NPCs
+    // del canon no lo sobrescriba en cada sincronización.
+    if(data.year!=null && data.year!==''){
+      const sy=Math.max(1,Math.min(7,Number(db.schoolYear)||1));
+      const target=Math.max(0,Math.min(8,Math.round(Number(data.year))));
+      u.yearOffset=target-sy;
+      u.yearCustom=true;
+    }
     u.look=lookOf(data);
     if(data.gender) u.gender=normGender(data.gender);
     if(data.romancePref) u.romancePref=normRomancePref(data.romancePref);
@@ -2965,6 +2984,35 @@ const API={
     commit('Admin reinició el Animago de ' + u.username);
     closeModal();
     toast('Forma animaga eliminada y ritual reiniciado');
+  },
+  resetNpcYear(id){
+    must(session.isAdmin,'Solo admin');
+    const u=db.users.find(x=>x.id===Number(id));must(u,'Personaje no encontrado');
+    const base=BASE_NPCS.find(n=>n.id===u.id||n.username.toLowerCase()===u.username.toLowerCase());
+    must(base,'Este personaje no tiene un curso canónico de referencia');
+    u.yearOffset=base.yearOffset;
+    u.yearCustom=false;
+    commit(`Admin restauró el curso canónico de ${u.username}`);
+    closeModal();
+    toast(`${u.username} vuelve al curso del canon (${userYear(u)}.º)`);
+  },
+  editProfLook(profId,data){
+    must(session.isAdmin,'Solo admin');
+    const p=PROFESSORS.find(x=>x.id===String(profId));must(p,'Profesor no encontrado');
+    if(data&&HOUSE(data.house)) p.house=data.house;
+    db.profLooks=db.profLooks||{};
+    db.profLooks[p.id]={...lookOf(data)};
+    commit(`Admin editó la apariencia de ${p.name}`);
+    closeModal();
+    toast(`Apariencia de ${p.name} actualizada.`);
+  },
+  resetProfLook(profId){
+    must(session.isAdmin,'Solo admin');
+    const p=PROFESSORS.find(x=>x.id===String(profId));must(p,'Profesor no encontrado');
+    if(db.profLooks) delete db.profLooks[p.id];
+    commit(`Admin restauró la apariencia de ${p.name}`);
+    closeModal();
+    toast(`Apariencia original de ${p.name} restaurada.`);
   },
   awardGaleones(id,amt){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.galeones=Math.max(0,(t.galeones||0)+amt); commit(`Admin dio ${amt} 🪙 a ${t.username}`); },
   toggleQuidditch(id){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.quidditch_approved=!t.quidditch_approved; if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved&&!t.flight_xp)t.flight_xp=15;} commit(`${t.username} Quidditch: ${t.quidditch_approved}`); },
@@ -4417,8 +4465,9 @@ function openEditNpcModal(charId){
   must(session.isAdmin,'Solo admin');
   const u=db.users.find(x=>x.id===Number(charId));
   must(u,'Personaje no encontrado');
-  const d={id:u.id,is_npc:!!u.is_npc,username:u.username,house:u.house||'gryffindor',npc_trait:u.npc_trait||'',
-    gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),animagus:u.animagus||'',...lookOf(u.look||{})};
+  const d={id:u.id,is_npc:!!u.is_npc,is_canon:!!u.is_canon,username:u.username,house:u.house||'gryffindor',npc_trait:u.npc_trait||'',
+    gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),animagus:u.animagus||'',
+    year:userYear(u),yearCustom:!!u.yearCustom,...lookOf(u.look||{})};
   STAT_FIELDS.forEach(([k])=>{ d[k]=Number(u[k])||0; });
   window.npcDraft=d;
   openModal(npcEditHTML(),true);
@@ -4432,6 +4481,13 @@ function npcEditHTML(){
    <div style="display:grid;gap:12px;min-width:0">
     <div><label class="hint" for="npcEditName">Nombre</label><input id="npcEditName" type="text" maxlength="18" value="${esc(d.username)}" autocomplete="off"></div>
     ${d.is_npc?`<div><label class="hint" for="npcEditTrait">Rasgo</label><input id="npcEditTrait" type="text" maxlength="80" value="${esc(d.npc_trait)}" placeholder="Ej: Bromista y ágil en duelo" autocomplete="off"></div>`:''}
+    <div><label class="hint" for="npcEditYear">🎓 Curso</label>
+      <select id="npcEditYear" style="width:100%" aria-label="Curso del personaje">
+        ${[[0,'⏳ Aún no ingresa (menor)'],[1,'1.º curso'],[2,'2.º curso'],[3,'3.º curso'],[4,'4.º curso'],[5,'5.º curso'],[6,'6.º curso'],[7,'7.º curso'],[8,'🎓 Graduado']].map(([y,n])=>`<option value="${y}"${Number(d.year)===y?' selected':''}>${n}</option>`).join('')}
+      </select>
+      <p class="hint" style="margin-top:4px">El curso fija el desplazamiento respecto al Año Escolar del Castillo (actual: ${db.schoolYear||1}.º).${d.yearCustom?' <b>Curso personalizado (no se restaura al del canon).</b>':''}</p>
+      ${d.is_canon?`<div class="row" style="margin-top:8px"><button class="btn sm" type="button" data-do="resetNpcYear" data-id="${d.id}">↩️ Restaurar curso del canon</button></div>`:''}
+    </div>
     <div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="npcDraftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>
     <div><span class="hint">Género</span><div class="chips" style="margin-top:6px">${GENDER_IDS.map(g=>`<button type="button" class="chip ${d.gender===g?'on':''}" data-do="npcDraftGender" data-id="${g}">${GENDER_LABEL[g]}</button>`).join('')}</div></div>
     <div><span class="hint">Le atraen (preferencia romántica)</span><div class="chips" style="margin-top:6px">${ROMANCE_PREF_IDS.map(r=>`<button type="button" class="chip ${normRomancePref(d.romancePref)===r?'on':''}" data-do="npcDraftRomance" data-id="${r}">${ROMANCE_PREF_LABEL[r]}</button>`).join('')}</div></div>
@@ -4456,12 +4512,43 @@ function npcEditHTML(){
 }
 function refreshNpcDraft(){
   const el=$('npcEditBox');if(!el)return;
-  const nm=$('npcEditName'),tr=$('npcEditTrait'),an=$('npcEditAnimagus');
+  const nm=$('npcEditName'),tr=$('npcEditTrait'),an=$('npcEditAnimagus'),yr=$('npcEditYear');
   if(nm)window.npcDraft.username=nm.value;
   if(tr)window.npcDraft.npc_trait=tr.value;
   if(an)window.npcDraft.animagus=an.value;
+  if(yr)window.npcDraft.year=Number(yr.value);
   STAT_FIELDS.forEach(([k])=>{const inp=$('npcEdit_'+k);if(inp)window.npcDraft[k]=inp.value;});
   el.outerHTML=npcEditHTML();
+}
+
+/* ===== Apariencia de los profesores (solo Admin) =====
+   Los profesores no son usuarios de db.users: viven en PROFESSORS. Su aspecto
+   editado se guarda en db.profLooks[id] (se fusiona sobre el del canon). */
+function openEditProfModal(profId){
+  must(session.isAdmin,'Solo admin');
+  const p=PROFESSORS.find(x=>x.id===String(profId));must(p,'Profesor no encontrado');
+  window.profDraft={id:p.id,name:p.name,house:p.house||'gryffindor',...lookOf(profLook(p))};
+  openModal(profEditHTML(),true);
+}
+function profEditHTML(){
+  const d=window.profDraft;
+  const sw=(label,arr,key,names)=>`<div class="swrow"><span>${label}</span>${arr.map((c,i)=>`<button type="button" class="sw ${d[key]===i?'on':''}" style="background:${c}" data-do="profDraft" data-k="${key}" data-v="${i}" aria-label="${label}: ${names?names[i]:i+1}" title="${names?names[i]:''}"></button>`).join('')}</div>`;
+  return `<h3 style="font-size:20px">🎨 Editar apariencia: ${esc(d.name)}</h3>
+  <div class="creator" id="profEditBox"><div class="lookbox"><div class="prev">${avatar(d,d.house,92)}</div><p class="hint">Vista previa. Los colores de la túnica siguen su casa.</p></div>
+   <div style="display:grid;gap:12px;min-width:0">
+    <div><span class="hint">Casa (color de túnica)</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="profDraftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>
+    ${sw('Piel',SKIN,'skin',SKINN)}
+    ${sw('Pelo',HAIR_COLORS,'hairColor',HAIR_COLORN)}
+    <div class="swrow"><span>Peinado</span>${HAIR_STYLES.map((v,i)=>`<button type="button" class="chip ${d.hair===i?'on':''}" data-do="profDraftHair" data-v="${i}">${HAIR_STYLEN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Ojos</span>${EYE_VARIANTS.map((v,i)=>`<button type="button" class="chip ${d.eyes===i?'on':''}" data-do="profDraftEyes" data-v="${i}">${EYE_VARIATSN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Túnica</span>${CLOTHING.map((v,i)=>`<button type="button" class="chip ${d.clothing===i?'on':''}" data-do="profDraftClothing" data-v="${i}">${CLOTHINGN[i]}</button>`).join('')}</div>
+    <div class="swrow"><span>Vello facial</span>${FACIAL_HAIRS.map(([v,n])=>`<button type="button" class="chip ${(d.facialHair||'none')===v?'on':''}" data-do="profDraftFacialHair" data-id="${v}">${n}</button>`).join('')}</div>
+    <div class="row"><button class="btn gold" type="button" data-do="saveProfEdit" data-id="${d.id}">💾 Guardar Cambios</button>${(db.profLooks&&db.profLooks[d.id])?`<button class="btn danger" type="button" data-do="resetProfLook" data-id="${d.id}">↩️ Restaurar aspecto original</button>`:''}<button class="btn" type="button" data-do="closeModal">Cancelar</button></div>
+   </div></div>`;
+}
+function refreshProfDraft(){
+  const el=$('profEditBox');if(!el)return;
+  el.outerHTML=profEditHTML();
 }
 
 function openPetAdoptModal() {
@@ -5198,7 +5285,7 @@ function npcChatTarget(npcId){
     if(npc) return {id:npc.id,name:npc.username,house:npc.house,look:npc.look,prof:false,trait:npc.npc_trait||'Alumno del castillo'};
   }
   const p=PROFESSORS.find(x=>x.id===String(npcId));
-  if(p) return {id:p.id,name:p.name,house:p.house,look:p.look,prof:true,trait:p.title};
+  if(p) return {id:p.id,name:p.name,house:p.house,look:profLook(p),prof:true,trait:p.title};
   return null;
 }
 
@@ -5809,7 +5896,7 @@ function renderProfessors(){
     const aff=((db.profAffinity||{})[u?.id]||{})[p.id]||0;
     return `<div class="arcade-card h-${p.house}">
       <div class="row" style="justify-content:space-between">
-        <div class="row"><span class="pawn">${avatar(p.look,p.house,34)}</span><div><h4 style="margin:0">${esc(p.name)}</h4><small class="muted">${esc(p.title)}</small></div></div>
+        <div class="row"><span class="pawn">${avatar(profLook(p),p.house,34)}</span><div><h4 style="margin:0">${esc(p.name)}</h4><small class="muted">${esc(p.title)}</small></div></div>
         <span class="pill">${esc(roomName(p.room))}</span>
       </div>
       <p style="font-size:12px;color:var(--gold);font-weight:600">${esc(p.subject)}</p>
@@ -5819,6 +5906,7 @@ function renderProfessors(){
         <div class="row" style="gap:6px">
           ${(p.id==='snape'||p.id==='dumbledore')?`<button class="btn sm" type="button" data-do="openNpcChat" data-id="${p.id}" ${(!u||!u.house)?'disabled':''}>💬 Hablar</button>`:''}
           <button class="btn sm gold" type="button" data-do="openProf" data-id="${p.id}" ${(!u||!u.house)?'disabled':''}>💬 Encargo (+6 pts)</button>
+          ${session.isAdmin?`<button class="btn sm" type="button" data-do="editProf" data-id="${p.id}" title="Editar la apariencia del profesor">🎨 Editar aspecto</button>`:''}
         </div>
       </div>
     </div>`;
@@ -5830,7 +5918,7 @@ function openProfModal(profId){
   const p=PROFESSORS.find(x=>x.id===profId);must(p,'Profesor no encontrado');
   const cdKey='prof_'+p.id, last=(db.cooldowns[u.id]||{})[cdKey]||0, rem=Math.max(0,15000-(Date.now()-last));
   must(rem<=0,`Espera ${Math.ceil(rem/1000)} s para pedir otro encargo a ${p.name}`);
-  openModal(`<span class="pawn big">${avatar(p.look,p.house,76)}</span>
+  openModal(`<span class="pawn big">${avatar(profLook(p),p.house,76)}</span>
     <span class="pill gold">${esc(p.subject)}</span>
     <h3 style="font-size:22px">${esc(p.name)}</h3>
     <p class="muted" style="font-style:italic">${esc(p.quote)}</p>
@@ -8610,6 +8698,16 @@ document.addEventListener('click',e=>{
     case 'npcDraftRomance':window.npcDraft.romancePref=normRomancePref(d.id);refreshNpcDraft();break;
     case 'animagusAnswer':answerAnimagusTest(Number(d.i));break;
     case 'resetUserAnimagus':API.resetUserAnimagus(Number(d.id));break;
+    case 'resetNpcYear':API.resetNpcYear(Number(d.id));break;
+    case 'editProf':openEditProfModal(d.id);break;
+    case 'profDraft':window.profDraft[d.k]=Number(d.v);refreshProfDraft();break;
+    case 'profDraftHouse':window.profDraft.house=d.id;refreshProfDraft();break;
+    case 'profDraftHair':window.profDraft.hair=Number(d.v);refreshProfDraft();break;
+    case 'profDraftEyes':window.profDraft.eyes=Number(d.v);refreshProfDraft();break;
+    case 'profDraftClothing':window.profDraft.clothing=Number(d.v);refreshProfDraft();break;
+    case 'profDraftFacialHair':window.profDraft.facialHair=d.id||'none';refreshProfDraft();break;
+    case 'saveProfEdit':API.editProfLook(d.id,window.profDraft);break;
+    case 'resetProfLook':API.resetProfLook(d.id);break;
     case 'saveNpcEdit':refreshNpcDraft();API.editNpc(Number(d.id),window.npcDraft);break;
     case 'deduct':API.award(Number(d.id),-10);break;
     case 'awardGal':API.awardGaleones(Number(d.id),10);break;
