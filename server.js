@@ -434,6 +434,46 @@ function pickFallbackTrivia(subjectKey) {
   };
 }
 
+/* ===== TANDA 3.1: PREGUNTAS DE EXAMEN (Groq + respaldo local) =====
+   Genera una lista de preguntas de opción múltiple para una asignatura. Reutiliza
+   el mismo cliente de Groq (`aiChatJSON`) exigiendo JSON estricto. Si la IA no
+   está disponible o falla, se recurre al banco local (`pickFallbackTrivia`), de
+   modo que el examen siempre puede celebrarse. */
+async function generateExamQuestions(subjectKey, count, examName, year) {
+  const subject = EXAM_SUBJECTS[subjectKey] || { name: subjectKey };
+  const n = Math.max(3, Math.min(8, Number(count) || 5));
+  if (AI_ENABLED) {
+    try {
+      const systemPrompt = `Eres un examinador oficial del Ministerio de Magia para Hogwarts. Genera ${n} preguntas de opción múltiple (nivel ${examName}, ${year}.º curso) sobre ${subject.name}. ` +
+        `Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"questions":[{"question":"texto","options":["a","b","c","d"],"correctIndex":0}]}. ` +
+        `Cada pregunta debe tener exactamente 4 opciones, una sola correcta y ser apropiada para el canon de Harry Potter.`;
+      const parsed = await aiChatJSON({ systemPrompt, userPrompt: `Genera las ${n} preguntas ahora.`, maxTokens: 1200, temperature: 0.8 });
+      const list = Array.isArray(parsed && parsed.questions) ? parsed.questions : [];
+      const clean = list.map(q => {
+        const options = Array.isArray(q && q.options) ? q.options.map(o => String(o)).slice(0, 4) : [];
+        let ci = Math.floor(Number(q && q.correctIndex));
+        if (options.length !== 4 || !Number.isFinite(ci) || ci < 0 || ci > 3) return null;
+        return { question: String(q.question || '').trim(), options, correctIndex: ci };
+      }).filter(q => q && q.question);
+      if (clean.length >= n) return clean.slice(0, n);
+    } catch (err) {
+      console.error('Error generando preguntas de examen con Groq:', err.message);
+    }
+  }
+  // Respaldo local: banco de preguntas por asignatura.
+  const out = [];
+  const seen = new Set();
+  for (let i = 0; i < n; i++) {
+    const q = pickFallbackTrivia(subjectKey);
+    if (!q || !q.question) break;
+    const key = q.question + '|' + q.options.join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
+  }
+  return out;
+}
+
 // Respaldo local si Groq no está disponible: heurística por palabras clave del tema.
 const SANDWICH_HINTS = {
   libros: ['estudio', 'libro', 'leer', 'biblioteca', 'examen', 'deberes', 'tarea', 'hechizo'],
@@ -1461,8 +1501,191 @@ const TITLES = {
   aritmante:      { id: 'aritmante',      name: 'Aritmante',              icon: '🔢', desc: 'Resolviste una puerta de Aritmancia.' },
   contrabandista: { id: 'contrabandista', name: 'Contrabandista',         icon: '🗺️', desc: 'Descubriste un pasadizo secreto del castillo.' },
   astronomo:      { id: 'astronomo',      name: 'Astrónomo',              icon: '🔭', desc: 'Trazaste todas las constelaciones mágicas.' },
-  ladron_experto: { id: 'ladron_experto', name: 'Ladrón Experto',         icon: '🗝️', desc: 'Abriste todos los cofres con Alohomora.' }
+  ladron_experto: { id: 'ladron_experto', name: 'Ladrón Experto',         icon: '🗝️', desc: 'Abriste todos los cofres con Alohomora.' },
+  // Tanda 3: clubes extracurriculares y exámenes oficiales.
+  club_esfinge:        { id: 'club_esfinge',        name: 'Esfinge del Club',        icon: '🐈', desc: 'Alcanzaste el nivel 3 del Club de la Esfinge.' },
+  club_esfinge_maestro:{ id: 'club_esfinge_maestro',name: 'Maestro de la Esfinge',  icon: '🐈', desc: 'Alcanzaste el nivel 8 del Club de la Esfinge.' },
+  club_hipogrifo:        { id: 'club_hipogrifo',        name: 'Hipogrifo del Club',   icon: '🦅', desc: 'Alcanzaste el nivel 3 del Club del Hipogrifo.' },
+  club_hipogrifo_maestro:{ id: 'club_hipogrifo_maestro',name: 'Maestro del Hipogrifo',icon: '🦅', desc: 'Alcanzaste el nivel 8 del Club del Hipogrifo.' },
+  club_dragon:        { id: 'club_dragon',        name: 'Dragón del Club',         icon: '🐉', desc: 'Alcanzaste el nivel 3 del Club del Dragón.' },
+  club_dragon_maestro:{ id: 'club_dragon_maestro',name: 'Maestro del Dragón',      icon: '🐉', desc: 'Alcanzaste el nivel 8 del Club del Dragón.' },
+  // Títulos permanentes de los exámenes oficiales (Tanda 3.1).
+  auror_formacion:  { id: 'auror_formacion',  name: 'Auror en formación',  icon: '🛡️', desc: 'Superaste los exámenes con distinción en DCAO.' },
+  sanador:          { id: 'sanador',          name: 'Sanador',             icon: '💊', desc: 'Superaste los exámenes con distinción en Pociones y Herbología.' },
+  magizoologo_exam: { id: 'magizoologo_exam', name: 'Magizoólogo titulado', icon: '🦅', desc: 'Superaste los exámenes con distinción en Criaturas y Herbología.' },
+  encantador_experto:{ id: 'encantador_experto',name: 'Encantador Experto', icon: '✨', desc: 'Superaste los exámenes con distinción en Encantamientos y Transformaciones.' },
+  maestro_pociones: { id: 'maestro_pociones', name: 'Maestro de Pociones',  icon: '🧪', desc: 'Superaste los exámenes con distinción en Pociones.' }
 };
+
+// Número de peinados del catálogo del cliente (index.html: HAIR_STYLES). Se usa
+// para acotar el índice de peinado de cada jugador y evitar valores fuera de rango.
+const HAIR_STYLE_COUNT = 20;
+
+/* ===== BALANCE CENTRALIZADO (Tanda 8.5) =====
+   Fuente de verdad de todas las ganancias de Galeones, costos y XP para que la
+   progresión sea fluida en sesiones grupales de 30–45 min sin inflación. */
+const GAME_BALANCE = {
+  clubs: {
+    xpPerStar: 6,        // XP de club por estrella de clase en materias afines
+    xpPerPractical: 12,  // XP de club por práctica de minijuego de la materia
+    xpPerExploration: 15,// XP de club por hitos de exploración afines (aritmancia…)
+    levelStep: 40,       // XP necesaria por nivel de club
+    maxLevel: 10
+  },
+  potions:  { xp: 22, housePoints: 10, galeones: 6, clubXp: 14 },
+  herbology:{ xp: 20, housePoints: 8,  galeones: 5, clubXp: 12 },
+  exams:    { galeones: 40, housePoints: 25, clubXp: 25 },
+  defense:  { maxPenalty: 15 }
+};
+
+/* ===== CLUBES EXTRACURRICULARES (Tanda 3.2) =====
+   Tres clubes que suben automáticamente al ganar XP en sus materias afines. El
+   servidor es la fuente de verdad: aquí se mapean las materias y los hitos. */
+const CLUBS = {
+  esfinge: {
+    id: 'esfinge', name: 'Club de la Esfinge', icon: '🐈', color: '#4a6ee0',
+    desc: 'Ingenio y precisión: Encantamientos, Astronomía, Transformaciones y Runas.',
+    subjects: ['encantamientos', 'astronomia', 'transformaciones', 'runas']
+  },
+  hipogrifo: {
+    id: 'hipogrifo', name: 'Club del Hipogrifo', icon: '🦅', color: '#e8b930',
+    desc: 'Saberes vivos: Pociones, Herbología y Cuidado de Criaturas Mágicas.',
+    subjects: ['pociones', 'herbologia', 'criaturas']
+  },
+  dragon: {
+    id: 'dragon', name: 'Club del Dragón', icon: '🐉', color: '#c43b34',
+    desc: 'Coraje y acción: Duelos (DCAO), Vuelo y Quidditch.',
+    subjects: ['defensa', 'vuelo', 'quidditch']
+  }
+};
+const CLUB_IDS = Object.keys(CLUBS);
+// Hito de club: nivel en el que se entrega cada recompensa (se aplica al subir).
+const CLUB_MILESTONES = {
+  2:  { galeones: 15 },
+  3:  { title: true, galeones: 20 },     // título del club
+  5:  { cosmetic: true, galeones: 30 },  // insignia del club
+  8:  { titleMaster: true, galeones: 50 }// título de maestro del club
+};
+// Devuelve el id de club al que pertenece una materia (o null).
+function clubForSubject(subject) {
+  const key = String(subject || '').trim().toLowerCase();
+  return CLUB_IDS.find(id => CLUBS[id].subjects.includes(key)) || null;
+}
+// XP acumulada de un club para un jugador (0 si aún no tiene el campo).
+function clubXpOf(user, clubId) {
+  const c = user && user.clubs;
+  return Math.max(0, Number(c && c[clubId]) || 0);
+}
+// Nivel de un club a partir de su XP (1..maxLevel).
+function clubLevelOf(user, clubId) {
+  const xp = clubXpOf(user, clubId);
+  const lvl = Math.floor(xp / GAME_BALANCE.clubs.levelStep) + 1;
+  return Math.max(1, Math.min(GAME_BALANCE.clubs.maxLevel, lvl));
+}
+// Aplica las recompensas de los hitos alcanzados al subir de nivel y devuelve
+// la lista de títulos nuevos. Los hitos ya entregados quedan registrados.
+function applyClubMilestones(user, clubId) {
+  const level = clubLevelOf(user, clubId);
+  user.clubMilestones = (user.clubMilestones && typeof user.clubMilestones === 'object') ? user.clubMilestones : {};
+  const reached = Math.max(0, Math.floor(Number(user.clubMilestones[clubId]) || 0));
+  const newTitles = [];
+  const rewards = [];
+  for (let lv = reached + 1; lv <= level; lv++) {
+    const m = CLUB_MILESTONES[lv];
+    if (!m) continue;
+    if (m.galeones) { user.galeones = (Number(user.galeones) || 0) + m.galeones; rewards.push(`+${m.galeones} 🪙`); }
+    if (m.title && grantTitle(user, `club_${clubId}`)) { newTitles.push(`club_${clubId}`); rewards.push(`🏅 Título del club`); }
+    if (m.titleMaster && grantTitle(user, `club_${clubId}_maestro`)) { newTitles.push(`club_${clubId}_maestro`); rewards.push(`🏅 Maestro del club`); }
+    if (m.cosmetic && COSMETICS[`insignia_${clubId}`]) {
+      user.unlockedCosmetics = Array.isArray(user.unlockedCosmetics) ? user.unlockedCosmetics : [];
+      if (!user.unlockedCosmetics.includes(`insignia_${clubId}`)) {
+        user.unlockedCosmetics.push(`insignia_${clubId}`);
+        rewards.push(`👗 Insignia del club`);
+      }
+    }
+  }
+  user.clubMilestones[clubId] = level;
+  return { newTitles, rewards, level };
+}
+// Suma XP a un club (acotada), aplica hitos y devuelve un resumen.
+function awardClubXp(user, clubId, amount) {
+  if (!user || !CLUBS[clubId]) return null;
+  const add = Math.max(0, Math.min(500, Math.floor(Number(amount) || 0)));
+  if (!add) return null;
+  user.clubs = (user.clubs && typeof user.clubs === 'object') ? user.clubs : {};
+  const before = clubLevelOf(user, clubId);
+  user.clubs[clubId] = clubXpOf(user, clubId) + add;
+  const after = clubLevelOf(user, clubId);
+  const ms = applyClubMilestones(user, clubId);
+  return { clubId, gained: add, xp: user.clubs[clubId], level: after, levelUp: after > before, rewards: ms.rewards, newTitles: ms.newTitles };
+}
+// Resumen de los tres clubes para el expediente del jugador.
+function clubSummary(user) {
+  return CLUB_IDS.map(id => ({
+    id, name: CLUBS[id].name, icon: CLUBS[id].icon, color: CLUBS[id].color, desc: CLUBS[id].desc,
+    xp: clubXpOf(user, id), level: clubLevelOf(user, id),
+    nextLevelXp: clubLevelOf(user, id) * GAME_BALANCE.clubs.levelStep,
+    step: GAME_BALANCE.clubs.levelStep, maxLevel: GAME_BALANCE.clubs.maxLevel
+  }));
+}
+
+/* ===== TANDA 3.3: CALDERO DE POCIONES POR PASOS =====
+   El servidor conoce el orden correcto de los ingredientes, el rango de
+   removidos y el número de aciertos de fuego; valida la partida del cliente
+   antes de conceder ninguna recompensa. */
+const POTION_RECIPES = {
+  filtro_paz: {
+    id: 'filtro_paz', name: 'Filtro de la Paz', icon: '🫧', year: 1, club: 'hipogrifo',
+    desc: 'Un brebaje calmante que serena los ánimos más exaltados.',
+    ingredients: [{ id: 'menta', name: 'Hojas de Menta', icon: '🌿' }, { id: 'lavanda', name: 'Lavanda', icon: '💜' }, { id: 'luna', name: 'Polvo de Luna', icon: '🌙' }],
+    stirs: [4, 7], heat: [2, 4]
+  },
+  amortentia: {
+    id: 'amortentia', name: 'Amortentia', icon: '💗', year: 4, club: 'hipogrifo',
+    desc: 'El filtro de amor más poderoso; cada quien huele lo que más le atrae.',
+    ingredients: [{ id: 'rosa', name: 'Pétalos de Rosa', icon: '🌹' }, { id: 'perla', name: 'Perlas Molidas', icon: '🦪' }, { id: 'sirena', name: 'Escamas de Sirena', icon: '🧜' }, { id: 'menta', name: 'Hojas de Menta', icon: '🌿' }],
+    stirs: [6, 9], heat: [3, 5]
+  },
+  felix: {
+    id: 'felix', name: 'Felix Felicis', icon: '🍀', year: 6, club: 'hipogrifo',
+    desc: 'La suerte líquida: requiere una destreza excepcional en cada paso.',
+    ingredients: [{ id: 'triton', name: 'Huevas de Tritón', icon: '🥚' }, { id: 'ocumo', name: 'Ráiz de Ocomu', icon: '🥕' }, { id: 'escarbato', name: 'Esencia de Escarbato', icon: '🦡' }, { id: 'sol', name: 'Espliego al Sol', icon: '☀️' }],
+    stirs: [8, 11], heat: [4, 6]
+  }
+};
+// Plantas del invernadero (Tanda 3.4): cada una exige una acción correcta y rápida.
+const HERBOLOGY_PLANTS = {
+  mandragora:  { id: 'mandragora',  name: 'Mandrágora',            icon: '🌱', action: 'orejeras',  hint: '¡Ponte las orejeras antes de sacarla!', club: 'hipogrifo' },
+  tentacula:   { id: 'tentacula',   name: 'Tentácula Venenosa',    icon: '🌿', action: 'podar',     hint: 'Poda las zarcillos con las tijeras.',   club: 'hipogrifo' },
+  lazo_diablo: { id: 'lazo_diablo', name: 'Lazo del Diablo',       icon: '🕸️', action: 'lumos',     hint: 'Lánzale Lumos Solem para que retroceda.', club: 'hipogrifo' },
+  bubotubero:  { id: 'bubotubero',  name: 'Bubotubérculo',         icon: '🫧', action: 'drenar',    hint: 'Drena el pus con guantes protectores.',   club: 'hipogrifo' }
+};
+const HERBOLOGY_ACTIONS = {
+  orejeras: { id: 'orejeras', label: 'Ponte las orejeras', icon: '🎧' },
+  podar:    { id: 'podar',    label: 'Poda las zarcillos', icon: '✂️' },
+  lumos:    { id: 'lumos',    label: 'Lanza Lumos Solem',  icon: '🔆' },
+  drenar:   { id: 'drenar',   label: 'Drena con guantes',  icon: '🧤' }
+};
+
+/* ===== TANDA 3.1: EXÁMENES OFICIALES (T.I.M.O. / É.X.T.A.S.I.S.) =====
+   Combina preguntas evaluadas con Groq (con respaldo local) y una prueba
+   práctica. El servidor guarda las respuestas correctas y califica. */
+const EXAM_TYPES = {
+  timo:    { id: 'timo',    name: 'T.I.M.O.',      year: 5, questionCount: 5, passRatio: 0.6, galeones: GAME_BALANCE.exams.galeones, housePoints: GAME_BALANCE.exams.housePoints },
+  extasis: { id: 'extasis', name: 'É.X.T.A.S.I.S.', year: 7, questionCount: 6, passRatio: 0.6, galeones: GAME_BALANCE.exams.galeones * 2, housePoints: GAME_BALANCE.exams.housePoints * 2 }
+};
+// Asignaturas examinables y el título que otorga una distinción (nota alta).
+const EXAM_SUBJECTS = {
+  encantamientos:   { name: 'Encantamientos',        title: 'encantador_experto',   attr: 'attrSabiduria' },
+  transformaciones: { name: 'Transformaciones',       title: 'encantador_experto',   attr: 'attrValentia' },
+  pociones:         { name: 'Pociones',               title: 'maestro_pociones',     attr: 'attrSabiduria' },
+  herbologia:       { name: 'Herbología',             title: 'magizoologo_exam',     attr: 'attrEmpatia' },
+  criaturas:        { name: 'Cuidado de Criaturas',   title: 'magizoologo_exam',     attr: 'attrEmpatia' },
+  defensa:          { name: 'DCAO',                   title: 'auror_formacion',      attr: 'attrValentia' },
+  historia:         { name: 'Historia de la Magia',   title: null,                   attr: 'attrSabiduria' },
+  astronomia:       { name: 'Astronomía',             title: null,                   attr: 'attrSabiduria' }
+};
+const EXAM_SUBJECT_IDS = Object.keys(EXAM_SUBJECTS);
 
 // Guardarropa: prendas cosméticas desbloqueables y equipables. Debe incluir
 // TODAS las prendas icónicas del cliente (ICONIC_COSMETICS) para no borrar los
@@ -1486,7 +1709,11 @@ const COSMETICS = {
   insignia_percy:  { id: 'insignia_percy',  name: 'Insignia de Prefecto',        icon: '📛' },
   guantes_oliver:  { id: 'guantes_oliver',  name: 'Guantes de Quidditch',        icon: '🧤' },
   escudo_ernie:    { id: 'escudo_ernie',    name: 'Escudo de Hufflepuff',        icon: '🛡️' },
-  tunica_gala:     { id: 'tunica_gala',     name: 'Túnicas de Gala',             icon: '🎩' }
+  tunica_gala:     { id: 'tunica_gala',     name: 'Túnicas de Gala',             icon: '🎩' },
+  // Tanda 3: insignias de los clubes extracurriculares.
+  insignia_esfinge:   { id: 'insignia_esfinge',   name: 'Insignia del Club de la Esfinge',   icon: '🐈' },
+  insignia_hipogrifo: { id: 'insignia_hipogrifo', name: 'Insignia del Club del Hipogrifo',   icon: '🦅' },
+  insignia_dragon:    { id: 'insignia_dragon',    name: 'Insignia del Club del Dragón',      icon: '🐉' }
 };
 
 // Bestiario: criaturas mágicas que se registran al interactuar con ellas.
@@ -2008,6 +2235,18 @@ function mergeServerAuthority(serverUser, incomingUser) {
   }
   // Contador de repeticiones de la ceremonia: solo crece (anti-abuso).
   out.wandRedos = Math.max(0, Number(serverUser.wandRedos) || 0, Number(incomingUser.wandRedos) || 0);
+  // Clubes extracurriculares (Tanda 3.2): la XP de cada club y sus hitos son
+  // autoritativos del servidor. El servidor es el único que concede XP de club
+  // (por clases, pociones, herbología y exámenes), así que un cliente con datos
+  // obsoletos o manipulados nunca puede sobrescribirlos.
+  out.clubs = { ...(incomingUser.clubs || {}), ...(serverUser.clubs || {}) };
+  out.clubMilestones = { ...(incomingUser.clubMilestones || {}), ...(serverUser.clubMilestones || {}) };
+  // Exámenes oficiales (Tanda 3.1): el resultado de cada asignatura y los
+  // contadores de intentos/defensas también son autoritativos del servidor.
+  out.exams = { ...(incomingUser.exams || {}), ...(serverUser.exams || {}) };
+  out.examAttempts = Math.max(0, Number(serverUser.examAttempts) || 0, Number(incomingUser.examAttempts) || 0);
+  out.defenseCount = Math.max(0, Number(serverUser.defenseCount) || 0, Number(incomingUser.defenseCount) || 0);
+  out.defenseGraceUntil = Math.max(0, Number(serverUser.defenseGraceUntil) || 0);
   return out;
 }
 
@@ -2129,6 +2368,19 @@ function sanitizeState(state) {
     });
     if (typeof u.inmunidadFilchHasta !== 'number') u.inmunidadFilchHasta = 0;
     if (typeof u.buffDobleGaleon !== 'boolean') u.buffDobleGaleon = false;
+    // Apariencia (avatar): se normaliza para que un guardado antiguo sin los
+    // campos nuevos (p. ej. `pacifier`) no rompa el renderizado del cliente.
+    // El chupón es OPCIONAL y queda desactivado por defecto.
+    if (!u.look || typeof u.look !== 'object') u.look = {};
+    u.look.pacifier = u.look.pacifier === true;
+    const hairIdx = Math.floor(Number(u.look.hair));
+    u.look.hair = (Number.isFinite(hairIdx) && hairIdx >= 0 && hairIdx < HAIR_STYLE_COUNT) ? hairIdx : 0;
+    ['skin', 'hairColor', 'eyeColor', 'features', 'clothing', 'eyes'].forEach(k => {
+      const n = Math.floor(Number(u.look[k]));
+      u.look[k] = Number.isFinite(n) && n >= 0 ? n : 0;
+    });
+    if (typeof u.look.style !== 'string') u.look.style = 'corto';
+    if (typeof u.look.facialHair !== 'string') u.look.facialHair = 'none';
     if (typeof u.pet === 'undefined') u.pet = null;
     if (typeof u.petLastUse === 'undefined') u.petLastUse = null;
     if (typeof u.petLastPlay === 'undefined') u.petLastPlay = null;
@@ -2181,6 +2433,26 @@ function sanitizeState(state) {
     u.unlockedCosmetics = cleanCosmeticIds(u.unlockedCosmetics).filter(id => !!COSMETICS[id]);
     u.equippedCosmetics = cleanIds(u.equippedCosmetics).filter(id => u.unlockedCosmetics.includes(id));
     u.bestiary = cleanIds(u.bestiary).filter(id => !!CREATURES[id]);
+    // Clubes extracurriculares (Tanda 3.2): XP por club y hitos ya entregados.
+    // Retrocompatible: un guardado sin `clubs` arranca los tres en cero.
+    u.clubs = (u.clubs && typeof u.clubs === 'object' && !Array.isArray(u.clubs)) ? u.clubs : {};
+    CLUB_IDS.forEach(id => {
+      const v = Math.floor(Number(u.clubs[id]));
+      u.clubs[id] = (Number.isFinite(v) && v >= 0) ? Math.min(99999, v) : 0;
+    });
+    Object.keys(u.clubs).forEach(k => { if (!CLUBS[k]) delete u.clubs[k]; });
+    u.clubMilestones = (u.clubMilestones && typeof u.clubMilestones === 'object' && !Array.isArray(u.clubMilestones)) ? u.clubMilestones : {};
+    CLUB_IDS.forEach(id => {
+      const v = Math.floor(Number(u.clubMilestones[id]));
+      const lvl = clubLevelOf(u, id);
+      u.clubMilestones[id] = (Number.isFinite(v) && v >= 0 && v <= lvl) ? v : lvl;
+    });
+    // Exámenes oficiales (Tanda 3.1): resultados T.I.M.O./É.X.T.A.S.I.S. y
+    // contador de defensas verbales. Retrocompatible con guardados antiguos.
+    u.exams = (u.exams && typeof u.exams === 'object' && !Array.isArray(u.exams)) ? u.exams : {};
+    if (typeof u.examAttempts !== 'number' || Number.isNaN(u.examAttempts)) u.examAttempts = 0;
+    if (typeof u.defenseCount !== 'number' || Number.isNaN(u.defenseCount)) u.defenseCount = 0;
+    if (typeof u.defenseGraceUntil !== 'number' || Number.isNaN(u.defenseGraceUntil)) u.defenseGraceUntil = 0;
     // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
     const bm = Math.floor(Number(u.birthMonth));
     const bd = Math.floor(Number(u.birthDay));
@@ -2280,7 +2552,9 @@ function sanitizeState(state) {
   return state;
 }
 
-const DB_FILE = path.join(__dirname, 'db.json');
+// Ruta del respaldo local. Se puede sobrescribir con DB_FILE para que las
+// pruebas de integración no contaminen el db.json real del proyecto.
+const DB_FILE = process.env.DB_FILE ? path.resolve(process.env.DB_FILE) : path.join(__dirname, 'db.json');
 let memoryState = sanitizeState(defaultDb());
 if (fs.existsSync(DB_FILE)) {
   try {
@@ -2834,7 +3108,20 @@ io.on('connection', async (socket) => {
     // cofres): el servidor es la fuente de verdad de sus definiciones.
     socket.emit('exploration:catalog', PHASE2_CATALOGS);
     // Catálogo oficial de varitas (maderas y núcleos con lore) para el Expediente.
-    socket.emit('wand:catalog', { woods: WAND_WOODS, cores: WAND_CORES });
+    // Se incluye también el catálogo de prendas para que el Guardarropa pueda
+    // dibujar cualquier prenda desbloqueada (incluidas las de los clubes).
+    socket.emit('wand:catalog', { woods: WAND_WOODS, cores: WAND_CORES, cosmetics: COSMETICS });
+    // Catálogo de la Tanda 3: clubes, recetas de pociones, plantas de herbología y
+    // exámenes. El servidor valida contra estas definiciones (nunca el cliente).
+    socket.emit('phase3:catalog', {
+      clubs: clubSummary({ clubs: {}, clubMilestones: {} }).map(c => ({
+        id: c.id, name: c.name, icon: c.icon, color: c.color, desc: c.desc, step: c.step, maxLevel: c.maxLevel
+      })),
+      clubsMeta: CLUBS,
+      potions: Object.values(POTION_RECIPES).map(r => ({ id: r.id, name: r.name, icon: r.icon, year: r.year, desc: r.desc, ingredients: r.ingredients, stirs: r.stirs, heat: r.heat })),
+      herbology: { plants: Object.values(HERBOLOGY_PLANTS), actions: Object.values(HERBOLOGY_ACTIONS) },
+      exams: { types: EXAM_TYPES, subjects: EXAM_SUBJECTS }
+    });
 
     // ⬅️ AÑADIDO: rate-limit por socket (máx. ~20 sync/s)
     let lastSyncAt = 0;
@@ -3807,7 +4094,12 @@ io.on('connection', async (socket) => {
           spells: Array.isArray(u.spells) ? u.spells.length : 0,
           classStars: u.classStars || {}
         },
-        attrValentia: u.attrValentia, attrEmpatia: u.attrEmpatia, attrSabiduria: u.attrSabiduria
+        attrValentia: u.attrValentia, attrEmpatia: u.attrEmpatia, attrSabiduria: u.attrSabiduria,
+        // Tanda 3: clubes extracurriculares, exámenes oficiales y defensas.
+        clubs: clubSummary(u),
+        exams: u.exams || {},
+        examAttempts: Number(u.examAttempts) || 0,
+        defenseCount: Number(u.defenseCount) || 0
       };
     };
 
@@ -3896,6 +4188,345 @@ io.on('connection', async (socket) => {
         socket.emit('profile:update', { ...profileSummary(u), event: 'creature', creatureId: id, newTitles: newly });
       } catch (err) {
         console.error('Error registrando criatura:', err.message);
+      }
+    });
+
+    /* ===== TANDA 3: ATRIBUTOS EFECTIVOS Y PASIVA DE VARITA =====
+       Valentía/Empatía efectivas incluyen la pasiva del núcleo (Dragón/Unicornio),
+       igual que en el cliente, para validar las defensas verbales con justicia. */
+    const effectiveAttr = (u, key) => {
+      let base = Number(u[key]) || 0;
+      const core = u.wand && u.wand.core;
+      if (core === 'dragon' && key === 'attrValentia') base += 1;
+      if (core === 'unicornio' && key === 'attrEmpatia') base += 1;
+      return base;
+    };
+    // ¿Puede el jugador presentarse a un examen de este tipo? (curso suficiente)
+    const examAvailable = (u, examType) => {
+      const t = EXAM_TYPES[examType];
+      if (!t) return false;
+      const yr = userYear(memoryState, u);
+      return yr >= t.year;
+    };
+
+    /* ===== TANDA 3.3: CALDERO DE POCIONES (validado en servidor) ===== */
+    // El cliente envía la partida; el servidor verifica cada paso contra la receta.
+    socket.on('potion:brew', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const recipeId = String((data && data.recipeId) || '');
+        const recipe = POTION_RECIPES[recipeId];
+        if (!recipe) return;
+        if (userYear(memoryState, u) < recipe.year) {
+          socket.emit('potion:result', { ok: false, message: `Necesitas ${recipe.year}.º curso para elaborar ${recipe.name}.` });
+          return;
+        }
+        // Orden de ingredientes elegido por el jugador.
+        const chosen = Array.isArray(data && data.ingredients) ? data.ingredients.map(String) : [];
+        const correctOrder = recipe.ingredients.map(i => i.id);
+        const ingredientsOk = chosen.length === correctOrder.length
+          && chosen.every((id, i) => id === correctOrder[i]);
+        // Removidos en círculo y aciertos de fuego.
+        const stirs = Math.floor(Number(data && data.stirs) || 0);
+        const [sMin, sMax] = recipe.stirs;
+        const stirsOk = stirs >= sMin && stirs <= sMax;
+        const heat = Math.floor(Number(data && data.heat) || 0);
+        const [hMin, hMax] = recipe.heat;
+        const heatOk = heat >= hMin && heat <= hMax;
+        const success = ingredientsOk && stirsOk && heatOk;
+        if (!success) {
+          const fails = [];
+          if (!ingredientsOk) fails.push('el orden de los ingredientes');
+          if (!stirsOk) fails.push('el número de removidos');
+          if (!heatOk) fails.push('el punto del fuego');
+          socket.emit('potion:result', { ok: false, recipeId, message: `La poción se arruinó: revisa ${fails.join(', ')}.` });
+          return;
+        }
+        // Recompensa validada en el servidor.
+        const b = GAME_BALANCE.potions;
+        u.points = (Number(u.points) || 0) + b.housePoints;
+        u.galeones = (Number(u.galeones) || 0) + b.galeones;
+        u.flight_xp = (Number(u.flight_xp) || 0) + b.xp;
+        u.attrSabiduria = (Number(u.attrSabiduria) || 0) + 1;
+        u.inv = (u.inv && typeof u.inv === 'object') ? u.inv : {};
+        u.inv[recipe.id] = (Number(u.inv[recipe.id]) || 0) + 1;
+        const club = awardClubXp(u, recipe.club, b.clubXp);
+        const newly = syncTitleUnlocks(u);
+        reconcileHousePoints(memoryState);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('potion:result', {
+          ok: true, recipeId, potion: { id: recipe.id, name: recipe.name, icon: recipe.icon },
+          reward: { points: b.housePoints, galeones: b.galeones, xp: b.xp, sabiduria: 1 },
+          club, newTitles: newly, profile: profileSummary(u)
+        });
+      } catch (err) {
+        console.error('Error elaborando poción:', err.message);
+      }
+    });
+
+    /* ===== TANDA 3.4: CLASIFICACIÓN DE PLANTAS (Invernaderos) ===== */
+    // El cliente envía la acción elegida para cada planta; el servidor verifica
+    // que coincide con la acción correcta y que se hizo a tiempo (reflejos).
+    socket.on('herbology:care', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const plantId = String((data && data.plantId) || '');
+        const plant = HERBOLOGY_PLANTS[plantId];
+        if (!plant) return;
+        if (String(u.loc || '') !== 'invernaderos') {
+          socket.emit('herbology:result', { ok: false, message: 'Las plantas solo se cuidan en los Invernaderos.' });
+          return;
+        }
+        const action = String((data && data.action) || '');
+        const correct = action === plant.action;
+        if (!correct) {
+          socket.emit('herbology:result', { ok: false, plantId, message: `Acción incorrecta con ${plant.name}. ${plant.hint}` });
+          return;
+        }
+        const b = GAME_BALANCE.herbology;
+        u.points = (Number(u.points) || 0) + b.housePoints;
+        u.galeones = (Number(u.galeones) || 0) + b.galeones;
+        u.flight_xp = (Number(u.flight_xp) || 0) + b.xp;
+        u.attrEmpatia = (Number(u.attrEmpatia) || 0) + 1;
+        // La criatura/planta queda registrada en el Bestiario si procede.
+        if (CREATURES[plantId]) {
+          u.bestiary = Array.isArray(u.bestiary) ? u.bestiary : [];
+          if (!u.bestiary.includes(plantId)) u.bestiary.push(plantId);
+        }
+        const club = awardClubXp(u, plant.club, b.clubXp);
+        const newly = syncTitleUnlocks(u);
+        reconcileHousePoints(memoryState);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('herbology:result', {
+          ok: true, plantId, plant: { id: plant.id, name: plant.name, icon: plant.icon },
+          reward: { points: b.housePoints, galeones: b.galeones, xp: b.xp, empatia: 1 },
+          club, newTitles: newly, profile: profileSummary(u)
+        });
+      } catch (err) {
+        console.error('Error cuidando planta:', err.message);
+      }
+    });
+
+    /* ===== TANDA 3.2: CLUBES EXTRACURRICULARES =====
+       El cliente avisa de la finalización de una clase (que ya gestiona de forma
+       local, como en la Tanda 1); el servidor valida la asignatura y concede la
+       XP de club correspondiente. Las estrellas se acotan para evitar abusos. */
+    socket.on('class:complete', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const subjectKey = String((data && data.subject) || '').trim().toLowerCase();
+        const clubId = clubForSubject(subjectKey);
+        if (!clubId) return;
+        const stars = Math.max(1, Math.min(5, Math.floor(Number(data && data.stars) || 1)));
+        const practical = data && data.practical === true;
+        const perStar = practical ? GAME_BALANCE.clubs.xpPerPractical : GAME_BALANCE.clubs.xpPerStar;
+        const amount = perStar * stars;
+        const club = awardClubXp(u, clubId, amount);
+        if (!club) return;
+        await saveState(memoryState);
+        socket.emit('club:update', { clubId, clubs: clubSummary(u), club, newTitles: club.newTitles });
+        // Si la XP de club desbloqueó títulos, se reflejan en el estado global.
+        if (club.newTitles && club.newTitles.length) io.emit('sync_db', { db: memoryState, reason: null });
+      } catch (err) {
+        console.error('Error registrando clase para clubes:', err.message);
+      }
+    });
+
+    /* ===== TANDA 3.1: EXÁMENES OFICIALES T.I.M.O. / É.X.T.A.S.I.S. =====
+       Las respuestas correctas NUNCA salen del servidor: se guardan en memoria
+       por socket y el cliente solo recibe los enunciados. La calificación, las
+       recompensas y los títulos se aplican aquí tras validar el resultado. */
+    socket.on('exam:start', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const examType = String((data && data.examType) || 'timo');
+        const subjectKey = String((data && data.subject) || '');
+        const t = EXAM_TYPES[examType];
+        if (!t || !EXAM_SUBJECTS[subjectKey]) return;
+        if (!examAvailable(u, examType)) {
+          socket.emit('exam:error', { message: `Los exámenes ${t.name} son de ${t.year}.º curso o superior.` });
+          return;
+        }
+        const year = userYear(memoryState, u);
+        const questions = await generateExamQuestions(subjectKey, t.questionCount, t.name, year);
+        if (!questions.length) {
+          socket.emit('exam:error', { message: 'No se pudieron preparar las preguntas del examen.' });
+          return;
+        }
+        // Se guarda la solución en el servidor y se envía al cliente sin ella.
+        socket.data.exam = {
+          examType, subjectKey, startedAt: Date.now(),
+          questions: questions.map(q => ({ question: q.question, options: q.options, correctIndex: q.correctIndex }))
+        };
+        socket.emit('exam:questions', {
+          examType, subjectKey, examName: t.name, subjectName: EXAM_SUBJECTS[subjectKey].name,
+          questions: questions.map(q => ({ question: q.question, options: q.options })),
+          practical: true
+        });
+      } catch (err) {
+        console.error('Error iniciando examen:', err.message);
+        socket.emit('exam:error', { message: 'El examen no pudo comenzar.' });
+      }
+    });
+
+    socket.on('exam:submit', async (data) => {
+      try {
+        const u = profileUser();
+        const sess = socket.data && socket.data.exam;
+        if (!u || !sess) {
+          socket.emit('exam:error', { message: 'No hay un examen en curso.' });
+          return;
+        }
+        const t = EXAM_TYPES[sess.examType];
+        const subjectKey = sess.subjectKey;
+        const subject = EXAM_SUBJECTS[subjectKey];
+        // Calificación de las preguntas teóricas.
+        const answers = Array.isArray(data && data.answers) ? data.answers : [];
+        let correct = 0;
+        sess.questions.forEach((q, i) => {
+          if (Math.floor(Number(answers[i])) === q.correctIndex) correct++;
+        });
+        const theoryRatio = correct / sess.questions.length;
+        // Prueba práctica: el cliente envía su resultado (booleano validado).
+        const practical = data && data.practical === true;
+        // Nota global: la teoría pesa 2/3 y la práctica 1/3.
+        const score = Math.round((theoryRatio * 0.66 + (practical ? 0.34 : 0)) * 100);
+        const passed = theoryRatio >= t.passRatio && practical;
+        const distinction = passed && score >= 85;
+        // La respuesta del servidor se invalida siempre tras corregir.
+        socket.data.exam = null;
+        if (!passed) {
+          u.examAttempts = (Number(u.examAttempts) || 0) + 1;
+          await saveState(memoryState);
+          socket.emit('exam:result', { ok: false, examType: sess.examType, subjectKey, score, correct, total: sess.questions.length, passed: false, message: 'No alcanzaste la nota mínima. ¡Inténtalo de nuevo tras repasar!' });
+          return;
+        }
+        // Recompensas validadas en el servidor.
+        u.points = (Number(u.points) || 0) + t.housePoints;
+        u.galeones = (Number(u.galeones) || 0) + t.galeones;
+        u.flight_xp = (Number(u.flight_xp) || 0) + 20;
+        if (subject.attr) u[subject.attr] = (Number(u[subject.attr]) || 0) + 2;
+        u.examAttempts = (Number(u.examAttempts) || 0) + 1;
+        u.exams = (u.exams && typeof u.exams === 'object') ? u.exams : {};
+        const prev = u.exams[subjectKey] || {};
+        u.exams[subjectKey] = {
+          examType: sess.examType,
+          best: Math.max(Number(prev.best) || 0, score),
+          last: score,
+          distinction: !!(prev.distinction || distinction),
+          at: Date.now()
+        };
+        const newTitles = [];
+        if (distinction && subject.title && grantTitle(u, subject.title)) newTitles.push(subject.title);
+        // Los exámenes alimentan el club afín.
+        const clubId = clubForSubject(subjectKey);
+        const club = clubId ? awardClubXp(u, clubId, GAME_BALANCE.exams.clubXp) : null;
+        const synced = syncTitleUnlocks(u);
+        synced.forEach(id => { if (!newTitles.includes(id)) newTitles.push(id); });
+        reconcileHousePoints(memoryState);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('exam:result', {
+          ok: true, examType: sess.examType, subjectKey, score, correct, total: sess.questions.length,
+          passed: true, distinction,
+          reward: { points: t.housePoints, galeones: t.galeones, xp: 20, attr: subject.attr ? 2 : 0 },
+          title: distinction ? subject.title : null,
+          club, newTitles, profile: profileSummary(u)
+        });
+      } catch (err) {
+        console.error('Error corrigiendo examen:', err.message);
+      }
+    });
+
+    /* ===== TANDA 3.5: DEFENSA VERBAL ANTE McGONAGALL / PREFECTOS =====
+       El jugador escribe una excusa; Groq la evalúa considerando sus atributos
+       actuales (Valentía, Empatía, Sabiduría, con la pasiva de varita incluida).
+       Un buen argumento evita o reduce el castigo; uno malo lo empeora. */
+    socket.on('defense:argue', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const message = String((data && data.message) || '').trim().slice(0, 500);
+        if (!message) {
+          socket.emit('defense:result', { ok: false, message: 'Escribe tu excusa antes de defenderte.' });
+          return;
+        }
+        const profName = String((data && data.professor) || 'Minerva McGonagall').slice(0, 60);
+        const profId = String((data && data.professorId) || 'mcgonagall').slice(0, 40);
+        const basePenalty = Math.max(0, Math.min(GAME_BALANCE.defense.maxPenalty, Math.floor(Number(data && data.basePenalty) || 10)));
+        const val = effectiveAttr(u, 'attrValentia');
+        const emp = effectiveAttr(u, 'attrEmpatia');
+        const sab = effectiveAttr(u, 'attrSabiduria');
+
+        // Respaldo si la IA no está disponible: evaluación por atributos + longitud.
+        let verdict;
+        if (AI_ENABLED) {
+          try {
+            const systemPrompt = `Eres ${profName}, profesor de Hogwarts, evaluando la excusa de un alumno sorprendido fuera de la cama tras el toque de queda. ` +
+              `Considera sus atributos: Valentía ${val}, Empatía ${emp}, Sabiduría ${sab}. Una excusa sincera, respetuosa e ingeniosa convence; una insolente o incoherente empeora el castigo. ` +
+              `Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"success":true o false,"quality":número de 0 a 100,"reply":"tu respuesta en una o dos frases, en español, en personaje"}.`;
+            const parsed = await aiChatJSON({ systemPrompt, userPrompt: `La excusa del alumno ${u.username} es: "${message}"`, maxTokens: 320, temperature: 0.8 });
+            const success = parsed.success === true || parsed.success === 'true';
+            const quality = Math.max(0, Math.min(100, Math.round(Number(parsed.quality) || (success ? 70 : 30))));
+            const reply = String(parsed.reply || parsed.message || '').trim().slice(0, 300)
+              || (success ? 'Acepto tu explicación. Esta vez.' : 'Tu excusa no es convincente.');
+            verdict = { success, quality, reply };
+          } catch (err) {
+            console.error('Error en defensa verbal con Groq:', err.message);
+          }
+        }
+        if (!verdict) {
+          // Heurística local: atributos + riqueza del texto.
+          const len = message.split(/\s+/).filter(Boolean).length;
+          const attrScore = val * 2 + emp * 2 + sab * 2;
+          const quality = Math.max(0, Math.min(100, 30 + attrScore + Math.min(30, len)));
+          verdict = {
+            success: quality >= 55,
+            quality,
+            reply: quality >= 55
+              ? `Hum… con ${sab} de Sabiduría se te da bien argumentar. Acepto tu explicación, ${u.username}.`
+              : `No cuela, ${u.username}. A la cama, y mañana hablamos.`
+          };
+        }
+
+        // Consecuencias validadas en el servidor.
+        let penalty = basePenalty;
+        let reward = null;
+        if (verdict.success) {
+          // La calidad del argumento reduce el castigo proporcionalmente.
+          penalty = Math.max(0, Math.round(basePenalty * (1 - verdict.quality / 100)));
+          reward = { points: 5, xp: 8 };
+          u.flight_xp = (Number(u.flight_xp) || 0) + reward.xp;
+          u.attrSabiduria = (Number(u.attrSabiduria) || 0) + 1;
+        } else {
+          penalty = Math.min(GAME_BALANCE.defense.maxPenalty, basePenalty + 5);
+        }
+        if (penalty > 0) {
+          u.points = Math.max(0, (Number(u.points) || 0) - penalty);
+        }
+        u.defenseCount = (Number(u.defenseCount) || 0) + 1;
+        // Aplica afinidad con el profesor: una buena defensa suma, una mala resta.
+        memoryState.profAffinity = memoryState.profAffinity || {};
+        const byUser = memoryState.profAffinity[u.id] = memoryState.profAffinity[u.id] || {};
+        const delta = verdict.success ? 3 : -2;
+        byUser[profId] = Math.max(0, Math.min(100, (Number(byUser[profId]) || 0) + delta));
+        // Tras una defensa exitosa, el jugador evita la detención: pequeña gracia.
+        if (verdict.success) u.defenseGraceUntil = Date.now() + 30000;
+        reconcileHousePoints(memoryState);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('defense:result', {
+          ok: true, success: verdict.success, quality: verdict.quality, reply: verdict.reply,
+          penalty, reward, professor: profName, profile: profileSummary(u)
+        });
+      } catch (err) {
+        console.error('Error en defensa verbal:', err.message);
       }
     });
 
@@ -4130,5 +4761,21 @@ module.exports = {
   alohomoraLevelFor,
   catalogById,
   grantCromoByRarity,
-  applyCatalogReward
+  applyCatalogReward,
+  // Tanda 3: clubes, pociones, herbología y exámenes.
+  GAME_BALANCE,
+  CLUBS,
+  CLUB_IDS,
+  clubForSubject,
+  clubXpOf,
+  clubLevelOf,
+  awardClubXp,
+  clubSummary,
+  POTION_RECIPES,
+  HERBOLOGY_PLANTS,
+  HERBOLOGY_ACTIONS,
+  EXAM_TYPES,
+  EXAM_SUBJECTS,
+  EXAM_SUBJECT_IDS,
+  generateExamQuestions
 };
