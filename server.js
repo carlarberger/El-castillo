@@ -3257,16 +3257,46 @@ function pruneTombstonesForLiveUsers(tombstones, users) {
   return sanitizeDeletedUsers(out);
 }
 
-function mergeUsers(serverUsers, incomingUsers, deletedList) {
+// Fusiona el estado de usuarios del cliente con el del servidor (unión por id).
+// Devuelve la lista fusionada y, si se pasa `remaps`, registra ahí las
+// reasignaciones de id que hayan sido necesarias.
+//
+// El cliente calcula el id de un personaje nuevo como `max(id)+1` sobre su
+// copia LOCAL de la base. Si esa copia está obsoleta (solo NPCs) o dos clientes
+// registran a la vez, dos personajes distintos reciben el MISMO id. Como la
+// fusión es por id, el personaje nuevo sobrescribiría al jugador real que ya
+// tenía ese id (su nombre y contraseña desaparecían). Para evitarlo, un
+// personaje recién creado se marca con `newChar` y, si su id ya pertenece a
+// otro jugador real, se le asigna un id libre conservando intacto al existente.
+// El remap se comunica al cliente para que su sesión apunte al id definitivo.
+function mergeUsers(serverUsers, incomingUsers, deletedList, remaps) {
   const server = Array.isArray(serverUsers) ? serverUsers : [];
   const incoming = Array.isArray(incomingUsers) ? incomingUsers : [];
   const tombstones = sanitizeDeletedUsers(deletedList);
   const serverById = new Map(server.filter(u => u && u.id != null).map(u => [Number(u.id), u]));
   const incomingIds = new Set(incoming.filter(u => u && u.id != null).map(u => Number(u.id)));
 
+  const recordRemap = (from, to) => {
+    if (!remaps) return;
+    if (remaps instanceof Map) remaps.set(Number(from), Number(to));
+    else remaps[from] = to;
+  };
+  // Reserva de ids libres para reasignar colisiones sin tocar a los existentes.
+  const usedIds = new Set(server.filter(u => u && u.id != null).map(u => Number(u.id)));
+  let nextFreeId = Math.max(10, ...usedIds,
+    ...incoming.filter(u => u && u.id != null).map(u => Number(u.id))) + 1;
+  const allocId = () => {
+    while (usedIds.has(nextFreeId)) nextFreeId++;
+    usedIds.add(nextFreeId);
+    return nextFreeId;
+  };
+
   const merged = [];
-  incoming.forEach(u => {
-    if (!u || u.id == null) return;
+  incoming.forEach(raw => {
+    if (!raw || raw.id == null) return;
+    const isNewChar = !!raw.newChar;
+    let u = raw;
+    if (isNewChar) { u = { ...raw }; delete u.newChar; }
     const sv = serverById.get(Number(u.id));
     // Un usuario eliminado por el administrador no puede resucitar desde el
     // cliente. Por id SIEMPRE se descarta; por nombre solo se admite si es un
@@ -3277,6 +3307,19 @@ function mergeUsers(serverUsers, incomingUsers, deletedList) {
       if (tombstones.some(e => e.id != null && Number(e.id) === Number(u.id))) return;
       if (tombstones.some(e => e.name && e.name === normUserName(u.username))
           && !(u.pass && !sv)) return;
+    }
+    // Colisión de id: un personaje recién creado cuyo id ya pertenece a otro
+    // jugador real del servidor recibe un id libre; el jugador existente se
+    // conserva intacto. Así el personaje nuevo nunca sobrescribe a nadie. El
+    // nombre distinto evita reasignar si el id ya es de la misma cuenta (p. ej.
+    // si el flag `newChar` se reenviara tras la primera sincronización).
+    if (isNewChar && isRealUser(u) && sv && isRealUser(sv)
+        && normUserName(sv.username) !== normUserName(u.username)) {
+      const fresh = allocId();
+      recordRemap(Number(u.id), fresh);
+      incomingIds.delete(Number(u.id)); // el id original sigue siendo del servidor
+      merged.push({ ...u, id: fresh });
+      return;
     }
     if (sv && isRealUser(sv) && !isRealUser(u)) { merged.push(sv); return; }
     // Una cuenta protegida no puede quedar sin contraseña: un cliente obsoleto
@@ -4406,16 +4449,47 @@ io.on('connection', async (socket) => {
         // Los usuarios reales del servidor NUNCA se pueden borrar por un cliente
         // con datos obsoletos o por defecto (solo NPCs). Se hace al final para
         // que las fusiones anteriores usen la lista aceptada por el cliente.
-        data.db.users = mergeUsers((memoryState && memoryState.users) || [], liveUsers, data.db.deletedUserIds);
-        if (!data.db.users.some(isRealUser) && (memoryState && memoryState.users || []).some(isRealUser)) {
+        const serverUsers = (memoryState && memoryState.users) || [];
+        const serverRealIds = new Set(serverUsers.filter(isRealUser).map(u => Number(u.id)));
+        // Personaje recién creado por este cliente (id local): se marca para que
+        // la fusión le asigne un id libre si colisiona con otro jugador real. Se
+        // toma la ÚLTIMA coincidencia porque el cliente añade el personaje nuevo
+        // al final del array (si comparte id con uno ya conocido, el primero es
+        // el preexistente y el último el recién creado).
+        const newCharId = Number(data.newCharId) || 0;
+        if (newCharId) {
+          for (let i = liveUsers.length - 1; i >= 0; i--) {
+            const u = liveUsers[i];
+            if (u && !u.is_npc && Number(u.id) === newCharId) { u.newChar = true; break; }
+          }
+        }
+        const remaps = new Map();
+        data.db.users = mergeUsers(serverUsers, liveUsers, data.db.deletedUserIds, remaps);
+        if (!data.db.users.some(isRealUser) && serverUsers.some(isRealUser)) {
           console.log('⛔ sync_db rechazado: eliminaría a todos los jugadores reales.');
           socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Protección de datos)' });
           return;
         }
+        // Personajes realmente nuevos (id que el servidor no conocía como jugador
+        // real): se persisten y se difunden de inmediato para que aparezcan al
+        // instante en la lista de alumnos de todos los clientes.
+        const newRealUsers = data.db.users.filter(u => isRealUser(u) && !serverRealIds.has(Number(u.id)));
         // Una cuenta recreada con contraseña nueva deja de estar bloqueada.
         data.db.deletedUserIds = pruneTombstonesForLiveUsers(data.db.deletedUserIds, data.db.users);
 
         await saveState(data.db);
+
+        // Si al cliente que registró se le reasignó el id (colisión), se corrige
+        // su identidad y su sala privada para que la sesión apunte al id real.
+        if (remaps.size) {
+          const myId = Number(socket.data && socket.data.userId);
+          if (remaps.has(myId)) {
+            const fixedId = remaps.get(myId);
+            try { socket.leave('user:' + myId); } catch (e) { /* sala inexistente */ }
+            socket.join('user:' + fixedId);
+            socket.data.userId = fixedId;
+          }
+        }
 
         // El usuario recién creado/actualizado puede estar identificado: se
         // reintenta la presencia ahora que existe en el estado del servidor.
@@ -4428,10 +4502,17 @@ io.on('connection', async (socket) => {
           console.error('Error registrando presencia tras sync_db:', err.message);
         }
 
-        socket.broadcast.emit('sync_db', {
-          db: memoryState,
-          reason: data.reason || null
-        });
+        if (newRealUsers.length) {
+          console.log(`✨ sync_db: ${newRealUsers.length} personaje(s) nuevo(s): ${newRealUsers.map(u => u.username).join(', ')}`);
+        }
+
+        // El estado fusionado se difunde a TODOS para que el personaje nuevo
+        // aparezca al instante en la lista de alumnos de cada cliente. Al autor
+        // se le envía sin `reason` (ya conoce su propia acción, no debe repetir
+        // el aviso "En vivo") pero con el `remap` de id si lo hubo; los demás
+        // reciben el motivo para el aviso en vivo.
+        socket.emit('sync_db', { db: memoryState, reason: null, remaps: remaps.size ? Object.fromEntries(remaps) : null });
+        socket.broadcast.emit('sync_db', { db: memoryState, reason: data.reason || null });
       }
     });
 
