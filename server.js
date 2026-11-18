@@ -1294,6 +1294,8 @@ function defaultDb() {
     // cliente con datos obsoletos reintroduzca una solicitud ya cerrada.
     friendRequestsDone: [],
     profAffinity: {},
+    // Apariencia personalizada de los profesores (no son usuarios): { [profId]: look }
+    profLooks: {},
     raidShield: 100,
     chat: [
       { id: 1, u: '🤖 Hermione Granger', h: 'gryffindor', role: 'student', ch: 'global', text: '¡Recuerden que a las 22:00 comienza el toque de queda y todos debemos estar en los dormitorios de nuestra casa!', time: '20:40' },
@@ -1747,8 +1749,12 @@ function sanitizeState(state) {
       state.users.push(JSON.parse(JSON.stringify(npc)));
     } else if (existing.is_npc) {
       if (npc.is_canon) existing.is_canon = true;
-      existing.yearOffset = npc.yearOffset;
-      existing.npc_trait = npc.npc_trait;
+      // El curso del canon solo se re-siembra si el admin no lo fijó a mano
+      // (yearCustom). Así una edición manual de curso sobrevive a cada sync.
+      if (!existing.yearCustom) {
+        existing.yearOffset = npc.yearOffset;
+        existing.npc_trait = npc.npc_trait;
+      }
     }
   });
 
@@ -1837,6 +1843,17 @@ function sanitizeState(state) {
   state.relations = migrateRelations(state.relations);
   state.officialCouples = sanitizeOfficialCouples(state);
   if (!state.profAffinity || typeof state.profAffinity !== 'object') state.profAffinity = {};
+  // Apariencia de profesores: solo se conservan claves con forma de objeto.
+  if (!state.profLooks || typeof state.profLooks !== 'object') {
+    state.profLooks = {};
+  } else {
+    Object.keys(state.profLooks).forEach(k => {
+      const v = state.profLooks[k];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) delete state.profLooks[k];
+    });
+  }
+  // Curso personalizado: flag booleano que protege la edición manual del curso.
+  state.users.forEach(u => { u.yearCustom = !!u.yearCustom; });
   if (!Array.isArray(state.friendRequests)) state.friendRequests = [];
   if (!Array.isArray(state.friendRequestsDone)) state.friendRequestsDone = [];
   state.friendRequests = sanitizeFriendRequests(state, state.friendRequests);
