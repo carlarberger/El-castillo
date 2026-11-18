@@ -58,10 +58,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav-tools{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 .nav-tools .btn,.nav-tools .pill{white-space:nowrap}
 .menu-toggle{display:none}
-/* Menú lateral de acciones: botones compactos, una sola línea cada uno. */
-.sidemenu{display:grid;gap:6px;align-content:start;position:sticky;top:78px}
-.sidemenu .btn{width:100%;justify-content:flex-start;gap:10px;padding:9px 12px;font-size:13px;white-space:nowrap}
-.sidemenu .btn .mi{flex:0 0 auto;width:18px;text-align:center}
+/* Menú lateral de acciones: botones compactos, una sola línea cada uno.
+   minmax(0,1fr) evita que la columna crezca al contenido y desborde el panel. */
+.sidemenu{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-content:start;position:sticky;top:78px}
+.sidemenu .btn{width:100%;min-width:0;justify-content:flex-start;gap:8px;padding:8px 10px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidemenu .btn .mi{flex:0 0 auto;width:16px;text-align:center}
 .sidemenu .btn .soc-badge{position:static;margin-left:auto;box-shadow:none}
 .side-card{margin-bottom:6px}
 .side-card .side-prof{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
@@ -527,7 +528,8 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   .wrap{padding-bottom:70px}
 }
 @media (min-width:768px){
-  .play{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start;max-width:1120px;margin:0 auto}
+  /* Sidebar fijo en columna propia + separación clara del contenido: nunca se solapan. */
+  .play{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start;max-width:1140px;margin:0 auto}
   .bottom-dock{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
