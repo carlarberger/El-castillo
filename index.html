@@ -161,6 +161,10 @@ select{width:auto}
 .explore-mark.merlin.done{border-color:var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(227,187,78,.5)}
 .explore-mark.demiguise.day{border-color:#7d8aa3;color:#aab4c8;filter:grayscale(.7);opacity:.85}
 .explore-mark.demiguise.night{border-color:#7fb2ff;color:#dbe8ff;box-shadow:0 0 14px rgba(127,178,255,.8);animation:moonPulse 1.6s ease-in-out infinite}
+/* Tanda 2: puertas, pasadizos, cofres y páginas de la Guía */
+.explore-mark.p2{border-color:#b07dff;color:#e0ccff;box-shadow:0 0 10px rgba(176,125,255,.6);font-size:14px}
+.explore-mark.p2.done{border-color:var(--gold);color:var(--gold);box-shadow:0 0 8px rgba(227,187,78,.45);opacity:.85}
+.explore-mark.p2.page{border-color:#ffd76a;color:#fff2c4;box-shadow:0 0 14px rgba(255,215,106,.85);animation:merlinPulse 1.8s ease-in-out infinite}
 @keyframes merlinPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.16);filter:brightness(1.4)}}
 @keyframes moonPulse{0%,100%{box-shadow:0 0 10px rgba(127,178,255,.6)}50%{box-shadow:0 0 22px rgba(127,178,255,1)}}
 /* Modal de exploración (minijuegos en canvas) */
@@ -173,6 +177,18 @@ select{width:auto}
 .explore-reward{color:#e3bb4e;font-weight:700;font-size:14px}
 .explore-hud{display:flex;justify-content:space-between;gap:10px;font-family:'Source Sans 3',system-ui,sans-serif;font-size:12px;color:#c9b98a}
 .explore-hud b{color:#d4af37}
+/* Tanda 2: tablero de Aritmancia */
+.arith-board{position:relative;margin:10px auto;width:260px;height:200px}
+.arith-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,#3a2f0e,#1a1405);border:3px solid var(--gold);display:grid;place-items:center;font-size:26px;font-weight:900;color:var(--gold);box-shadow:0 0 18px rgba(227,187,78,.5)}
+.arith-tri{position:absolute;inset:0}
+.arith-vtx{position:absolute;width:56px;height:56px;border-radius:50%;background:#12162a;border:2px solid #d4af37;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.arith-vtx:nth-child(1){left:0;top:0}
+.arith-vtx:nth-child(2){right:0;top:0}
+.arith-vtx:nth-child(3){left:50%;bottom:0;transform:translateX(-50%)}
+.arith-vtx.missing{border-style:dashed;border-color:#8fd0ff;background:#0d1326}
+.arith-vtx .arith-num{font-size:20px;font-weight:900;color:#e3bb4e}
+.arith-vtx .arith-ico{font-size:20px;line-height:1}
+.arith-vtx .arith-q{font-size:24px;font-weight:900;color:#8fd0ff}
 /* ===== MAPA MACRO DEL UNIVERSO MÁGICO (pergamino antiguo, estilo Mapa del Merodeador) ===== */
 .macro-modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(20,12,4,.86);backdrop-filter:blur(5px)}
 .macro-modal.open{display:flex}
@@ -1223,6 +1239,8 @@ const U=(id,username,house,points,flight_xp,role,is_admin,look,is_npc=false,pass
   birthDay:null, birthMonth:null, lastBirthdayYear:null,
   personality: personality,
   merlinTrials: [], demiguiseCollected: [], demiguiseCarrying: [], alohomoraLevel: 1, bagCapacity: 5,
+  guidePages: [], arithmancyDoors: [], secretPassages: [], constellations: [], chests: [],
+  wand: null, title: null, unlockedTitles: [], equippedCosmetics: [], bestiary: [],
   pet: null, petLastUse: null, petLastPlay: null, petLove: 50,
   yearOffset:Number(yearOffset)||0,
   look:{facialHair:'none',...(look||DEFAULT_LOOKS[Math.abs(id-1)%DEFAULT_LOOKS.length])},created_at:id
@@ -1492,6 +1510,11 @@ function ensureDbIntegrity(){
     if (!Array.isArray(u.equippedCosmetics)) { u.equippedCosmetics = []; changed = true; }
     if (!Array.isArray(u.bestiary)) { u.bestiary = []; changed = true; }
     if (!Array.isArray(u.guidePages)) { u.guidePages = []; changed = true; }
+    // Tanda 2: colecciones de exploración avanzada.
+    if (!Array.isArray(u.arithmancyDoors)) { u.arithmancyDoors = []; changed = true; }
+    if (!Array.isArray(u.secretPassages)) { u.secretPassages = []; changed = true; }
+    if (!Array.isArray(u.constellations)) { u.constellations = []; changed = true; }
+    if (!Array.isArray(u.chests)) { u.chests = []; changed = true; }
     const _bm = Math.floor(Number(u.birthMonth)), _bd = Math.floor(Number(u.birthDay));
     const _nm = (_bm >= 1 && _bm <= 12) ? _bm : null;
     const _nd = (_nm !== null && _bd >= 1 && _bd <= 31) ? _bd : null;
@@ -2241,7 +2264,12 @@ const TITLES = {
   demiguise:      { id: 'demiguise',      name: 'Cazador de Lunas',       icon: '🌙', desc: 'Recuperaste todas las Estatuas Demiguise.' },
   coleccionista:  { id: 'coleccionista',  name: 'Coleccionista de Cromos', icon: '🐸', desc: 'Completaste el Álbum de Cromos.' },
   magizoologo:    { id: 'magizoologo',    name: 'Magizoólogo',            icon: '🦅', desc: 'Registraste muchas criaturas en tu Bestiario.' },
-  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' }
+  enciclopedista: { id: 'enciclopedista', name: 'Enciclopedista',         icon: '📚', desc: 'Dominas la Guía de Campo del castillo.' },
+  // Tanda 2: exploración avanzada.
+  aritmante:      { id: 'aritmante',      name: 'Aritmante',              icon: '🔢', desc: 'Resolviste una puerta de Aritmancia.' },
+  contrabandista: { id: 'contrabandista', name: 'Contrabandista',         icon: '🗺️', desc: 'Descubriste un pasadizo secreto del castillo.' },
+  astronomo:      { id: 'astronomo',      name: 'Astrónomo',              icon: '🔭', desc: 'Trazaste todas las constelaciones mágicas.' },
+  ladron_experto: { id: 'ladron_experto', name: 'Ladrón Experto',         icon: '🗝️', desc: 'Abriste todos los cofres con Alohomora.' }
 };
 const COSMETICS = {
   gafas_harry:     { id: 'gafas_harry',     name: 'Gafas Redondas de Harry', icon: '👓', desc: 'El clásico inconfundible del Elegido.' },
@@ -2302,6 +2330,39 @@ function observeCreatures(){
   here.forEach(c => seeCreature(c.id));
   if (news.length) toast(`🔭 Observaste ${news.length} criatura(s): ${news.map(c => c.icon + ' ' + c.name).join(', ')}`);
   else toast('Ya conocías a todas las criaturas de esta zona.');
+}
+
+/* ===== TANDA 2: EXPLORACIÓN AVANZADA (catálogos del servidor) =====
+   El servidor envía las definiciones por socket (`exploration:catalog`); el
+   cliente solo las dibuja. Toda recompensa se valida en el servidor. */
+let P2 = { guidePages: [], arithmancyDoors: [], secretPassages: [], constellations: [], chests: [] };
+const P2_READY = () => Array.isArray(P2.guidePages);
+const p2ById = (list, id) => (list || []).find(x => String(x.id) === String(id)) || null;
+// Nivel de Alohomora según Lunas Demiguise entregadas (igual que el servidor).
+function alohomoraLevelOf(u) {
+  const n = Array.isArray(u && u.demiguiseCollected) ? u.demiguiseCollected.length : 0;
+  return n >= 6 ? 3 : (n >= 3 ? 2 : 1);
+}
+// Valor numérico de cada criatura del alfabeto de Aritmancia (guía del modal).
+const ARITHMANCY_CREATURES = {
+  demiguise: { name: 'Demiguise', value: 0, icon: '🐒' },
+  unicornio: { name: 'Unicornio', value: 1, icon: '🦄' },
+  graphorn:  { name: 'Graphorn',  value: 2, icon: '🐗' },
+  runespoor: { name: 'Runespoor', value: 3, icon: '🐍' },
+  fwooper:   { name: 'Fwooper',   value: 4, icon: '🦜' },
+  quintaped: { name: 'Quintaped', value: 5, icon: '🦂' },
+  salamandra:{ name: 'Salamandra',value: 6, icon: '🦎' },
+  acromantula:{ name: 'Acromántula', value: 8, icon: '🕷️' },
+  hidra:     { name: 'Hidra',     value: 9, icon: '🐉' }
+};
+// Etiqueta de una criatura de aritmancia por su valor (o el número si no hay).
+function arithCreatureByValue(v) {
+  return Object.values(ARITHMANCY_CREATURES).find(c => c.value === Number(v)) || null;
+}
+const p2Owned = (u, key, id) => Array.isArray(u && u[key]) && u[key].includes(id);
+// ¿Quedan páginas de la Guía de Campo por descubrir en esta sala?
+function guidePagesLeftIn(u, roomId) {
+  return P2.guidePages.filter(p => p.roomId === roomId && !p2Owned(u, 'guidePages', p.id));
 }
 
 const API={
@@ -3330,6 +3391,32 @@ function explorationMarksFor(roomId,u){
       h+=`<span class="explore-mark demiguise day" style="${pos(s)}" title="Estatua inactiva: vuelve en toque de queda 22:00-07:00">🪨</span>`;
     }
   });
+  // Tanda 2: puertas de Aritmancia, pasadizos, cofres y páginas de la Guía.
+  if(P2_READY()){
+    const atMyRoom=u&&userLoc(u)===roomId;
+    // Reparto posiciones por índice dentro de la sala (fila superior del icono).
+    const place=(i)=>{ const cols=3, col=i%cols, row=Math.floor(i/cols); return {x:0.2+col*0.3, y:0.22+row*0.2}; };
+    let slot=0;
+    P2.arithmancyDoors.filter(d=>d.roomId===roomId).forEach(d=>{
+      const open=p2Owned(u,'arithmancyDoors',d.id);
+      const p=place(slot++);
+      h+=`<span class="explore-mark p2 ${open?'done':''}" style="left:${p.x*100}%;top:${p.y*100}%" title="${esc(d.name)}${open?' · abierta':' · resuélvela'}" ${open?'':`data-do="openArithmancy" data-id="${d.id}"`}>${open?'✅':'🔢'}</span>`;
+    });
+    P2.secretPassages.filter(d=>d.roomId===roomId).forEach(d=>{
+      const found=p2Owned(u,'secretPassages',d.id);
+      const p=place(slot++);
+      h+=`<span class="explore-mark p2 ${found?'done':''}" style="left:${p.x*100}%;top:${p.y*100}%" title="${esc(d.name)}${found?' · atajo disponible':' · pasa por aquí para descubrirlo'}" data-do="openPassage" data-id="${d.id}">${found?'🚪':d.icon||'🕳️'}</span>`;
+    });
+    P2.chests.filter(d=>d.roomId===roomId).forEach(d=>{
+      const open=p2Owned(u,'chests',d.id);
+      const p=place(slot++);
+      h+=`<span class="explore-mark p2 ${open?'done':''}" style="left:${p.x*100}%;top:${p.y*100}%" title="${esc(d.name)} · Nv. ${d.lockLevel}${open?' · abierto':' · requiere Alohomora Nv. '+d.lockLevel}" ${open?'':`data-do="openChest" data-id="${d.id}"`}>${open?'📭':'🧰'}</span>`;
+    });
+    // Páginas de la Guía: se revelan con Revelio (marca si quedan y estás aquí).
+    if(atMyRoom && guidePagesLeftIn(u,roomId).length){
+      h+=`<span class="explore-mark p2 page" style="left:50%;top:62%" title="Hay páginas ocultas aquí: lanza Revelio" data-do="openRevelio">🔮</span>`;
+    }
+  }
   return h;
 }
 
@@ -3461,6 +3548,15 @@ function socialActivitiesBar(u,loc){
   // Bestiario: observar las criaturas de la zona las registra (Tanda 4.5).
   if(at&&Object.values(CREATURES).some(c=>c.room===loc&&!((u.bestiary||[]).includes(c.id)))){
     btns+=`<button class="btn sm gold" type="button" data-do="observeCreatures" title="Observa y anota las criaturas de esta zona en tu Bestiario">🔭 Observar criaturas</button>`;
+  }
+  // Tanda 2: Revelio revela las Páginas de la Guía ocultas de la sala.
+  if(at&&P2_READY()&&guidePagesLeftIn(u,loc).length){
+    const known=hasSpell(u,CLASS_SPELLS.historia);
+    btns+=`<button class="btn sm gold" type="button" data-do="openRevelio" title="${known?'Lanza Revelio para revelar una página oculta':'Necesitas el hechizo Revelio'}">🔮 Revelio (Página de la Guía)</button>`;
+  }
+  // Tanda 2: Mesas de Astronomía en la Torre.
+  if(loc==='astronomia'&&at&&P2_READY()&&P2.constellations.some(c=>!p2Owned(u,'constellations',c.id))){
+    btns+=`<button class="btn sm gold" type="button" data-do="openAstronomy" title="Traza constelaciones mágicas en la Mesa de Astronomía">🔭 Mesa de Astronomía</button>`;
   }
   if(u.house&&loc===u.house&&at){
     btns+=`<button class="btn sm gold" type="button" data-do="openQuestBoard" title="Tablón de encargos de la Sala Común">📋 Tablón de Encargos</button>`;
@@ -4196,11 +4292,16 @@ function submitWandCeremony(){
 // Resumen de progreso real del jugador (coincide con lo validado en el servidor).
 function magicProfileProgress(u){
   const cromoCount = CROMOS_MAGOS.filter(c=>{ const v=(u.cromos||{})[c.id]; return ((typeof v==='number')?v:(v&&v.count)||0)>0; }).length;
+  const p2tot=(k)=>P2_READY()?P2[k].length:0;
   return {
     merlin:(Array.isArray(u.merlinTrials)?u.merlinTrials.length:0), merlinTotal:MERLIN_TRIALS.length,
     demiguise:(Array.isArray(u.demiguiseCollected)?u.demiguiseCollected.length:0), demiguiseTotal:DEMIGUISE_STATUES.length,
     cromos:cromoCount, cromosTotal:CROMOS_MAGOS.length,
-    guide:(Array.isArray(u.guidePages)?u.guidePages.length:0),
+    guide:(Array.isArray(u.guidePages)?u.guidePages.length:0), guideTotal:p2tot('guidePages'),
+    arithmancy:(Array.isArray(u.arithmancyDoors)?u.arithmancyDoors.length:0), arithmancyTotal:p2tot('arithmancyDoors'),
+    passages:(Array.isArray(u.secretPassages)?u.secretPassages.length:0), passagesTotal:p2tot('secretPassages'),
+    constellations:(Array.isArray(u.constellations)?u.constellations.length:0), constellationsTotal:p2tot('constellations'),
+    chests:(Array.isArray(u.chests)?u.chests.length:0), chestsTotal:p2tot('chests'),
     bestiary:(Array.isArray(u.bestiary)?u.bestiary.length:0), bestiaryTotal:Object.keys(CREATURES).length,
     spells:(Array.isArray(u.spells)?u.spells.length:0)
   };
@@ -4272,10 +4373,15 @@ function openMagicProfileModal(){
         ${bar('Pruebas de Merlín',p.merlin,p.merlinTotal,'🌿')}
         ${bar('Lunas Demiguise',p.demiguise,p.demiguiseTotal,'🌙')}
         ${bar('Cromos',p.cromos,p.cromosTotal,'🐸')}
-        ${bar('Páginas de Guía',p.guide,null,'📖')}
+        ${bar('Páginas de Guía',p.guide,p.guideTotal,'📖')}
         ${bar('Criaturas avistadas',p.bestiary,p.bestiaryTotal,'🦅')}
         ${bar('Hechizos',p.spells,null,'✨')}
+        ${bar('Puertas de Aritmancia',p.arithmancy,p.arithmancyTotal,'🔢')}
+        ${bar('Pasadizos secretos',p.passages,p.passagesTotal,'🗺️')}
+        ${bar('Constelaciones',p.constellations,p.constellationsTotal,'🔭')}
+        ${bar('Cofres abiertos',p.chests,p.chestsTotal,'🧰')}
       </div>
+      <p class="muted" style="font-size:12px">🔓 Nivel de Alohomora: <b style="color:var(--gold)">Nv. ${alohomoraLevelOf(u)}</b> (${(u.demiguiseCollected||[]).length} lunas entregadas · 3 → Nv. 2 · 6 → Nv. 3)</p>
     </div>
     <div class="box" style="display:flex;flex-direction:column;gap:6px;grid-column:1/-1">
       <strong>🦅 Álbum de Criaturas Mágicas (Bestiario)</strong>
@@ -5929,6 +6035,12 @@ socket.on('exploration:update',(data)=>{
   if(typeof data.points==='number') u.points=data.points;
   if(typeof data.attrSabiduria==='number') u.attrSabiduria=data.attrSabiduria;
   if(typeof data.attrValentia==='number') u.attrValentia=data.attrValentia;
+  // Tanda 2: colecciones de exploración avanzada.
+  if(Array.isArray(data.guidePages)) u.guidePages=data.guidePages;
+  if(Array.isArray(data.arithmancyDoors)) u.arithmancyDoors=data.arithmancyDoors;
+  if(Array.isArray(data.secretPassages)) u.secretPassages=data.secretPassages;
+  if(Array.isArray(data.constellations)) u.constellations=data.constellations;
+  if(Array.isArray(data.chests)) u.chests=data.chests;
   if(Array.isArray(data.newTitles)&&data.newTitles.length){
     data.newTitles.forEach(id=>{ if(!Array.isArray(u.unlockedTitles)) u.unlockedTitles=[]; if(!u.unlockedTitles.includes(id)) u.unlockedTitles.push(id); });
     const names=data.newTitles.map(id=>TITLES[id]?`${TITLES[id].icon} ${TITLES[id].name}`:id).join(', ');
@@ -5936,9 +6048,54 @@ socket.on('exploration:update',(data)=>{
   }
   if(data.event==='pickup') toast(`🌙 Luna de Demiguise recogida (llevas ${data.carrying}). Entrégala en tu Sala Común.`);
   if(data.event==='turnIn') toast(`🪄 ¡Entregaste ${data.delivered} Luna(s)! +${data.reward.galeones} Galeones · +${data.reward.valentia} Valentía · Alohomora Nv. ${u.alohomoraLevel}`);
+  if(data.event==='fieldPage') toast(`📖 Página de la Guía de Campo: +${data.xp} XP de exploración${data.bonus?` (incluye +${data.bonus} por tu varita de Fénix)`:''}`);
+  if(data.event==='passage') toast(`🗺️ ¡Pasadizo secreto descubierto! Apareces en ${roomName(data.targetRoom)}.`);
+  if(data.event==='constellation') toast(`🔭 ¡Constelación trazada! ${(data.rewardLines||[]).join(' · ')}`);
   renderYou(); renderMap();
 });
 socket.on('exploration:error',(data)=>{ if(data&&data.message) toast(data.message); });
+// Resultado de una puerta de Aritmancia (validado en el servidor).
+socket.on('exploration:arithmancyResult',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(data.ok){
+    if(u){ u.arithmancyDoors=Array.isArray(u.arithmancyDoors)?u.arithmancyDoors:[]; if(!u.arithmancyDoors.includes(data.doorId)) u.arithmancyDoors.push(data.doorId); }
+    if(data.alreadyOpen){ toast('Esa puerta ya estaba abierta.'); closeModal(); return; }
+    fanfare();
+    toast(`🔢 ¡Puerta de Aritmancia resuelta! ${(data.rewardLines||[]).join(' · ')}`);
+    closeModal();
+  } else {
+    buzzSnd();
+    toast('❌ El número no encaja. Revisa la suma del triángulo.');
+  }
+});
+// Resultado de abrir un cofre con Alohomora.
+socket.on('exploration:chestResult',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(data.ok){
+    if(u){ u.chests=Array.isArray(u.chests)?u.chests:[]; if(!u.chests.includes(data.chestId)) u.chests.push(data.chestId); }
+    if(data.alreadyOpen){ toast('Ese cofre ya estaba abierto.'); closeModal(); return; }
+    fanfare();
+    toast(`🧰 ¡Cofre abierto! ${(data.rewardLines||[]).join(' · ')}`);
+    closeModal();
+  } else {
+    buzzSnd();
+    toast(`🔒 Cerradura Nv. ${data.need}: te falta Alohomora Nv. ${data.need} (tienes Nv. ${data.level}).`);
+  }
+});
+// Catálogos de la Tanda 2 enviados por el servidor.
+socket.on('exploration:catalog',(data)=>{
+  if(!data) return;
+  P2 = {
+    guidePages: Array.isArray(data.guidePages)?data.guidePages:[],
+    arithmancyDoors: Array.isArray(data.arithmancyDoors)?data.arithmancyDoors:[],
+    secretPassages: Array.isArray(data.secretPassages)?data.secretPassages:[],
+    constellations: Array.isArray(data.constellations)?data.constellations:[],
+    chests: Array.isArray(data.chests)?data.chests:[]
+  };
+  renderMap(); renderYou();
+});
 
 /* ===== PERFIL: VARITA, TÍTULOS, GUARDARROPA Y BESTIARIO (Tandas 4 y 8) ===== */
 socket.on('wand:result',(data)=>{
@@ -6020,7 +6177,7 @@ function explorePos(ev){
   return { x:(ev.clientX-rect.left)*(exploreCanvas.width/rect.width), y:(ev.clientY-rect.top)*(exploreCanvas.height/rect.height) };
 }
 if(exploreCanvas){
-  exploreCanvas.addEventListener('pointerdown',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onClick){ e.preventDefault(); exploreState.onClick(p.x,p.y); } });
+  exploreCanvas.addEventListener('pointerdown',e=>{ const p=explorePos(e); if(exploreState){ e.preventDefault(); if(exploreState.onDown) exploreState.onDown(p.x,p.y); if(exploreState.onClick) exploreState.onClick(p.x,p.y); } });
   exploreCanvas.addEventListener('pointermove',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onMove) exploreState.onMove(p.x,p.y); });
   exploreCanvas.addEventListener('pointerup',e=>{ const p=explorePos(e); if(exploreState&&exploreState.onUp) exploreState.onUp(p.x,p.y); });
 }
@@ -6243,6 +6400,239 @@ function startAlohomora(s){
     ctx.beginPath(); ctx.arc(cx,cy,14,0,Math.PI*2); ctx.fillStyle='#d4af37'; ctx.fill();
     ctx.font='16px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🔑',cx,cy);
   });
+}
+
+/* ===== TANDA 2: PÁGINAS DE LA GUÍA DE CAMPO CON REVELIO (2.1) ===== */
+// Lanza Revelio en la sala actual: revela una página voladora interactiva.
+function startRevelioPages(){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje para explorar');
+  const loc=userLoc(u);
+  const pages=guidePagesLeftIn(u,loc);
+  must(pages.length,'No quedan páginas ocultas por descubrir en esta sala.');
+  must(hasSpell(u,CLASS_SPELLS.historia),'Necesitas el hechizo Revelio (asignatura de Historia de la Magia).');
+  const page=pages[Math.floor(Math.random()*pages.length)];
+  // La página huye por la pantalla; hay que atraparla antes de que escape.
+  const state={x:70,y:220,vx:1.4+Math.random()*0.7,vy:(Math.random()-0.5)*1.1,caught:false,escaped:false};
+  const total=9000, start=performance.now();
+  exploreState={ mode:'revelio', onClick:(mx,my)=>{
+    if(state.caught||state.escaped) return;
+    if(Math.hypot(state.x-mx,state.y-my)<=34){
+      state.caught=true;
+      socket.emit('exploration:fieldPage',{pageId:page.id});
+      const m=$('exploreMsg'); if(m) m.textContent='📖 ¡Página de la Guía capturada!';
+      chime();
+      setTimeout(closeExplorationModal,1600);
+    }
+  }};
+  openExplorationModal('🔮 Revelio · Página de la Guía de Campo',
+    `${esc(page.title)} — Atrapa la página voladora antes de que escape.`,
+    `Páginas en la sala: <b>${pages.length}</b>`, '⏳ <b>9.0</b> s');
+  let last=performance.now();
+  exploreRun((ctx,w,h)=>{
+    const now=performance.now(), dt=Math.min(50,now-last)/16.7; last=now;
+    const rem=Math.max(0,total-(now-start));
+    if(rem<=0 && !state.caught && !state.escaped){
+      state.escaped=true; const m=$('exploreMsg'); if(m) m.textContent='💨 La página se desvaneció. Lanza Revelio otra vez.';
+      setTimeout(closeExplorationModal,1500);
+    }
+    $('exploreHudRight').innerHTML=`⏳ <b>${(rem/1000).toFixed(1)}</b> s`;
+    if(!state.caught && !state.escaped){
+      state.x+=state.vx*dt; state.y+=state.vy*dt;
+      if(state.x<40||state.x>w-40) state.vx*=-1;
+      if(state.y<40||state.y>h-40) state.vy*=-1;
+    }
+    ctx.clearRect(0,0,w,h);
+    // Cielo de la sala con un toque de luz de Revelio
+    const g=ctx.createRadialGradient(w/2,h/2,20,w/2,h/2,w*0.7);
+    g.addColorStop(0,'#141a30'); g.addColorStop(1,'#070a14');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    if(!state.caught){
+      const bob=Math.sin(now/220)*5;
+      ctx.save(); ctx.translate(state.x,state.y+bob);
+      ctx.shadowColor='rgba(255,215,106,.9)'; ctx.shadowBlur=18;
+      ctx.fillStyle='#f7ecc2'; ctx.strokeStyle='#d4af37'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(-16,-20); ctx.lineTo(16,-20); ctx.lineTo(16,20); ctx.lineTo(-16,20); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.shadowBlur=0; ctx.strokeStyle='#b89b4a';
+      for(let i=-12;i<=12;i+=8){ ctx.beginPath(); ctx.moveTo(-10,i); ctx.lineTo(10,i); ctx.stroke(); }
+      ctx.font='18px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('📖',0,0);
+      ctx.restore();
+    }
+    ctx.fillStyle='#2a2f4a'; ctx.fillRect(20,h-24,w-40,8);
+    ctx.fillStyle='#d4af37'; ctx.fillRect(20,h-24,(w-40)*(rem/total),8);
+  });
+}
+
+/* ===== TANDA 2: PUERTAS DE ARITMANCIA (2.2) ===== */
+function openArithmancyModal(doorId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const door=p2ById(P2.arithmancyDoors,doorId); must(door,'Puerta de Aritmancia desconocida');
+  if(p2Owned(u,'arithmancyDoors',doorId)) return toast('Esa puerta de Aritmancia ya está abierta.');
+  const vertices=Array.isArray(door.vertices)?door.vertices:[];
+  const missingIdx=door.missing==='left'?0:(door.missing==='right'?1:2);
+  const posName=['izquierdo','derecho','central'];
+  // Chuleta visual de los valores de las criaturas.
+  const cheat=Object.values(ARITHMANCY_CREATURES).sort((a,b)=>a.value-b.value)
+    .map(c=>`<span class="pill" style="font-size:11px">${c.icon} ${esc(c.name)} = <b>${c.value}</b></span>`).join(' ');
+  const vhtml=vertices.map((v,i)=>{
+    if(i===missingIdx) return `<div class="arith-vtx missing"><span class="arith-q">?</span></div>`;
+    if(v.kind==='creature'){ const c=arithCreatureByValue(v.value); return `<div class="arith-vtx" title="${c?esc(c.name):''}"><span class="arith-ico">${c?c.icon:'🐾'}</span><span class="arith-num">${v.value}</span></div>`; }
+    return `<div class="arith-vtx"><span class="arith-num">${v.value}</span></div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">🔢 ${esc(door.name)}</h3>
+    <p class="muted" style="font-size:13px;text-align:center">Completa el vértice ${posName[missingIdx]} para que la suma de los tres sea igual al número central.</p>
+    <div class="arith-board">
+      <div class="arith-center"><span>${door.target}</span></div>
+      <div class="arith-tri">${vhtml}</div>
+    </div>
+    <p style="font-size:12px;color:var(--gold);text-align:center;margin-top:6px">Vértice ${posName[missingIdx]}: <b>${door.target} − (suma de los otros dos)</b></p>
+    <div class="box" style="margin-top:8px"><p style="font-size:12px;font-weight:700;color:var(--gold)">Chuleta de criaturas:</p><div class="chips">${cheat}</div></div>
+    <div class="row" style="margin-top:10px;justify-content:center;gap:8px">
+      <input id="arithAnswer" class="input" type="number" inputmode="numeric" placeholder="?" style="max-width:120px;text-align:center">
+      <button class="btn gold" type="button" data-do="solveArithmancy" data-id="${door.id}">Confirmar</button>
+      <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+    </div>
+  </div>`,true);
+}
+function solveArithmancy(doorId){
+  const u=me(); must(u&&u.house,'Inicia sesión primero');
+  const inp=$('arithAnswer'); const ans=inp?Math.floor(Number(inp.value)):NaN;
+  must(Number.isFinite(ans),'Escribe un número');
+  socket.emit('exploration:arithmancy',{doorId,answer:ans});
+}
+
+/* ===== TANDA 2: PASADIZOS SECRETOS (2.3) ===== */
+function openPassageModal(passageId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const p=p2ById(P2.secretPassages,passageId); must(p,'Pasadizo desconocido');
+  const found=p2Owned(u,'secretPassages',passageId);
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">${p.icon||'🕳️'} ${esc(p.name)}</h3>
+    <p class="muted" style="font-size:13px">${esc(p.hint)}</p>
+    <div class="box" style="border-left:3px solid var(--gold)">
+      <p style="font-size:13px">Destino: <b>${esc(roomName(p.targetRoom))}</b></p>
+      <p class="muted" style="font-size:12px">Un atajo instantáneo que te permite moverte sin cruzarte con Filch ni saltarte el toque de queda.</p>
+    </div>
+    <div class="row" style="margin-top:10px;justify-content:center;gap:8px">
+      <button class="btn gold" type="button" data-do="usePassage" data-id="${p.id}">${found?'🚪 Usar el atajo':'🔎 Descubrir y usar el atajo'}</button>
+      <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+    </div>
+  </div>`,true);
+}
+function usePassage(passageId){
+  const u=me(); must(u&&u.house,'Inicia sesión primero');
+  socket.emit('exploration:passage',{passageId});
+  closeModal();
+}
+
+/* ===== TANDA 2: MESAS DE ASTRONOMÍA (2.4) ===== */
+function startAstronomyTable(constId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  must(userLoc(u)==='astronomia','Las mesas de Astronomía están en la Torre de Astronomía.');
+  const list=P2.constellations.filter(c=>!p2Owned(u,'constellations',c.id));
+  must(list.length,'Ya has trazado todas las constelaciones mágicas.');
+  const c=list[Math.floor(Math.random()*list.length)];
+  // El jugador rota y hace zoom sobre el campo de estrellas hasta alinear los puntos.
+  const stars=[
+    {x:120,y:90},{x:180,y:120},{x:250,y:80},{x:320,y:130},{x:290,y:200},{x:210,y:220},{x:150,y:180}
+  ];
+  let rot=Math.random()*Math.PI*2, zoom=0.7;
+  let dragging=false, lastX=0, lastY=0, solved=false;
+  const targetRot=0.0, targetZoom=1.0;
+  const tolRot=0.22, tolZoom=0.14;
+  const check=()=>{
+    if(solved) return;
+    const dR=Math.abs(((rot-targetRot+Math.PI)%(Math.PI*2))-Math.PI);
+    if(dR<=tolRot && Math.abs(zoom-targetZoom)<=tolZoom){
+      solved=true;
+      socket.emit('exploration:constellation',{constellationId:c.id});
+      const m=$('exploreMsg'); if(m) m.textContent='🔭 ¡Constelación alineada!';
+      fanfare();
+      setTimeout(closeExplorationModal,1900);
+    }
+  };
+  exploreState={
+    mode:'astronomy',
+    onDown:(x,y)=>{ dragging=true; lastX=x; lastY=y; },
+    onMove:(x,y)=>{ if(!dragging||solved) return; rot+=(x-lastX)*0.012; zoom=Math.max(0.4,Math.min(1.6,zoom+(lastY-y)*0.004)); lastX=x; lastY=y; check(); },
+    onUp:()=>{ dragging=false; }
+  };
+  openExplorationModal(`🔭 Mesa de Astronomía · ${c.name}`,
+    `${esc(c.desc)} — Arrastra en círculo para girar el campo de estrellas y arriba/abajo para enfocar hasta que las líneas encajen.`,
+    `Rotación: <b id="astroRot">0°</b>`, 'Enfoque: <b id="astroZoom">0.70x</b>');
+  exploreRun((ctx,w,h)=>{
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#04060f'; ctx.fillRect(0,0,w,h);
+    // Estrellas de fondo
+    for(let i=0;i<60;i++){ const sx=(i*97)%w, sy=(i*53)%h; ctx.fillStyle='rgba(200,215,255,'+(0.2+((i*7)%10)/20)+')'; ctx.fillRect(sx,sy,2,2); }
+    const cx=w/2, cy=h/2+10;
+    // Puntos de la constelación transformados por rotación/zoom
+    const pts=stars.map(s=>{
+      const dx=(s.x-w/2)*zoom, dy=(s.y-h/2)*zoom;
+      const rx=dx*Math.cos(rot)-dy*Math.sin(rot), ry=dx*Math.sin(rot)+dy*Math.cos(rot);
+      return {x:cx+rx, y:cy+ry};
+    });
+    const dR=Math.abs(((rot-targetRot+Math.PI)%(Math.PI*2))-Math.PI);
+    const aligned=dR<=tolRot && Math.abs(zoom-targetZoom)<=tolZoom;
+    ctx.strokeStyle=aligned?'#ffe08a':'rgba(143,208,255,.5)';
+    ctx.lineWidth=aligned?3:1.5;
+    ctx.beginPath(); pts.forEach((p,i)=>{ if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); }); ctx.stroke();
+    pts.forEach(p=>{ ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fillStyle=aligned?'#fff2c4':'#bfe4ff'; ctx.fill(); });
+    ctx.font='26px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.globalAlpha=aligned?1:0.25; ctx.fillText(c.icon||'✨',cx,cy); ctx.globalAlpha=1;
+    const rEl=$('astroRot'), zEl=$('astroZoom');
+    if(rEl) rEl.textContent=(rot*180/Math.PI).toFixed(0)+'°';
+    if(zEl) zEl.textContent=zoom.toFixed(2)+'x';
+  });
+}
+function openAstronomyModal(){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const list=P2.constellations;
+  if(!list.length) return toast('El servidor aún no ha enviado las constelaciones.');
+  const cards=list.map(c=>{
+    const done=p2Owned(u,'constellations',c.id);
+    return `<div class="box" style="text-align:center;opacity:${done?1:.85}">
+      <div style="font-size:30px">${c.icon||'✨'}</div>
+      <strong style="font-size:14px">${esc(c.name)}</strong>
+      <p class="muted" style="font-size:11px">${esc(c.desc)}</p>
+      ${done?'<span class="pill gold">✅ Trazada</span>':`<button class="btn sm gold" type="button" data-do="startAstronomy" data-id="${c.id}">Trazar</button>`}
+    </div>`;
+  }).join('');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">🔭 Mesas de Astronomía</h3>
+    <p class="muted" style="font-size:13px;text-align:center">Alinea los lentes para trazar las constelaciones mágicas de la noche.</p>
+    <div class="grid g3" style="gap:8px;margin-top:8px">${cards}</div>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div>
+  </div>`,true);
+}
+
+/* ===== TANDA 2: COFRES CON NIVEL DE ALOHOMORA (2.5) ===== */
+function openChestModal(chestId){
+  const u=me(); must(u&&u.house,'Inicia sesión con tu personaje');
+  const chest=p2ById(P2.chests,chestId); must(chest,'Cofre desconocido');
+  if(p2Owned(u,'chests',chestId)) return toast('Ese cofre ya está abierto.');
+  const level=alohomoraLevelOf(u);
+  const need=chest.lockLevel;
+  const can=level>=need;
+  const r=chest.reward||{};
+  const rtxt=[r.galeones?`+${r.galeones} 🪙`:'',r.cromoRarity?`🃏 Cromo ${r.cromoRarity}`:'',r.cosmetic&&COSMETICS[r.cosmetic]?`👗 ${COSMETICS[r.cosmetic].name}`:''].filter(Boolean).join(' · ');
+  openModal(`<div style="width:100%;text-align:left">
+    <h3 style="font-size:20px;color:var(--gold);text-align:center">🧰 ${esc(chest.name)}</h3>
+    <div class="box" style="border-left:3px solid ${can?'var(--gold)':'var(--bad)'}">
+      <p style="font-size:13px">Cerradura: <b>Nivel ${need}</b> · Tu Alohomora: <b>Nivel ${level}</b> ${can?'✅':'🔒'}</p>
+      <p class="muted" style="font-size:12px">Sube el nivel de Alohomora entregando Lunas de Demiguise en tu Sala Común (3 lunas → Nv. 2, 6 lunas → Nv. 3).</p>
+      <p style="font-size:12px;color:var(--gold)">Contenido: ${rtxt||'recompensa sorpresa'}</p>
+    </div>
+    <div class="row" style="margin-top:10px;justify-content:center;gap:8px">
+      <button class="btn gold" type="button" data-do="openChestNow" data-id="${chest.id}" ${can?'':'disabled'}>${can?'🔓 Alohomora':'🔒 Bloqueado (Nv. '+need+')'}</button>
+      <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+    </div>
+  </div>`,true);
+}
+function openChestNow(chestId){
+  const u=me(); must(u&&u.house,'Inicia sesión primero');
+  socket.emit('exploration:chest',{chestId});
 }
 
 
@@ -8963,6 +9353,16 @@ document.addEventListener('click',e=>{
     case 'goto':API.goTo(d.id);toast('Fuiste a '+roomName(d.id));maybeOpenShopRoom(d.id);break;
     case 'sneak':API.sneak();break;
     case 'openMerlin':startMerlinTrial(d.id);break;
+    // Tanda 2: exploración avanzada.
+    case 'openRevelio':startRevelioPages();break;
+    case 'openArithmancy':openArithmancyModal(d.id);break;
+    case 'solveArithmancy':solveArithmancy(d.id);break;
+    case 'openPassage':openPassageModal(d.id);break;
+    case 'usePassage':usePassage(d.id);break;
+    case 'openAstronomy':openAstronomyModal();break;
+    case 'startAstronomy':startAstronomyTable(d.id);break;
+    case 'openChest':openChestModal(d.id);break;
+    case 'openChestNow':openChestNow(d.id);break;
     case 'openMacroMap':openMacroMapModal();break;
     case 'openProphet':openProphetModal();break;
     case 'lumosReveal':lumosReveal();break;
