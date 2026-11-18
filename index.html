@@ -878,13 +878,21 @@ const PROFESSORS=[
 ];
 
 const ANIMAGUS_FORMS=[
- {id:'aguila',name:'Águila Real',icon:'🦅',desc:'Visión aguda desde las alturas y velocidad en tormentas.'},
- {id:'ciervo',name:'Ciervo Guardián',icon:'🦌',desc:'Nobleza protectora capaz de hacer retroceder la oscuridad.'},
- {id:'lobo',name:'Lobo Sombrío',icon:'🐺',desc:'Instinto de manada, lealtad feroz y rastreo nocturno.'},
- {id:'gato',name:'Gato Atigrado',icon:'🐱',desc:'Sigilo absoluto por los pasillos del castillo y agilidad.'},
- {id:'cuervo',name:'Cuervo Místico',icon:'🐦‍⬛',desc:'Sabiduría arcana y vuelo silencioso entre las torres.'},
- {id:'zorro',name:'Zorro Plateado',icon:'🦊',desc:'Astucia rápida para escapar de cualquier emboscada.'},
- {id:'sabueso',name:'Sabueso Negro',icon:'🐕',desc:'Valentía indomable al más puro estilo de Canuto.'}
+ {id:'aguila',name:'Águila Real',icon:'🦅',attr:'sabiduria',desc:'Visión aguda desde las alturas, libertad y perspectiva estratégica.'},
+ {id:'ciervo',name:'Ciervo Guardián',icon:'🦌',attr:'valentia',desc:'Nobleza espiritual y fuerza protectora capaz de hacer retroceder la oscuridad.'},
+ {id:'lobo',name:'Lobo Sombrío',icon:'🐺',attr:'valentia',desc:'Lealtad inquebrantable a la manada, instinto y astucia táctica.'},
+ {id:'gato',name:'Gato Atigrado',icon:'🐱',attr:'empatia',desc:'Independencia, curiosidad felina, sigilo absoluto y agilidad mental.'},
+ {id:'cuervo',name:'Cuervo Místico',icon:'🐦‍⬛',attr:'sabiduria',desc:'Sabiduría arcana, misterio y perspicacia para ver lo oculto.'},
+ {id:'zorro',name:'Zorro Plateado',icon:'🦊',attr:'empatia',desc:'Adaptabilidad, ingenio rápido y sigilo para escapar de cualquier emboscada.'},
+ {id:'sabueso',name:'Sabueso Negro',icon:'🐕',attr:'valentia',desc:'Fidelidad inquebrantable, valor y protección feroz hacia los suyos.'},
+ {id:'oso',name:'Oso Pardo',icon:'🐻',attr:'valentia',desc:'Fuerza imponente, paciencia serena y ferocidad defensiva.'},
+ {id:'serpiente',name:'Serpiente Real',icon:'🐍',attr:'sabiduria',desc:'Astucia calculada, ambición y cautela silenciosa.'},
+ {id:'nutria',name:'Nutria Juguetona',icon:'🦦',attr:'empatia',desc:'Alegría contagiosa, ingenio juguetón y energía vital.'},
+ {id:'buho',name:'Búho Nival',icon:'🦉',attr:'sabiduria',desc:'Sabiduría nocturna, observación aguda y vuelo completamente silencioso.'},
+ {id:'lince',name:'Lince Boreal',icon:'🐈‍⬛',attr:'sabiduria',desc:'Intuición penetrante, secretismo y paciencia de cazador.'},
+ {id:'halcon',name:'Halcón Peregrino',icon:'🦅',attr:'valentia',desc:'Velocidad vertiginosa, enfoque láser y precisión absoluta.'},
+ {id:'tejon',name:'Tejón Leal',icon:'🦡',attr:'empatia',desc:'Dedicación incansable, paciencia, lealtad y tenacidad ante cualquier reto.'},
+ {id:'liebre',name:'Liebre Veloz',icon:'🐇',attr:'empatia',desc:'Intuición rápida, reflejos ágiles y vivacidad inagotable.'}
 ];
 
 /* ===== PATRONUS (Efecto Visual Mágico) ===== */
@@ -2934,9 +2942,29 @@ const API={
     set('attrValentia',num(data.attrValentia,0,999));
     set('attrEmpatia',num(data.attrEmpatia,0,999));
     set('attrSabiduria',num(data.attrSabiduria,0,999));
+    // Forma animaga: el admin puede cambiarla o quitarla. Al cambiarla se limpia
+    // el retrato IA para que se regenere con el nuevo animal al invocarlo.
+    if(typeof data.animagus==='string'){
+      const newVal=data.animagus||null;
+      const valid=newVal&&ANIMAGUS_FORMS.some(f=>f.id===newVal);
+      const val=valid?newVal:null;
+      if(val!==(u.animagus||null)){
+        u.animagus=val;
+        u.animagusImage=null;
+        u.animagus_stage=val?4:0;
+      }
+    }
     commit('Admin editó a ' + u.username);
     closeModal();
     toast(`${u.username} actualizado.`);
+  },
+  resetUserAnimagus(id){
+    must(session.isAdmin,'Solo admin');
+    const u=db.users.find(x=>x.id===Number(id));must(u,'Personaje no encontrado');
+    u.animagus=null;u.animagusImage=null;u.animagus_stage=0;
+    commit('Admin reinició el Animago de ' + u.username);
+    closeModal();
+    toast('Forma animaga eliminada y ritual reiniciado');
   },
   awardGaleones(id,amt){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.galeones=Math.max(0,(t.galeones||0)+amt); commit(`Admin dio ${amt} 🪙 a ${t.username}`); },
   toggleQuidditch(id){ must(session.isAdmin,'Solo admin'); const t=db.users.find(u=>u.id===id); must(t,'No encontrado'); t.quidditch_approved=!t.quidditch_approved; if(t.is_npc){t.npc_quidditch=t.quidditch_approved;t.npc_decided=true;if(t.quidditch_approved&&!t.flight_xp)t.flight_xp=15;} commit(`${t.username} Quidditch: ${t.quidditch_approved}`); },
@@ -2968,7 +2996,7 @@ const API={
     if(st===0){must((u.academic_progress||0)>=50,'Necesitas 50 de Avance Académico');u.animagus_stage=1;}
     else if(st===1){u.animagus_stage=2;}
     else if(st===2){const d=curDay();must(d==='jueves'||d==='viernes','Solo en Jueves o Viernes');u.animagus_stage=3;}
-    else if(st===3){must((u.happiness||0)>=60,'Necesitas 60 de Felicidad');const f=ANIMAGUS_FORMS[Math.floor(Math.random()*ANIMAGUS_FORMS.length)];u.animagus=f.id;u.animagus_stage=4;u.points+=25;fanfare();toast(`¡Eres Animago: ${f.icon} ${f.name}!`);}
+    else if(st===3){must((u.happiness||0)>=60,'Necesitas 60 de Felicidad');commit(u.username+' bebió la Poción Animaga');openAnimagusTestModal();return;}
     commit(u.username+' avanzó en Animago');
   },
   darkMarkAction(action){
@@ -3015,7 +3043,7 @@ function openModal(html,wide,cls,overlayCls){
 function closeModal(){
   if(mgClean){mgClean();mgClean=null}
   socialModalOpen=false;
-  quizState=null;studyState=null;
+  quizState=null;studyState=null;animagusTestState=null;
   const m=$('modalRoot');m.hidden=true;m.innerHTML='';
 }
 document.addEventListener('keydown',e=>{
@@ -3661,6 +3689,114 @@ function renderAnimagusEvent(){
   box.innerHTML = h;
 }
 
+/* ===== TEST ANIMAGO: cuestionario de 6 preguntas que define la forma ===== */
+const ANIMAGUS_TEST_QUESTIONS=[
+  { q:'Te encuentras en un cruce de caminos en un bosque prohibido durante la noche. ¿Qué camino eliges?', opts:[
+    { t:'El sendero elevado que asciende por la montaña hacia los picos abiertos.', s:{aguila:2,halcon:2} },
+    { t:'Un claro iluminado por la luz de la luna donde reposa un arroyo cristalino.', s:{ciervo:2,nutria:2} },
+    { t:'La espesura más oscura y densa, guiado solo por el crujido de las ramas.', s:{lobo:2,oso:2} },
+    { t:'Un sendero estrecho y sinuoso que serpentea entre rocas antiguas y ruinas.', s:{serpiente:2,zorro:2} },
+    { t:'Las ramas altas de un roble centenario desde donde observar todo sin ser visto.', s:{cuervo:2,buho:2,gato:2} },
+    { t:'Un campo abierto de hierba alta donde el viento sopla con fuerza.', s:{liebre:2,tejon:2,sabueso:2} }
+  ]},
+  { q:'¿Cuál consideras que es tu mayor fortaleza ante un peligro inminente?', opts:[
+    { t:'Mantener la calma, analizar la situación desde arriba y planear una estrategia.', s:{aguila:3,buho:3} },
+    { t:'Proteger a los tuyos a toda costa, interponiéndote si es necesario.', s:{ciervo:3,sabueso:3,oso:3} },
+    { t:'Confiar en tus instintos más salvajes y actuar con rapidez y fuerza colectiva.', s:{lobo:3,lince:3} },
+    { t:'Encontrar una salida ingeniosa o un atajo que nadie más vio.', s:{zorro:3,serpiente:3} },
+    { t:'Moverte con sigilo, adaptarte al entorno y pasar desapercibido.', s:{gato:3,cuervo:3} },
+    { t:'Ser tenaz, perseverar y no rendirte jamás, por cansado que estés.', s:{tejon:3,nutria:3,halcon:3} }
+  ]},
+  { q:'¿Qué tipo de ambiente o compañía te otorga mayor paz mental?', opts:[
+    { t:'La soledad de las alturas o los espacios abiertos y silenciosos.', s:{aguila:2,halcon:2} },
+    { t:'Un grupo pequeño de amigos leales junto a una cálida chimenea.', s:{sabueso:2,nutria:2,tejon:2} },
+    { t:'La naturaleza indómita, sintiendo el latido de la tierra y los elementos.', s:{lobo:2,oso:2,ciervo:2} },
+    { t:'Rincones misteriosos, bibliotecas antiguas o lugares donde hay secretos por descubrir.', s:{cuervo:2,serpiente:2,buho:2} },
+    { t:'Un espacio propio donde nadie te moleste, con la libertad de ir y venir a tu antojo.', s:{gato:2,zorro:2,liebre:2} }
+  ]},
+  { q:'Si pudieras dominar un rasgo mágico o físico por instinto, ¿cuál elegirías?', opts:[
+    { t:'Una velocidad y reflejos sobrehumanos para esquivar cualquier amenaza.', s:{liebre:3,halcon:3} },
+    { t:'Una visión penetrante capaz de ver a través de la oscuridad o la mentira.', s:{buho:3,lince:3,cuervo:3} },
+    { t:'Una fuerza y resistencia físicas imponentes frente a la adversidad.', s:{oso:3,ciervo:3} },
+    { t:'Una astucia indetectable para conseguir siempre lo que te propones.', s:{serpiente:3,zorro:3} },
+    { t:'Una conexión profunda y magnética con tus seres queridos y tu entorno.', s:{lobo:3,sabueso:3,gato:3,nutria:3} }
+  ]},
+  { q:'¿Cómo sueles reaccionar cuando alguien traiciona tu confianza?', opts:[
+    { t:'Te alejas con elegancia e indiferencia; ya no merecen tu tiempo.', s:{gato:2,aguila:2} },
+    { t:'Atacas con rapidez y precisión para dejar claro que no toleras juegos.', s:{serpiente:2,halcon:2,lince:2} },
+    { t:'Te duele profundamente, pero buscas proteger a los demás para que no sufran lo mismo.', s:{ciervo:2,sabueso:2,tejon:2} },
+    { t:'Rumiando en silencio, planeando con paciencia el momento adecuado para actuar.', s:{lobo:2,cuervo:2,oso:2} },
+    { t:'Lo transformas en humor o energía para seguir adelante con una sonrisa irónica.', s:{zorro:2,nutria:2,liebre:2} }
+  ]},
+  { q:'Estás acorralado en un pasillo oscuro de Hogwarts durante una emergencia nocturna. Tu varita emite una luz tenue y decides actuar por instinto puro. ¿Qué recurso mágico o movimiento ejecutas?', opts:[
+    { t:'Lanzas un hechizo de iluminación potente (Lumos Maxima) apuntando hacia arriba para cegar al peligro y buscar una vía de escape elevada.', s:{aguila:2,halcon:2,buho:2} },
+    { t:'Te plantas firme frente a tus compañeros de casa y alzas un Protego masivo para blindarlos con tu propio cuerpo.', s:{ciervo:2,sabueso:2,oso:2} },
+    { t:'Te abalanzas con un movimiento rápido y felino, desarmando al oponente antes de que pueda reaccionar.', s:{lobo:2,lince:2} },
+    { t:'Utilizas un encantamiento de desilusión o buscas un recoveco en la sombra para fundirte con la arquitectura del castillo.', s:{gato:2,zorro:2,serpiente:2} },
+    { t:'Creas una distracción ingeniosa o un truco rápido para burlar el peligro y escapar con una sonrisa traviesa.', s:{nutria:2,liebre:2,tejon:2,cuervo:2} }
+  ]}
+];
+let animagusTestState=null;
+
+function openAnimagusTestModal(){
+  const u=me(); if(!u||!u.house){ toast('Inicia sesión'); return; }
+  animagusTestState={ index:0, scores:{} };
+  renderAnimagusTestModal();
+}
+
+function renderAnimagusTestModal(){
+  const st=animagusTestState; if(!st) return;
+  const q=ANIMAGUS_TEST_QUESTIONS[st.index];
+  const letters=['A','B','C','D','E','F'];
+  openModal(`<div style="width:100%;text-align:left">
+    <span class="pill gold">🦅 Ritual Animago · Pregunta ${st.index+1}/${ANIMAGUS_TEST_QUESTIONS.length}</span>
+    <h3 style="font-size:18px;color:var(--gold);margin:8px 0 12px">${esc(q.q)}</h3>
+    ${q.opts.map((o,i)=>`<button class="quiz-opt" type="button" data-do="animagusAnswer" data-i="${i}"><b>${letters[i]})</b> ${esc(o.t)}</button>`).join('')}
+  </div>`,true);
+}
+
+function answerAnimagusTest(i){
+  const st=animagusTestState; if(!st) return;
+  const q=ANIMAGUS_TEST_QUESTIONS[st.index];
+  const opt=q.opts[i]; if(!opt) return;
+  Object.keys(opt.s).forEach(k=>{ st.scores[k]=(st.scores[k]||0)+opt.s[k]; });
+  const btns=document.querySelectorAll('.quiz-opt');
+  if(btns[i]) btns[i].classList.add('ok');
+  chime();
+  setTimeout(()=>{
+    st.index++;
+    if(st.index>=ANIMAGUS_TEST_QUESTIONS.length) finishAnimagusTest();
+    else renderAnimagusTestModal();
+  },450);
+}
+
+function finishAnimagusTest(){
+  const st=animagusTestState; if(!st) return;
+  animagusTestState=null;
+  const u=me(); if(!u||!u.house){ closeModal(); return; }
+  // Puntuación final: animal con más puntos.
+  let best=null,bestScore=-1;
+  ANIMAGUS_FORMS.forEach(f=>{ const s=st.scores[f.id]||0; if(s>bestScore){ bestScore=s; best=f; } });
+  // Desempate: prioridad al animal cuyo attr coincida con el atributo más alto del jugador.
+  const attrs=[['valentia',Number(u.attrValentia)||0],['sabiduria',Number(u.attrSabiduria)||0],['empatia',Number(u.attrEmpatia)||0]];
+  attrs.sort((a,b)=>b[1]-a[1]);
+  const topAttr=attrs[0][1]>0?attrs[0][0]:null;
+  if(topAttr){
+    const tied=ANIMAGUS_FORMS.filter(f=>(st.scores[f.id]||0)===bestScore);
+    const pick=tied.find(f=>f.attr===topAttr);
+    if(pick) best=pick;
+  }
+  u.animagus=best.id;
+  u.animagusImage=null;
+  u.animagus_stage=4;
+  u.points=(Number(u.points)||0)+25;
+  commit(u.username+' completó el Ritual Animago: '+best.name);
+  fanfare();
+  toast(`¡Tu forma animaga es ${best.icon} ${best.name}!`);
+  closeModal();
+  summonAnimagus();
+}
+
 function renderMortifagosEvent(){
   const box = $('mortifagosBox'), badge = $('mortifagosStatusBadge');
   const u = me();
@@ -4282,7 +4418,7 @@ function openEditNpcModal(charId){
   const u=db.users.find(x=>x.id===Number(charId));
   must(u,'Personaje no encontrado');
   const d={id:u.id,is_npc:!!u.is_npc,username:u.username,house:u.house||'gryffindor',npc_trait:u.npc_trait||'',
-    gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),...lookOf(u.look||{})};
+    gender:normGender(u.gender),romancePref:normRomancePref(u.romancePref),animagus:u.animagus||'',...lookOf(u.look||{})};
   STAT_FIELDS.forEach(([k])=>{ d[k]=Number(u[k])||0; });
   window.npcDraft=d;
   openModal(npcEditHTML(),true);
@@ -4299,6 +4435,13 @@ function npcEditHTML(){
     <div><span class="hint">Casa</span><div class="chips" style="margin-top:6px">${HOUSES.map(h=>`<button type="button" class="chip ${d.house===h.id?'on':''}" data-do="npcDraftHouse" data-id="${h.id}">${h.name}</button>`).join('')}</div></div>
     <div><span class="hint">Género</span><div class="chips" style="margin-top:6px">${GENDER_IDS.map(g=>`<button type="button" class="chip ${d.gender===g?'on':''}" data-do="npcDraftGender" data-id="${g}">${GENDER_LABEL[g]}</button>`).join('')}</div></div>
     <div><span class="hint">Le atraen (preferencia romántica)</span><div class="chips" style="margin-top:6px">${ROMANCE_PREF_IDS.map(r=>`<button type="button" class="chip ${normRomancePref(d.romancePref)===r?'on':''}" data-do="npcDraftRomance" data-id="${r}">${ROMANCE_PREF_LABEL[r]}</button>`).join('')}</div></div>
+    <div><label class="hint" for="npcEditAnimagus">🦅 Forma Animaga</label>
+      <select id="npcEditAnimagus" style="width:100%" aria-label="Forma Animaga">
+        <option value=""${!d.animagus?' selected':''}>Sin forma animaga</option>
+        ${ANIMAGUS_FORMS.map(f=>`<option value="${f.id}"${d.animagus===f.id?' selected':''}>${f.icon} ${esc(f.name)}</option>`).join('')}
+      </select>
+      <div class="row" style="margin-top:8px"><button class="btn sm danger" type="button" data-do="resetUserAnimagus" data-id="${d.id}">🗑️ Eliminar / Reiniciar Animago</button></div>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
       ${STAT_FIELDS.map(statRow).join('')}
     </div>
@@ -4313,9 +4456,10 @@ function npcEditHTML(){
 }
 function refreshNpcDraft(){
   const el=$('npcEditBox');if(!el)return;
-  const nm=$('npcEditName'),tr=$('npcEditTrait');
+  const nm=$('npcEditName'),tr=$('npcEditTrait'),an=$('npcEditAnimagus');
   if(nm)window.npcDraft.username=nm.value;
   if(tr)window.npcDraft.npc_trait=tr.value;
+  if(an)window.npcDraft.animagus=an.value;
   STAT_FIELDS.forEach(([k])=>{const inp=$('npcEdit_'+k);if(inp)window.npcDraft[k]=inp.value;});
   el.outerHTML=npcEditHTML();
 }
@@ -8464,6 +8608,8 @@ document.addEventListener('click',e=>{
     case 'npcDraftFacialHair':window.npcDraft.facialHair=d.id||'none';refreshNpcDraft();break;
     case 'npcDraftGender':window.npcDraft.gender=normGender(d.id);refreshNpcDraft();break;
     case 'npcDraftRomance':window.npcDraft.romancePref=normRomancePref(d.id);refreshNpcDraft();break;
+    case 'animagusAnswer':answerAnimagusTest(Number(d.i));break;
+    case 'resetUserAnimagus':API.resetUserAnimagus(Number(d.id));break;
     case 'saveNpcEdit':refreshNpcDraft();API.editNpc(Number(d.id),window.npcDraft);break;
     case 'deduct':API.award(Number(d.id),-10);break;
     case 'awardGal':API.awardGaleones(Number(d.id),10);break;
