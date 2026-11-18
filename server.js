@@ -2791,6 +2791,17 @@ function mergeServerAuthority(serverUser, incomingUser) {
   // interés son autoritativos del servidor (un cliente obsoleto no los borra).
   out.vault = Math.max(0, Number(serverUser.vault) || 0, Number(incomingUser.vault) || 0);
   out.vaultLastInterest = Math.max(0, Number(serverUser.vaultLastInterest) || 0);
+  // Enfriamientos sociales (Parte 4A): el servidor concede los puntos de la
+  // acción social rápida y marca su enfriamiento. Se conserva el mayor por
+  // clave para que un autosave obsoleto no borre el enfriamiento (anti-abuso).
+  const svCd = (serverUser.socialCooldowns && typeof serverUser.socialCooldowns === 'object') ? serverUser.socialCooldowns : {};
+  const incCd = (incomingUser.socialCooldowns && typeof incomingUser.socialCooldowns === 'object') ? incomingUser.socialCooldowns : {};
+  const cdOut = {};
+  new Set([...Object.keys(svCd), ...Object.keys(incCd)]).forEach(k => {
+    const v = Math.max(0, Number(svCd[k]) || 0, Number(incCd[k]) || 0);
+    if (v > 0) cdOut[k] = v;
+  });
+  out.socialCooldowns = cdOut;
   // Encuentros y avistamientos (Parte 4A): colección acumulativa; la unión
   // evita que un autosave antiguo borre los sucesos ya registrados.
   const svEnc = Array.isArray(serverUser.encounters) ? serverUser.encounters : [];
