@@ -897,13 +897,32 @@ app.post('/api/daily-prophet', async (req, res) => {
   const ctx = { year, leadingHouse, leadingPoints, housesSummary, recentLogs, playerNames, couples };
   const fallbackIssue = () => buildFallbackProphet(ctx);
 
+  // Parte 4B: las crónicas de Lee Jordan se publican como secciones del diario.
+  const chronicles = (Array.isArray(memoryState && memoryState.prophetChronicles) ? memoryState.prophetChronicles : [])
+    .filter(c => c && Array.isArray(c.lines) && c.lines.length)
+    .slice(0, 4);
+  const houseName = id => ({ gryffindor: 'Gryffindor', slytherin: 'Slytherin', ravenclaw: 'Ravenclaw', hufflepuff: 'Hufflepuff' }[id] || id);
+  const attachChronicles = (issue) => {
+    if (!issue || !chronicles.length) return issue;
+    const qsec = chronicles.map(c => ({
+      category: 'QUIDDITCH · CRÓNICA DE LEE JORDAN',
+      title: `${houseName(c.a)} ${c.sa} - ${c.sb} ${houseName(c.b)}`,
+      subtitle: c.winner && c.winner !== 'empate' ? `Victoria de ${houseName(c.winner)}` : 'Empate agónico',
+      text: c.lines.join(' ')
+    }));
+    issue.sections = [...(Array.isArray(issue.sections) ? issue.sections : []), ...qsec].slice(0, 8);
+    return issue;
+  };
+
   // La edición activa vive en el estado persistente del juego: se devuelve tal
   // cual durante 24 h (o hasta que cambie el año escolar), sin regenerarla por
   // cambios en puntos, logs u otros datos del castillo.
   const now = Date.now();
   const active = memoryState && memoryState.dailyProphet;
   if (active && active.issue && active.year === year && (now - Number(active.generatedAt)) < PROPHET_CACHE_TTL_MS) {
-    return res.json({ ok: true, issue: active.issue, cached: true, fallback: !!active.issue.__fallback });
+    const issue = JSON.parse(JSON.stringify(active.issue));
+    attachChronicles(issue);
+    return res.json({ ok: true, issue, chronicles, cached: true, fallback: !!active.issue.__fallback });
   }
 
   // Persiste la edición recién generada y la marca como activa durante 24 h.
@@ -917,7 +936,9 @@ app.post('/api/daily-prophet', async (req, res) => {
     const issue = fallbackIssue();
     if (issue) issue.__fallback = true;
     await publishIssue(issue);
-    return res.json({ ok: true, issue, cached: false, fallback: true });
+    const out = JSON.parse(JSON.stringify(issue));
+    attachChronicles(out);
+    return res.json({ ok: true, issue: out, chronicles, cached: false, fallback: true });
   }
 
   const systemPrompt = `Eres el redactor jefe de "El Profeta", el periódico sensacionalista del mundo mágico de Harry Potter. Escribes SIEMPRE en español, con tono editorial exagerado, elegante y algo amarillista (como Rita Skeeter), pero sin inventar personajes reales fuera del canon de Harry Potter ni mencionar el mundo real, internet o IA. Están en el Año ${year} de Hogwarts: NO menciones ni des por sabidos hechos, criaturas o personajes que aparezcan en años posteriores del canon. Usa los datos del castillo que te doy (casa líder, registros recientes, nombres de alumnos y parejas) para que la edición se sienta viva y actual. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con esta forma exacta: {"masthead":"El Profeta","tagline":"EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO","dateline":"LONDRES — ${new Date().getFullYear()}","weather":"CLIMA: ...","lead":{"category":"ESCÁNDALO","headline":"...","subheadline":"...","byline":"POR EL EQUIPO DE REDACCIÓN DE EL PROFETA","paragraphs":["...","..."]},"sections":[{"category":"HOGWARTS","title":"...","subtitle":"...","text":"..."},{"category":"QUIDDITCH","title":"...","subtitle":"...","text":"..."}],"classified":{"category":"MINISTERIO · CLASIFICADO","title":"INFORME SELLADO POR EL MINISTERIO","hint":"Este informe ha sido sellado con runas estándar del Ministerio.","secretText":"..."},"noticesTitle":"AVISOS Y ANUNCIOS CLASIFICADOS","notices":[{"title":"COPA DE LAS CASAS:","text":"..."},{"title":"OLLIVANDERS:","text":"..."}],"footer":"ENVIAR LECHUZAS A: EL PROFETA, CALLEJÓN DIAGON, LONDRES"}. El "secretText" debe ser una pista sobre criaturas del Bosque Prohibido, Estatuas Demiguise o amenazas oscuras del año actual, apta para revelarse con el hechizo LUMOS.`;
@@ -940,13 +961,17 @@ Redacta la edición de hoy de El Profeta en JSON.`;
     if (!issue) throw new Error('JSON editorial incompleto');
     issue.__fallback = false;
     await publishIssue(issue);
-    return res.json({ ok: true, issue, cached: false, fallback: false });
+    const out = JSON.parse(JSON.stringify(issue));
+    attachChronicles(out);
+    return res.json({ ok: true, issue: out, chronicles, cached: false, fallback: false });
   } catch (err) {
     console.error('Error generando El Profeta (usando respaldo local):', err.message);
     const issue = fallbackIssue();
     if (issue) issue.__fallback = true;
     await publishIssue(issue);
-    return res.json({ ok: true, issue, cached: false, fallback: true });
+    const out = JSON.parse(JSON.stringify(issue));
+    attachChronicles(out);
+    return res.json({ ok: true, issue: out, chronicles, cached: false, fallback: true });
   } finally {
     clearTimeout(timer);
   }
@@ -1567,7 +1592,26 @@ const GAME_BALANCE = {
   // Cumpleaños: descuento en Honeydukes y Zonko.
   birthday: { discount: 0.5, minPrice: 1 },
   // Cestas de regalo: afinidad base y multiplicador por regalo favorito del NPC.
-  gifts: { baseAffinity: 12, favoriteMultiplier: 2 }
+  gifts: { baseAffinity: 12, favoriteMultiplier: 2 },
+  // Quidditch avanzado (Parte 4B): aros de entrenamiento, pasivas por posición,
+  // apuestas amistosas, desafíos semanales y clausura de curso.
+  quidditch: {
+    // Aros de Entrenamiento Aéreo (Tanda 7.1): minijuego libre en los terrenos.
+    hoops: { xpPerRing: 3, galeonesPerRing: 1, clubXpPerRing: 2, maxRings: 40, minDurationMs: 2500, cooldownMs: 45000 },
+    // Especialización por posición (Tanda 7.2): pasivas reales aplicadas al partido.
+    positions: {
+      Buscador:  { label: 'Buscador',  icon: '🧹', desc: '+18 % de atrapar la Snitch (vale 150 pts).', snitchBonus: 0.18 },
+      Cazador:   { label: 'Cazador',   icon: '🏐', desc: '+15 % de anotar con la Quaffle (10 pts por gol).', quaffleBonus: 0.15 },
+      Golpeador: { label: 'Golpeador', icon: '🏏', desc: 'Reduce un 12 % la precisión rival con las Bludgers.', bludgerPenalty: 0.12 },
+      Guardián:  { label: 'Guardián',  icon: '🥅', desc: '+20 % de parar los tiros rivales.', blockBonus: 0.20 }
+    },
+    // Apuestas amistosas (Tanda 5.4): hasta 20 Galeones por una casa.
+    bets: { min: 1, max: 20, payout: 2 },
+    // Desafíos semanales cooperativos por casa (Tanda 7.4).
+    weekly: { targetMatches: 3, targetPoints: 300, targetSnitches: 2, rewardGaleones: 40, rewardPoints: 30 },
+    // Ceremonia de clausura de curso (Tanda 7.5).
+    closure: { rewardGaleones: 100, mvpPoints: 50 }
+  }
 };
 
 /* Curva unificada de atributos: 0–9 Nv.1 · 10–19 Nv.2 · 20–34 Nv.3 ·
@@ -1593,12 +1637,192 @@ function attrProgress(points) {
   const span = Math.max(1, next - base);
   return { level, current: p, next, base, pct: Math.max(0, Math.min(100, Math.round((p - base) / span * 100))) };
 }
-// Precio de un objeto en Hogsmeade/Zonko aplicando el descuento de cumpleaños.
+// Precio de un objeto en Hogsmeade/Zonco aplicando el descuento de cumpleaños.
 function birthdayPrice(base, isBirthday) {
   const price = Math.max(0, Math.floor(Number(base) || 0));
   if (!isBirthday) return price;
   const rate = GAME_BALANCE.birthday.discount;
   return Math.max(GAME_BALANCE.birthday.minPrice, Math.round(price * (1 - rate)));
+}
+
+/* ===== PARTE 4B: QUIDDITCH AVANZADO Y COPA DE LAS CASAS =====
+   Todo se valida y se resuelve en el servidor: aros de entrenamiento, pasivas
+   por posición, apuestas, desafíos semanales y ceremonia de clausura. */
+// Orden de posiciones al alinearse (espejo del cliente, index.html: POSITIONS).
+const QUIDDITCH_POSITIONS = ['Buscador', 'Cazador', 'Cazador', 'Cazador', 'Golpeador', 'Golpeador', 'Guardián'];
+// Acciones válidas por posición (espejo del cliente, index.html: ACTIONS).
+const QUIDDITCH_ACTIONS = {
+  Cazador:   ['attack', 'defend'],
+  Guardián:  ['block', 'idle'],
+  Buscador:  ['search', 'idle'],
+  Golpeador: ['hit', 'idle']
+};
+// Pasiva de una posición (o null si la posición no tiene pasiva).
+function positionPassive(pos) {
+  return GAME_BALANCE.quidditch.positions[pos] || null;
+}
+// Recompensa de una partida de aros: XP de vuelo, Galeones y XP de club (Dragón).
+function hoopsReward(rings) {
+  const b = GAME_BALANCE.quidditch.hoops;
+  const n = Math.max(0, Math.min(b.maxRings, Math.floor(Number(rings) || 0)));
+  return { rings: n, xp: n * b.xpPerRing, galeones: n * b.galeonesPerRing, clubXp: n * b.clubXpPerRing };
+}
+// Valida una partida de Aros de Entrenamiento Aéreo enviada por el cliente.
+// Devuelve { ok, message } — la recompensa se calcula con hoopsReward().
+function validateHoopsRun(data, user) {
+  if (!user) return { ok: false, message: 'Inicia sesión con tu personaje primero.' };
+  const b = GAME_BALANCE.quidditch.hoops;
+  const rings = Math.floor(Number(data && data.rings));
+  if (!Number.isFinite(rings) || rings < 0) return { ok: false, message: 'Resultado de entrenamiento inválido.' };
+  if (rings > b.maxRings) return { ok: false, message: 'Demasiados aros para una sola partida.' };
+  const durationMs = Math.floor(Number(data && data.durationMs));
+  if (!Number.isFinite(durationMs) || durationMs < b.minDurationMs) {
+    return { ok: false, message: 'La partida fue demasiado corta para contar.' };
+  }
+  const last = (user.socialCooldowns && Number(user.socialCooldowns.hoops)) || 0;
+  if (last && Date.now() - last < b.cooldownMs) {
+    return { ok: false, message: `Reposa un momento antes de volver a entrenar (${Math.ceil((b.cooldownMs - (Date.now() - last)) / 1000)} s).` };
+  }
+  return { ok: true };
+}
+
+// Normaliza la lista de apuestas de un partido: solo ids reales, casas válidas
+// del partido, importes dentro de los límites y una apuesta por jugador.
+function sanitizeMatchBets(bets, match) {
+  const b = GAME_BALANCE.quidditch.bets;
+  const houses = match ? [match.a, match.b] : [];
+  const byUser = new Map();
+  (Array.isArray(bets) ? bets : []).forEach(x => {
+    if (!x || typeof x !== 'object') return;
+    const uid = Number(x.uid);
+    const house = String(x.house || '');
+    const amount = Math.floor(Number(x.amount));
+    if (!uid || !houses.includes(house)) return;
+    if (!Number.isFinite(amount) || amount < b.min || amount > b.max) return;
+    if (byUser.has(uid)) return;
+    byUser.set(uid, { uid, house, amount, at: Number(x.at) || Date.now() });
+  });
+  return [...byUser.values()];
+}
+// Liquida las apuestas de un partido ya terminado. Devuelve los movimientos a
+// aplicar (créditos a los acertantes) sin tocar todavía los usuarios.
+function settleMatchBets(match) {
+  const b = GAME_BALANCE.quidditch.bets;
+  const winner = match && match.winner;
+  return (Array.isArray(match && match.bets) ? match.bets : []).map(bet => {
+    const won = !!winner && winner !== 'empate' && bet.house === winner;
+    return { uid: bet.uid, house: bet.house, amount: bet.amount, won, payout: won ? bet.amount * b.payout : 0 };
+  });
+}
+
+// ---- Desafíos semanales cooperativos por casa (Tanda 7.4) ----
+// Clave de la semana en curso (bloques de 7 días desde el epoch).
+function currentWeekKey(now = Date.now()) {
+  return Math.floor(now / (7 * 24 * 60 * 60 * 1000));
+}
+const WEEKLY_HOUSE_IDS = ['gryffindor', 'slytherin', 'ravenclaw', 'hufflepuff'];
+function emptyWeeklyHouse() {
+  return { matches: 0, points: 0, snitches: 0, claimed: false };
+}
+// Normaliza los desafíos semanales: si cambia la semana, se reinician a cero.
+function sanitizeWeeklyChallenges(raw, now = Date.now()) {
+  const wk = currentWeekKey(now);
+  const out = { weekKey: wk, houses: {} };
+  WEEKLY_HOUSE_IDS.forEach(id => { out.houses[id] = emptyWeeklyHouse(); });
+  if (!raw || typeof raw !== 'object' || Number(raw.weekKey) !== wk) return out;
+  WEEKLY_HOUSE_IDS.forEach(id => {
+    const h = raw.houses && raw.houses[id];
+    if (!h || typeof h !== 'object') return;
+    out.houses[id] = {
+      matches: Math.max(0, Math.floor(Number(h.matches) || 0)),
+      points: Math.max(0, Math.floor(Number(h.points) || 0)),
+      snitches: Math.max(0, Math.floor(Number(h.snitches) || 0)),
+      claimed: !!h.claimed
+    };
+  });
+  return out;
+}
+// Registra el resultado de un partido en los desafíos de ambas casas.
+function applyMatchToWeekly(state, match) {
+  state.weeklyChallenges = sanitizeWeeklyChallenges(state.weeklyChallenges);
+  const w = GAME_BALANCE.quidditch.weekly;
+  [match.a, match.b].forEach(house => {
+    const h = state.weeklyChallenges.houses[house];
+    if (!h) return;
+    h.matches += 1;
+    h.points += house === match.a ? Number(match.sa) || 0 : Number(match.sb) || 0;
+    if (match.caught === house) h.snitches += 1;
+  });
+}
+// ¿Ha completado la casa todos los objetivos semanales?
+function weeklyGoalsMet(houseState) {
+  const w = GAME_BALANCE.quidditch.weekly;
+  if (!houseState) return false;
+  return houseState.matches >= w.targetMatches && houseState.points >= w.targetPoints && houseState.snitches >= w.targetSnitches;
+}
+
+// ---- Ceremonia de clausura de curso (Tanda 7.5) ----
+// Construye el resumen de clausura: campeón, MVP por casa, prefectos y delegados.
+function buildClosureSummary(state) {
+  const houses = (state.houses || []).slice().sort((x, y) => (Number(y.points) || 0) - (Number(x.points) || 0));
+  const champion = houses[0] ? houses[0].id : null;
+  const enrolled = (state.users || []).filter(u => !u.is_npc || u.npc_decided !== false);
+  const mvpByHouse = {};
+  WEEKLY_HOUSE_IDS.forEach(id => {
+    const pool = (state.users || []).filter(u => u.house === id && !u.is_npc);
+    const best = pool.sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0))[0];
+    mvpByHouse[id] = best ? { id: best.id, username: best.username, points: Number(best.points) || 0 } : null;
+  });
+  const prefects = enrolled.filter(u => u.role === 'prefect').map(u => ({ id: u.id, username: u.username, house: u.house }));
+  const delegates = enrolled.filter(u => u.role === 'delegado').map(u => ({ id: u.id, username: u.username, house: u.house }));
+  return { champion, houses, mvpByHouse, prefects, delegates, at: Date.now() };
+}
+
+// ---- Crónica de Lee Jordan (Tanda 7.3) ----
+// Resumen local de 3 líneas con nombres reales (respaldo si Groq no responde).
+function buildMatchChronicleFallback(match, state) {
+  const houseName = id => {
+    const H = { gryffindor: 'Gryffindor', slytherin: 'Slytherin', ravenclaw: 'Ravenclaw', hufflepuff: 'Hufflepuff' };
+    return H[id] || id;
+  };
+  const scorers = (match.players || []).filter(p => p.pos === 'Cazador').slice(0, 2).map(p => p.username).filter(Boolean);
+  const seeker = (match.players || []).find(p => p.pos === 'Buscador' && p.house === match.caught);
+  const keeper = (match.players || []).find(p => p.pos === 'Guardián');
+  const lines = [];
+  lines.push(`¡${houseName(match.a)} ${match.sa} - ${match.sb} ${houseName(match.b)}! Un partido de los que hacen época en el Estadio de Hogwarts.`);
+  if (seeker) lines.push(`El buscador ${seeker.username} de ${houseName(seeker.house)} atrapó la Snitch Dorada y desató el delirio de la grada.`);
+  else if (scorers.length) lines.push(`Los cazadores ${scorers.join(' y ')} castigaron los aros rivales una y otra vez sin piedad.`);
+  else lines.push(`El marcador se movió a base de bludgers y Quaffles hasta el último silbato.`);
+  if (match.winner && match.winner !== 'empate') {
+    lines.push(`Con el triunfo de ${houseName(match.winner)}, ${keeper ? `${keeper.username} y ` : ''}la Copa de las Casas tiembla: ¡esto no ha hecho más que empezar!`);
+  } else {
+    lines.push(`Empate agónico: ni la Snitch quiso decidir el vencedor esta vez. ¡Vuelta a los vestuarios con la cabeza bien alta!`);
+  }
+  return { lines: lines.slice(0, 3), fallback: true, at: Date.now() };
+}
+// Normaliza la crónica generada por la IA: exactamente 3 líneas no vacías.
+function normalizeChronicle(raw, fallback) {
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const lines = (Array.isArray(src.lines) ? src.lines : (Array.isArray(src) ? src : []))
+    .map(l => String(l == null ? '' : l).trim().slice(0, 300)).filter(Boolean).slice(0, 3);
+  if (lines.length < 3) return fallback;
+  return { lines, fallback: false, at: Date.now() };
+}
+// Genera la crónica épica con Groq (Lee Jordan) y, si falla, usa el respaldo.
+async function generateMatchChronicle(match, state) {
+  const fallback = buildMatchChronicleFallback(match, state);
+  if (!AI_ENABLED) return fallback;
+  const houseName = id => ({ gryffindor: 'Gryffindor', slytherin: 'Slytherin', ravenclaw: 'Ravenclaw', hufflepuff: 'Hufflepuff' }[id] || id);
+  const roster = (match.players || []).map(p => `${p.username} (${p.pos}, ${houseName(p.house)})`).join(', ') || 'jugadores anónimos';
+  const systemPrompt = `Eres Lee Jordan, el legendario comentarista de Quidditch de Hogwarts: eufórico, gracioso y parcial, con humor británico y sin salirte del canon de Harry Potter (nada del mundo real ni de IA). Escribes SIEMPRE en español. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con esta forma: {"lines":["línea 1","línea 2","línea 3"]}. Cada línea es una frase breve y épica; en total EXACTAMENTE 3 líneas.`;
+  const userPrompt = `Partido terminado: ${houseName(match.a)} ${match.sa} - ${match.sb} ${houseName(match.b)}. Ganador: ${match.winner === 'empate' ? 'empate' : houseName(match.winner)}. Snitch atrapada por: ${match.caught ? houseName(match.caught) : 'nadie'}. Alineación: ${roster}. Narra la crónica final en 3 líneas.`;
+  try {
+    const parsed = await aiChatJSON({ systemPrompt, userPrompt, maxTokens: 400, temperature: 0.9, reasoning: 'low' });
+    return normalizeChronicle(parsed, fallback);
+  } catch (err) {
+    console.error('Error generando la crónica de Lee Jordan (usando respaldo local):', err.message);
+    return fallback;
+  }
 }
 
 /* ===== CLUBES EXTRACURRICULARES (Tanda 3.2) =====
@@ -1960,8 +2184,19 @@ function defaultDb() {
     // Mercadillo (Parte 4A): ofertas de intercambio de objetos tangibles.
     // { id, from, to, giveItemId, giveQty, wantItemId, wantQty, status, at }
     itemTrades: [],
+    // Lápida de usuarios eliminados por el administrador (Parte 5): evita que
+    // un cliente con datos obsoletos (p. ej. otro navegador) reinyecte la cuenta
+    // borrada al reenviar su `users`. Cada entrada: { id, name, at }.
+    deletedUserIds: [],
     // Edición activa de El Profeta: { issue, generatedAt, year } o null.
     dailyProphet: null,
+    // Desafíos semanales cooperativos por casa (Parte 4B):
+    // { weekKey, houses: { [house]: { matches, points, snitches, claimed } } }
+    weeklyChallenges: sanitizeWeeklyChallenges(null),
+    // Crónica de la última clausura de curso (Parte 4B), o null.
+    closure: null,
+    // Crónicas de Lee Jordan publicadas en El Profeta (Parte 4B).
+    prophetChronicles: [],
     // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
     spiritCache: {}
   };
@@ -2352,6 +2587,56 @@ function mergeItemTrades(serverList, incomingList, users) {
   return sanitizeItemTrades({ users }, [...map.values()]);
 }
 
+/* ===== PARTE 4B: FUSIÓN DE PARTIDOS (cliente ↔ servidor) =====
+   El cliente gestiona los partidos de forma local (temporizadores, resolución
+   de rondas). El servidor protege las apuestas y la crónica ya resueltas para
+   que un autosave obsoleto no las borre. */
+function mergeMatches(serverList, incomingList) {
+  const server = Array.isArray(serverList) ? serverList : [];
+  const incoming = Array.isArray(incomingList) ? incomingList : [];
+  const serverById = new Map(server.filter(m => m && m.id != null).map(m => [String(m.id), m]));
+  return incoming.map(m => {
+    if (!m || m.id == null) return m;
+    const sv = serverById.get(String(m.id));
+    if (!sv) return m;
+    const out = { ...m };
+    // Las apuestas ya liquidadas por el servidor nunca retroceden.
+    if (sv.betsSettled) { out.betsSettled = true; out.bets = sv.bets; }
+    // La crónica del servidor (con nombres reales) prevalece si el cliente no trae una.
+    if (sv.chronicle && (!m.chronicle || !Array.isArray(m.chronicle.lines) || !m.chronicle.lines.length)) {
+      out.chronicle = sv.chronicle;
+    }
+    return out;
+  }).concat(server.filter(m => m && m.id != null && !incoming.some(x => x && String(x.id) === String(m.id))));
+}
+
+/* ===== PARTE 4B: LIQUIDACIÓN DE PARTIDOS =====
+   Cuando un partido pasa a "finished", el servidor (fuente de verdad):
+     · paga las apuestas amistosas acertadas,
+     · avanza los desafíos semanales de ambas casas,
+   y marca el partido como procesado (`betsSettled`) para no repetirlo. */
+function settleFinishedMatches(state, prevMatches) {
+  const prevById = new Map((Array.isArray(prevMatches) ? prevMatches : [])
+    .filter(m => m && m.id != null).map(m => [String(m.id), m]));
+  const settled = [];
+  (Array.isArray(state.matches) ? state.matches : []).forEach(m => {
+    if (!m || m.id == null || m.status !== 'finished' || m.betsSettled) return;
+    m.bets = sanitizeMatchBets(m.bets, m);
+    const results = settleMatchBets(m);
+    results.forEach(r => {
+      if (r.payout > 0) {
+        const u = state.users.find(x => Number(x.id) === Number(r.uid));
+        if (u) u.galeones = (Number(u.galeones) || 0) + r.payout;
+      }
+    });
+    applyMatchToWeekly(state, m);
+    m.betsSettled = true;
+    m.betResults = results;
+    settled.push(m);
+  });
+  return settled;
+}
+
 // Cuenta de un objeto en el inventario de un jugador.
 function invCount(user, itemId) {
   const inv = user && user.inv;
@@ -2531,9 +2816,85 @@ function mergeServerAuthority(serverUser, incomingUser) {
   return out;
 }
 
-function mergeUsers(serverUsers, incomingUsers) {
+const DELETED_USERS_MAX = 100;
+// Normaliza el nombre para comparar lápidas (sin acentos, minúsculas, sin espacios).
+function normUserName(name) {
+  return String(name || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase();
+}
+// Sanea la lista de usuarios eliminados: solo entradas con id o nombre, sin
+// duplicados (por id o por nombre) y con un máximo de las últimas 100.
+function sanitizeDeletedUsers(list) {
+  const out = [];
+  const seenIds = new Set();
+  const seenNames = new Set();
+  (Array.isArray(list) ? list : []).forEach(e => {
+    if (!e) return;
+    const id = Number(e.id);
+    const hasId = Number.isFinite(id) && id > 0;
+    const name = normUserName(e.name || e.username);
+    if (!hasId && !name) return;
+    if ((hasId && seenIds.has(id)) || (name && seenNames.has(name))) return;
+    if (hasId) seenIds.add(id);
+    if (name) seenNames.add(name);
+    out.push({ id: hasId ? id : null, name: name || null, at: Number(e.at) || Date.now() });
+  });
+  return out.slice(-DELETED_USERS_MAX);
+}
+// ¿Está el usuario en la lápida? Se compara por id y por nombre normalizado.
+function isDeletedUser(user, deletedList) {
+  if (!user) return false;
+  const id = Number(user.id);
+  const name = normUserName(user.username);
+  return (Array.isArray(deletedList) ? deletedList : []).some(e => {
+    if (!e) return false;
+    if (Number.isFinite(id) && e.id != null && Number(e.id) === id) return true;
+    if (name && e.name && e.name === name) return true;
+    return false;
+  });
+}
+// Baja "dura" para un usuario que YA existe en el servidor (o en el cliente): un
+// id en la lápida siempre bloquea; un nombre solo bloquea a copias sin
+// contraseña (un personaje recreado con contraseña nueva sobrevive).
+function isHardDeletedUser(user, deletedList) {
+  if (!user) return false;
+  const id = Number(user.id);
+  const name = normUserName(user.username);
+  return (Array.isArray(deletedList) ? deletedList : []).some(e => {
+    if (!e) return false;
+    if (Number.isFinite(id) && e.id != null && Number(e.id) === id) return true;
+    if (!user.pass && name && e.name && e.name === name) return true;
+    return false;
+  });
+}
+// Fusiona lápidas: solo crecen (una baja nunca se revierte), sin duplicados.
+function mergeDeletedUsers(serverList, incomingList) {
+  return sanitizeDeletedUsers([...(serverList || []), ...(incomingList || [])]);
+}
+// Ajusta las lápidas tras fusionar los usuarios: si el id ya está vivo, la baja
+// se revirtió por completo; si el nombre lo usa una cuenta viva, se libera el
+// nombre pero se conserva la lápida del id (un autosave obsoleto no puede
+// revivir el registro antiguo). Solo se invoca con la lista ya fusionada.
+function pruneTombstonesForLiveUsers(tombstones, users) {
+  const list = Array.isArray(users) ? users : [];
+  const liveIds = new Set(list.filter(u => u && u.id != null).map(u => Number(u.id)));
+  const liveNames = new Set(list.filter(u => u && !u.is_npc && u.pass).map(u => normUserName(u.username)));
+  const out = [];
+  (tombstones || []).forEach(t => {
+    if (!t) return;
+    if (t.id != null && liveIds.has(Number(t.id))) return;
+    const name = (t.name && !liveNames.has(t.name)) ? t.name : null;
+    if (t.id == null && !name) return;
+    out.push({ id: t.id, name, at: t.at });
+  });
+  return sanitizeDeletedUsers(out);
+}
+
+function mergeUsers(serverUsers, incomingUsers, deletedList) {
   const server = Array.isArray(serverUsers) ? serverUsers : [];
   const incoming = Array.isArray(incomingUsers) ? incomingUsers : [];
+  const tombstones = sanitizeDeletedUsers(deletedList);
   const serverById = new Map(server.filter(u => u && u.id != null).map(u => [Number(u.id), u]));
   const incomingIds = new Set(incoming.filter(u => u && u.id != null).map(u => Number(u.id)));
 
@@ -2541,6 +2902,16 @@ function mergeUsers(serverUsers, incomingUsers) {
   incoming.forEach(u => {
     if (!u || u.id == null) return;
     const sv = serverById.get(Number(u.id));
+    // Un usuario eliminado por el administrador no puede resucitar desde el
+    // cliente. Por id SIEMPRE se descarta; por nombre solo se admite si es un
+    // registro nuevo explícito (id que el servidor no conocía y con contraseña),
+    // para permitir recrear la cuenta sin que un autosave obsoleto la restaure.
+    // Los NPC del canon quedan exentos (se re-siembran solos en sanitizeState).
+    if (!u.is_npc) {
+      if (tombstones.some(e => e.id != null && Number(e.id) === Number(u.id))) return;
+      if (tombstones.some(e => e.name && e.name === normUserName(u.username))
+          && !(u.pass && !sv)) return;
+    }
     if (sv && isRealUser(sv) && !isRealUser(u)) { merged.push(sv); return; }
     // Una cuenta protegida no puede quedar sin contraseña: un cliente obsoleto
     // (con `pass` vacío) no debe desactivar la protección de un jugador real.
@@ -2556,6 +2927,9 @@ function mergeUsers(serverUsers, incomingUsers) {
   const preserved = [];
   server.forEach(u => {
     if (!u || u.id == null || incomingIds.has(Number(u.id)) || !isRealUser(u)) return;
+    // Un jugador marcado como eliminado no se preserva: la baja manda (un id en
+    // la lápida bloquea siempre; el nombre solo a copias sin contraseña).
+    if (isHardDeletedUser(u, tombstones)) return;
     merged.push(u);
     preserved.push(u.username);
   });
@@ -2843,8 +3217,45 @@ function sanitizeState(state) {
   }
 
   if (Array.isArray(state.matches)) {
-    state.matches.forEach(m => { if (!m.type) m.type = 'amistoso'; });
+    state.matches.forEach(m => {
+      if (!m.type) m.type = 'amistoso';
+      // Parte 4B: apuestas amistosas saneadas y crónica de Lee Jordan normalizada.
+      m.bets = sanitizeMatchBets(m.bets, m);
+      m.betsSettled = !!m.betsSettled;
+      if (m.chronicle && (!Array.isArray(m.chronicle.lines) || !m.chronicle.lines.length)) m.chronicle = null;
+      if (Array.isArray(m.players)) {
+        m.players.forEach(p => {
+          if (!QUIDDITCH_POSITIONS.includes(p.pos)) p.pos = 'Suplente';
+          if (!QUIDDITCH_ACTIONS[p.pos]) p.action = null;
+          else if (p.action != null && !QUIDDITCH_ACTIONS[p.pos].includes(p.action)) p.action = null;
+        });
+      }
+    });
   }
+  // Desafíos semanales cooperativos por casa (Parte 4B): se reinician al cambiar
+  // de semana. Ceremonia de clausura: estructura válida o null.
+  state.weeklyChallenges = sanitizeWeeklyChallenges(state.weeklyChallenges);
+  if (!state.closure || typeof state.closure !== 'object' || !state.closure.champion) state.closure = null;
+  // Lápida de usuarios eliminados por el administrador (Parte 5): se sanea y se
+  // usa para descartar cualquier cuenta borrada que reaparezca en el estado
+  // (los NPC del canon quedan exentos y se re-siembran solos).
+  state.deletedUserIds = sanitizeDeletedUsers(state.deletedUserIds);
+  if (state.deletedUserIds.length) {
+    state.users = state.users.filter(u => u && (u.is_npc || !isHardDeletedUser(u, state.deletedUserIds)));
+  }
+  // Crónicas de Lee Jordan publicadas en El Profeta (Parte 4B).
+  state.prophetChronicles = (Array.isArray(state.prophetChronicles) ? state.prophetChronicles : [])
+    .filter(c => c && typeof c === 'object' && Array.isArray(c.lines) && c.lines.length)
+    .map(c => ({
+      id: String(c.id || ''), matchId: String(c.matchId || ''),
+      a: String(c.a || ''), b: String(c.b || ''),
+      sa: Math.max(0, Math.floor(Number(c.sa) || 0)), sb: Math.max(0, Math.floor(Number(c.sb) || 0)),
+      winner: c.winner ? String(c.winner) : null,
+      lines: c.lines.map(l => String(l || '').slice(0, 300)).filter(Boolean).slice(0, 3),
+      at: Number(c.at) || Date.now()
+    }))
+    .filter(c => c.lines.length === 3)
+    .slice(0, 20);
 
   reconcileHousePoints(state);
   return state;
@@ -2886,6 +3297,10 @@ async function saveState(newState) {
   // entregas que un cliente con datos obsoletos hubiera podido borrar.
   const authoritativeUsers = (memoryState && Array.isArray(memoryState.users)) ? memoryState.users : null;
   reconcileLetterGrants(stateToSave, authoritativeUsers);
+  // Parte 4B: liquida las apuestas de los partidos recién terminados y avanza
+  // los desafíos semanales de las casas. Idempotente gracias a `betsSettled`.
+  const prevMatches = (memoryState && Array.isArray(memoryState.matches)) ? memoryState.matches : [];
+  const justSettled = settleFinishedMatches(stateToSave, prevMatches);
   // La edición activa de El Profeta es autoritativa del servidor: un cliente que
   // la omita (o reenvíe una copia antigua) no debe borrarla antes de sus 24 h.
   const prevProphet = memoryState && memoryState.dailyProphet;
@@ -2897,10 +3312,46 @@ async function saveState(newState) {
   memoryState = stateToSave;
   if (!db) {
     fs.writeFileSync(DB_FILE, JSON.stringify(stateToSave, null, 2));
-    return;
+  } else {
+    const collection = db.collection('gameState');
+    await collection.updateOne({ _id: 'global' }, { $set: stateToSave }, { upsert: true });
   }
-  const collection = db.collection('gameState');
-  await collection.updateOne({ _id: 'global' }, { $set: stateToSave }, { upsert: true });
+  // La crónica de Lee Jordan se genera en segundo plano (una sola vez por partido).
+  justSettled.forEach(m => { generateChronicleForMatch(String(m.id)); });
+}
+
+// Genera (una única vez) la crónica de Lee Jordan de un partido terminado y la
+// publica en El Profeta. Si el partido ya tiene crónica, no hace nada.
+const chroniclesInFlight = new Set();
+async function generateChronicleForMatch(matchId) {
+  if (chroniclesInFlight.has(matchId)) return;
+  chroniclesInFlight.add(matchId);
+  try {
+    const state = memoryState;
+    const match = (state.matches || []).find(m => String(m.id) === String(matchId));
+    if (!match || match.status !== 'finished' || (match.chronicle && Array.isArray(match.chronicle.lines) && match.chronicle.lines.length)) return;
+    const chronicle = await generateMatchChronicle(match, state);
+    // El partido puede haber cambiado durante la llamada a la IA: se re-localiza.
+    const again = (memoryState.matches || []).find(m => String(m.id) === String(matchId));
+    if (!again) return;
+    again.chronicle = chronicle;
+    // Publicación en El Profeta: la crónica aparece como noticia destacada.
+    memoryState.prophetChronicles = Array.isArray(memoryState.prophetChronicles) ? memoryState.prophetChronicles : [];
+    memoryState.prophetChronicles.unshift({
+      id: `chr_${matchId}`,
+      matchId: String(matchId),
+      a: again.a, b: again.b, sa: again.sa, sb: again.sb, winner: again.winner,
+      lines: chronicle.lines, at: chronicle.at
+    });
+    memoryState.prophetChronicles = memoryState.prophetChronicles.slice(0, 20);
+    await saveState(memoryState);
+    io.emit('sync_db', { db: memoryState, reason: null });
+    io.emit('quidditch:chronicle', { matchId: String(matchId), chronicle, match: { a: again.a, b: again.b, sa: again.sa, sb: again.sb, winner: again.winner } });
+  } catch (err) {
+    console.error('Error generando la crónica del partido:', err.message);
+  } finally {
+    chroniclesInFlight.delete(matchId);
+  }
 }
 
 /* ===== CUMPLEAÑOS Y REGALOS ===== */
@@ -3495,15 +3946,44 @@ io.on('connection', async (socket) => {
           liveUsers
         );
 
+        // Partidos de Quidditch (Parte 4B): el cliente resuelve las rondas, pero
+        // las apuestas liquidadas y la crónica del servidor nunca se pierden.
+        data.db.matches = mergeMatches(
+          (memoryState && memoryState.matches) || [],
+          Array.isArray(data.db.matches) ? data.db.matches : []
+        );
+
+        // Desafíos semanales, clausura y crónicas (Parte 4B): autoritativos del
+        // servidor. Un autosave obsoleto no puede reiniciar el progreso semanal
+        // ni borrar la ceremonia o las crónicas ya publicadas.
+        data.db.weeklyChallenges = sanitizeWeeklyChallenges(
+          (memoryState && memoryState.weeklyChallenges) || data.db.weeklyChallenges
+        );
+        data.db.closure = (memoryState && memoryState.closure) || null;
+        if (!Array.isArray(data.db.prophetChronicles) || !data.db.prophetChronicles.length) {
+          data.db.prophetChronicles = (memoryState && Array.isArray(memoryState.prophetChronicles))
+            ? memoryState.prophetChronicles : [];
+        }
+
+        // Lápida de usuarios eliminados (Parte 5): append-only. Un cliente con
+        // datos obsoletos no puede revivir una baja, y las bajas nuevas se suman
+        // (igual que el resto de listas fusionadas). Se poda después de fusionar
+        // los usuarios, para permitir recrear una cuenta con contraseña nueva.
+        const serverTombstones = (memoryState && memoryState.deletedUserIds) || [];
+        const incomingTombstones = Array.isArray(data.db.deletedUserIds) ? data.db.deletedUserIds : [];
+        data.db.deletedUserIds = mergeDeletedUsers(serverTombstones, incomingTombstones);
+
         // Los usuarios reales del servidor NUNCA se pueden borrar por un cliente
         // con datos obsoletos o por defecto (solo NPCs). Se hace al final para
         // que las fusiones anteriores usen la lista aceptada por el cliente.
-        data.db.users = mergeUsers((memoryState && memoryState.users) || [], liveUsers);
+        data.db.users = mergeUsers((memoryState && memoryState.users) || [], liveUsers, data.db.deletedUserIds);
         if (!data.db.users.some(isRealUser) && (memoryState && memoryState.users || []).some(isRealUser)) {
           console.log('⛔ sync_db rechazado: eliminaría a todos los jugadores reales.');
           socket.emit('sync_db', { db: memoryState, reason: 'Corrección del servidor (Protección de datos)' });
           return;
         }
+        // Una cuenta recreada con contraseña nueva deja de estar bloqueada.
+        data.db.deletedUserIds = pruneTombstonesForLiveUsers(data.db.deletedUserIds, data.db.users);
 
         await saveState(data.db);
 
@@ -4319,6 +4799,131 @@ io.on('connection', async (socket) => {
         });
       } catch (err) {
         console.error('Error enviando la cesta de regalo:', err.message);
+      }
+    });
+
+    /* ===== PARTE 4B: AROS DE ENTRENAMIENTO AÉREO (Tanda 7.1) =====
+       Minijuego libre en los terrenos. El cliente envía el resultado; el
+       servidor valida los aros, la duración y el enfriamiento antes de pagar. */
+    socket.on('flight:hoops', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const check = validateHoopsRun(data, u);
+        if (!check.ok) { socket.emit('flight:error', { message: check.message }); return; }
+        const rw = hoopsReward(data && data.rings);
+        u.flight_xp = (Number(u.flight_xp) || 0) + rw.xp;
+        u.galeones = (Number(u.galeones) || 0) + rw.galeones;
+        u.socialCooldowns = (u.socialCooldowns && typeof u.socialCooldowns === 'object') ? u.socialCooldowns : {};
+        u.socialCooldowns.hoops = Date.now();
+        const club = awardClubXp(u, 'dragon', rw.clubXp);
+        const newly = syncTitleUnlocks(u);
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('flight:hoopsResult', {
+          ok: true, rings: rw.rings, xp: rw.xp, galeones: rw.galeones,
+          club, newTitles: newly, flight_xp: u.flight_xp, galeones_total: u.galeones
+        });
+      } catch (err) {
+        console.error('Error en los aros de entrenamiento aéreo:', err.message);
+      }
+    });
+
+    /* ===== PARTE 4B: APUESTAS AMISTOSAS (Tanda 5.4) =====
+       Se apuestan hasta 20 Galeones por una de las dos casas antes de que el
+       partido arranque. El pago lo resuelve el servidor al terminar. */
+    socket.on('quidditch:bet', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const matchId = String((data && data.matchId) || '');
+        const match = (state.matches || []).find(m => String(m.id) === matchId);
+        if (!match) { socket.emit('quidditch:betError', { message: 'Partido no encontrado.' }); return; }
+        if (match.status !== 'waiting') { socket.emit('quidditch:betError', { message: 'Las apuestas cierran cuando empieza el partido.' }); return; }
+        const b = GAME_BALANCE.quidditch.bets;
+        const house = String((data && data.house) || '');
+        if (house !== match.a && house !== match.b) { socket.emit('quidditch:betError', { message: 'Esa casa no juega este partido.' }); return; }
+        const amount = Math.floor(Number(data && data.amount));
+        if (!Number.isFinite(amount) || amount < b.min || amount > b.max) {
+          socket.emit('quidditch:betError', { message: `Puedes apostar entre ${b.min} y ${b.max} Galeones.` });
+          return;
+        }
+        match.bets = sanitizeMatchBets(match.bets, match);
+        if (match.bets.some(x => Number(x.uid) === Number(u.id))) {
+          socket.emit('quidditch:betError', { message: 'Ya tienes una apuesta en este partido.' });
+          return;
+        }
+        if ((Number(u.galeones) || 0) < amount) { socket.emit('quidditch:betError', { message: 'No tienes Galeones suficientes.' }); return; }
+        u.galeones = (Number(u.galeones) || 0) - amount;
+        match.bets.push({ uid: u.id, house, amount, at: Date.now() });
+        match.bets = sanitizeMatchBets(match.bets, match);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('quidditch:betResult', { ok: true, matchId, house, amount, galeones: u.galeones, payout: amount * b.payout });
+      } catch (err) {
+        console.error('Error registrando la apuesta de Quidditch:', err.message);
+      }
+    });
+
+    /* ===== PARTE 4B: DESAFÍOS SEMANALES POR CASA (Tanda 7.4) =====
+       El servidor es la fuente de verdad. Cada jugador puede reclamar la
+       recompensa de su casa una vez por semana si se cumplen los objetivos. */
+    socket.on('quidditch:claimWeekly', async () => {
+      try {
+        const u = profileUser();
+        if (!u || !u.house) return;
+        const state = memoryState;
+        state.weeklyChallenges = sanitizeWeeklyChallenges(state.weeklyChallenges);
+        const h = state.weeklyChallenges.houses[u.house];
+        if (!h) { socket.emit('quidditch:weeklyError', { message: 'Tu casa no tiene desafíos activos.' }); return; }
+        if (!weeklyGoalsMet(h)) { socket.emit('quidditch:weeklyError', { message: 'Tu casa aún no ha completado los desafíos de la semana.' }); return; }
+        if (h.claimed) { socket.emit('quidditch:weeklyError', { message: 'Tu casa ya ha reclamado la recompensa esta semana.' }); return; }
+        const w = GAME_BALANCE.quidditch.weekly;
+        u.galeones = (Number(u.galeones) || 0) + w.rewardGaleones;
+        u.points = (Number(u.points) || 0) + w.rewardPoints;
+        h.claimed = true;
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('quidditch:weeklyResult', { ok: true, house: u.house, galeones: w.rewardGaleones, points: w.rewardPoints });
+      } catch (err) {
+        console.error('Error reclamando el desafío semanal:', err.message);
+      }
+    });
+
+    /* ===== PARTE 4B: CERRAR EL CURSO / CLAUSURA (Tanda 7.5) =====
+       Solo el Director/Profesorado puede cerrar el curso: se corona al campeón,
+       se nombra MVP por casa y se publica el resumen en El Profeta. */
+    socket.on('quidditch:ceremony', async () => {
+      try {
+        const uid = Number(socket.data && socket.data.userId);
+        const u = uid ? memoryState.users.find(x => x.id === uid) : null;
+        if (!u || !u.is_admin) { socket.emit('quidditch:ceremonyError', { message: 'Solo el Director/Profesorado puede cerrar el curso.' }); return; }
+        const state = memoryState;
+        const summary = buildClosureSummary(state);
+        state.closure = summary;
+        const c = GAME_BALANCE.quidditch.closure;
+        // Recompensa al campeón: cada jugador real de la casa ganadora recibe oro.
+        if (summary.champion) {
+          state.users.filter(x => x.house === summary.champion && !x.is_npc).forEach(x => {
+            x.galeones = (Number(x.galeones) || 0) + c.rewardGaleones;
+          });
+        }
+        // El MVP de cada casa recibe un extra de puntos y oro.
+        Object.values(summary.mvpByHouse).forEach(mvp => {
+          if (!mvp) return;
+          const x = state.users.find(y => y.id === mvp.id);
+          if (!x) return;
+          x.points = (Number(x.points) || 0) + c.mvpPoints;
+          x.galeones = (Number(x.galeones) || 0) + c.rewardGaleones;
+        });
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.emit('quidditch:closure', summary);
+      } catch (err) {
+        console.error('Error en la ceremonia de clausura:', err.message);
       }
     });
 
@@ -5246,6 +5851,12 @@ module.exports = {
   isRealUser,
   mergeUsers,
   mergeServerAuthority,
+  normUserName,
+  sanitizeDeletedUsers,
+  isDeletedUser,
+  isHardDeletedUser,
+  mergeDeletedUsers,
+  pruneTombstonesForLiveUsers,
   pickWandCore,
   wandFindBonus,
   wandEmpatiaBonus,
@@ -5311,6 +5922,23 @@ module.exports = {
   giftAffinityFor,
   npcFavoriteItem,
   NPC_FAVORITE_ITEMS,
+  // Parte 4B: Quidditch avanzado, apuestas, desafíos semanales y clausura.
+  QUIDDITCH_POSITIONS,
+  QUIDDITCH_ACTIONS,
+  positionPassive,
+  hoopsReward,
+  validateHoopsRun,
+  sanitizeMatchBets,
+  settleMatchBets,
+  settleFinishedMatches,
+  mergeMatches,
+  currentWeekKey,
+  sanitizeWeeklyChallenges,
+  applyMatchToWeekly,
+  weeklyGoalsMet,
+  buildClosureSummary,
+  buildMatchChronicleFallback,
+  normalizeChronicle,
   defaultDb,
   sanitizeState
 };
