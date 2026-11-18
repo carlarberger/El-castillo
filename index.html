@@ -78,6 +78,35 @@ button,input,select,textarea{font:inherit;color:inherit}
 .prophet-banner .pb-headline{flex:1;min-width:0;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prophet-banner .pb-cta{font-weight:700;font-size:13px;color:var(--gold);white-space:nowrap}
+.prophet-banner .pb-masthead.q{color:#7a5a2a}
+.prophet-banner.quisquilloso{background:linear-gradient(100deg,color-mix(in srgb,#8a6a3a 18%,var(--surface)) 0%,var(--surface) 60%)}
+/* Fase 5: eventos sociales en tiempo real. */
+.soc-events{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.soc-card{border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:12px;display:flex;flex-direction:column;gap:8px}
+.soc-card h4{font-size:15px;margin:0;display:flex;align-items:center;gap:6px}
+.soc-card .soc-desc{font-size:12px;color:var(--muted);margin:0}
+.soc-card .soc-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.soc-card.live{border-color:var(--gold);box-shadow:0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent)}
+.soc-card.raid-live{border-color:var(--bad)}
+.raid-bar{height:16px;border-radius:8px;background:color-mix(in srgb,var(--bad) 20%,var(--surface));overflow:hidden;border:1px solid var(--line)}
+.raid-bar>span{display:block;height:100%;background:linear-gradient(90deg,#7ec8ff,#4a8fe0);transition:width .3s}
+.raid-bar.low>span{background:linear-gradient(90deg,#ff9a3c,#c43b34)}
+.raid-meta{font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+.cheer-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.cheer-btn{border:1px solid var(--line);border-radius:10px;background:var(--surface-2);padding:8px 12px;font-weight:700;cursor:pointer;font-size:13px;transition:.15s}
+.cheer-btn:hover:not(:disabled){border-color:var(--gold);transform:translateY(-1px)}
+.cheer-btn:disabled{opacity:.5;cursor:not-allowed}
+.ball-invite-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ball-invite-row select{flex:1;min-width:120px}
+.prophet-feed{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.prophet-feed .pf-item{border-left:3px solid var(--gold);padding:6px 10px;background:color-mix(in srgb,var(--gold) 6%,var(--surface))}
+.prophet-feed .pf-item.q{border-left-color:#8a6a3a;background:color-mix(in srgb,#8a6a3a 8%,var(--surface))}
+.prophet-feed .pf-cat{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:800}
+.prophet-feed .pf-item.q .pf-cat{color:#7a5a2a}
+.prophet-feed .pf-head{font-family:'Cormorant',Georgia,serif;font-weight:700;font-size:15px}
+.prophet-feed .pf-text{font-size:12px;color:var(--muted)}
+.pf-time{font-size:10px;color:var(--muted);float:right}
+
 /* Lechuzas: bloque ancho justo ENCIMA del cintillo de El Profeta. */
 .letters-strip{display:flex;align-items:center;gap:12px;width:100%;margin:0 auto 10px;padding:12px 18px;position:relative;
   border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer;text-align:left;transition:.15s}
@@ -194,6 +223,7 @@ select{width:auto}
 .explore-mark.p2{border-color:#b07dff;color:#e0ccff;box-shadow:0 0 10px rgba(176,125,255,.6);font-size:14px}
 .explore-mark.p2.done{border-color:var(--gold);color:var(--gold);box-shadow:0 0 8px rgba(227,187,78,.45);opacity:.85}
 .explore-mark.p2.page{border-color:#ffd76a;color:#fff2c4;box-shadow:0 0 14px rgba(255,215,106,.85);animation:merlinPulse 1.8s ease-in-out infinite}
+.explore-mark.treasure{border-color:#ffd76a;color:#fff2c4;font-size:16px;box-shadow:0 0 16px rgba(255,215,106,.9);animation:merlinPulse 1.4s ease-in-out infinite}
 @keyframes merlinPulse{0%,100%{transform:scale(1);filter:brightness(1)}50%{transform:scale(1.16);filter:brightness(1.4)}}
 @keyframes moonPulse{0%,100%{box-shadow:0 0 10px rgba(127,178,255,.6)}50%{box-shadow:0 0 22px rgba(127,178,255,1)}}
 /* Modal de exploración (minijuegos en canvas) */
@@ -724,11 +754,22 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <span class="soc-badge ls-badge" id="lettersBadge" hidden>0</span>
   </button>
   <!-- Cintillo de El Profeta: periódico mágico dinámico (bajo los relojes de las Casas). -->
-  <button class="prophet-banner" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">
-    <span class="pb-masthead">📰 El Profeta</span>
+  <button class="prophet-banner" type="button" id="prophetBanner" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">
+    <span class="pb-masthead" id="prophetBannerMasthead">📰 El Profeta</span>
     <span class="pb-headline" id="prophetBannerHeadline">El seductor periódico del mundo mágico — pulsa para leer la edición de hoy</span>
     <span class="pb-cta">Leer la edición →</span>
   </button>
+
+  <!-- FASE 5: Eventos sociales y dinámicas de grupo en tiempo real (Tanda 6 + 8.4). -->
+  <section class="block" id="eventos-sociales">
+    <div class="sec-head">
+      <h2>🎉 Eventos Sociales y Dinámicas de Grupo</h2>
+      <p>El castillo vive: anima a los tuyos desde la grada, baila en el Gran Comedor, resuelve el acertijo de los retratos, gasta bromas con Fred y George o alza tu Patronus contra los Dementores. Todo ocurre en tiempo real entre los jugadores conectados.</p>
+    </div>
+    <div class="panel hl">
+      <div class="soc-events" id="socEvents"></div>
+    </div>
+  </section>
 
   <section class="block" id="directo">
     <div class="sec-head"><h2>El castillo en directo</h2><p>Clases, comidas y tiempo libre: mira los personajes en cada sala o muévete por el mapa durante el recreo.</p></div>
@@ -1537,6 +1578,11 @@ function ensureDbIntegrity(){
   if(!db||!Array.isArray(db.users))return false;
   let changed=false;
   if(!db.schoolYear || db.schoolYear<1 || db.schoolYear>7){db.schoolYear=1;changed=true;}
+  // Enfriamientos y misiones: un estado recibido sin estas claves no debe romper
+  // el renderizado (varias vistas indexan db.cooldowns[u.id]).
+  if(!db.cooldowns || typeof db.cooldowns!=='object' || Array.isArray(db.cooldowns)){db.cooldowns={};changed=true;}
+  if(!db.missions || typeof db.missions!=='object' || Array.isArray(db.missions)){db.missions={};changed=true;}
+  if(!Array.isArray(db.chat)){db.chat=[];changed=true;}
   // Lápida de usuarios eliminados (Parte 5): siempre un array saneado.
   if(!Array.isArray(db.deletedUserIds)){db.deletedUserIds=[];changed=true;}
   else { const _du=sanitizeDeletedUsers(db.deletedUserIds); if(_du.length!==db.deletedUserIds.length){db.deletedUserIds=_du;changed=true;} }
@@ -1672,6 +1718,10 @@ function ensureDbIntegrity(){
     if (typeof u.vault !== 'number' || isNaN(u.vault)) { u.vault = 0; changed = true; }
     if (typeof u.vaultLastInterest !== 'number' || isNaN(u.vaultLastInterest)) { u.vaultLastInterest = 0; changed = true; }
     if (!u.socialCooldowns || typeof u.socialCooldowns !== 'object') { u.socialCooldowns = {}; changed = true; }
+    // Fase 5: contadores de los eventos sociales (autoritativos del servidor).
+    ['ballDances','treasuresFound','pranksPlaced','raidsRepelled','cheersGiven'].forEach(f=>{
+      if (typeof u[f] !== 'number' || isNaN(u[f]) || u[f] < 0) { u[f] = 0; changed = true; }
+    });
     const _bm = Math.floor(Number(u.birthMonth)), _bd = Math.floor(Number(u.birthDay));
     const _nm = (_bm >= 1 && _bm <= 12) ? _bm : null;
     const _nd = (_nm !== null && _bd >= 1 && _bd <= 31) ? _bd : null;
@@ -1762,6 +1812,14 @@ function ensureDbIntegrity(){
   if(Array.isArray(db.matches)){
     db.matches.forEach(m=>{if(!m.type){m.type='amistoso';changed=true;}});
   }
+  // Fase 5: estado en vivo de los eventos sociales (autoritativo del servidor).
+  // Retrocompatible: un guardado antiguo arranca con todo inactivo y sin feed.
+  if(!Array.isArray(db.prophetFeed)){db.prophetFeed=[];changed=true;}
+  if(!db.spectatorCheers || typeof db.spectatorCheers!=='object' || Array.isArray(db.spectatorCheers)){db.spectatorCheers={};changed=true;}
+  if(!db.ball || typeof db.ball!=='object'){db.ball={active:false,startedBy:null,startedByName:null,startedAt:0,invitations:[],dances:[]};changed=true;}
+  if(typeof db.treasureHunt==='undefined'){db.treasureHunt=null;changed=true;}
+  if(!db.prank || typeof db.prank!=='object'){db.prank={active:false,roomId:null,roomName:null,targetLabel:null,startedBy:null,startedByName:null,startedAt:0,placements:[],totalPlacements:0};changed=true;}
+  if(!db.dementorRaid || typeof db.dementorRaid!=='object'){db.dementorRaid={active:false,shieldHp:100,maxShield:100,participants:[],startedAt:0,endsAt:0,lastDecayAt:0,endedReason:null,repelledBy:null};changed=true;}
   syncHouseTotals();
   return changed;
 }
@@ -3842,6 +3900,12 @@ function explorationMarksFor(roomId,u){
       h+=`<span class="explore-mark p2 page" style="left:50%;top:62%" title="Hay páginas ocultas aquí: lanza Revelio" data-do="openRevelio">🔮</span>`;
     }
   }
+  // Fase 5: objeto oculto del Tesoro de los Retratos. Solo aparece en la sala
+  // correcta y cuando el jugador está allí; al pulsarlo se reclama el bote.
+  const hunt=db.treasureHunt;
+  if(hunt&&hunt.active&&hunt.roomId===roomId&&userLoc(u)===roomId){
+    h+=`<span class="explore-mark treasure" style="left:72%;top:72%" title="Objeto oculto del acertijo: ¡haz clic para reclamar el tesoro!" data-do="claimTreasure">${hunt.objectIcon||'🪙'}</span>`;
+  }
   return h;
 }
 
@@ -5858,6 +5922,8 @@ function renderAll(){
   renderClock();
   renderOnlineIndicator();
   renderSideMenu();
+  renderSocialEvents();
+  updateProphetBanner(prophetIssue);
   updateSocialBadge();
   updateLettersBadge();
 }
@@ -6977,6 +7043,10 @@ socket.on('wand:catalog',(data)=>{
   if(data.cosmetics&&typeof data.cosmetics==='object'){
     Object.keys(data.cosmetics).forEach(id=>{ if(!COSMETICS[id]) COSMETICS[id]=data.cosmetics[id]; });
   }
+  // Catálogo de títulos del servidor: fuente de verdad para el Expediente.
+  if(data.titles&&typeof data.titles==='object'){
+    Object.keys(data.titles).forEach(id=>{ if(!TITLES[id]) TITLES[id]=data.titles[id]; });
+  }
   renderAll();
 });
 socket.on('wand:result',(data)=>{
@@ -7097,6 +7167,111 @@ socket.on('presence:update',(data)=>{
   onlineList=Array.isArray(data.users)?data.users:[];
   renderOnlineIndicator(); renderMap();
 });
+
+/* ===== FASE 5: LISTENERS DE LOS EVENTOS SOCIALES EN TIEMPO REAL ===== */
+// Titular en vivo: actualiza el cintillo de El Profeta / El Quisquilloso y el feed.
+socket.on('prophet:headline',(data)=>{
+  if(!data) return;
+  if(Array.isArray(data.feed)) db.prophetFeed=data.feed;
+  else if(data.entry){ db.prophetFeed=[data.entry,...(db.prophetFeed||[])].slice(0,12); }
+  updateProphetBanner(prophetIssue);
+  renderSocialEvents();
+  if(data.entry){
+    const isQ=data.entry.kind==='quisquilloso';
+    toast(`${isQ?'🗞️ El Quisquilloso':'📰 El Profeta'}: ${data.entry.headline}`);
+  }
+});
+// Modo espectador interactivo: efecto visual y toast en tiempo real.
+socket.on('spectator:cheer',(data)=>{
+  if(!data) return;
+  showCheerEffect(data);
+  const who=data.from?`${data.from} `:'Alguien ';
+  toast(`${data.icon||'✨'} ${who}${data.text||'anima al equipo'} (${data.label||'ánimo'})`);
+});
+socket.on('spectator:result',(data)=>{
+  if(!data||!data.ok) return;
+  const u=me(); if(u){ u.attrEmpatia=data.empathy; u.cheersGiven=data.cheersGiven; }
+  phase5Cooldowns.cheer=Date.now()+(Number(data.cooldownMs)||3000);
+  toast(`📣 ¡Has animado! +${data.points||0} pts de apoyo`);
+  renderSocialEvents();
+});
+socket.on('spectator:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('📣 '+data.message); } });
+
+// Baile de Navidad.
+socket.on('ball:state',(data)=>{ if(data&&data.ball) db.ball=data.ball; renderSocialEvents(); });
+socket.on('ball:announce',(data)=>{ if(data&&data.message){ fanfare(); toast(data.message); } });
+socket.on('ball:invited',(data)=>{
+  if(!data) return;
+  chime(); toast(`💌 ${data.fromName||'Alguien'} te invita a bailar en el Gran Comedor.`);
+  renderSocialEvents();
+});
+socket.on('ball:inviteSent',(data)=>{ if(data&&data.toName) toast(`💌 Invitación enviada a ${data.toName}.`); });
+socket.on('ball:accepted',(data)=>{ if(data&&data.byName){ chime(); toast(`💃 ${data.byName} acepta bailar contigo.`); } });
+socket.on('ball:danceResult',(data)=>{
+  closeMinigame();
+  if(!data) return;
+  if(!data.ok){ buzzSnd(); toast('💃 '+data.message); phase5Cooldowns.ball=Date.now()+20000; renderSocialEvents(); return; }
+  const u=me(); if(u){ u.galeones=(Number(u.galeones)||0)+data.galeones; u.ballDances=data.ballDances; if(data.cosmetic){ u.unlockedCosmetics=u.unlockedCosmetics||[]; if(!u.unlockedCosmetics.includes(data.cosmetic)) u.unlockedCosmetics.push(data.cosmetic); } }
+  phase5Cooldowns.ball=Date.now()+45000;
+  fanfare();
+  toast(`💃 ¡Baile perfecto! +${data.galeones} 🪙${data.partner?` · +${data.affinity} afinidad con ${data.partner}`:''}`);
+  if(data.cosmetic&&COSMETICS[data.cosmetic]) toast(`🎁 Nueva prenda: ${COSMETICS[data.cosmetic].icon} ${COSMETICS[data.cosmetic].name}`);
+  if(data.title&&TITLES[data.title]) toast(`🏅 Nuevo título: ${TITLES[data.title].icon} ${TITLES[data.title].name}`);
+  renderAll();
+});
+socket.on('ball:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('💃 '+data.message); } });
+
+// Búsqueda del Tesoro de los Retratos.
+socket.on('treasure:state',(data)=>{ if(data&&data.hunt!==undefined) db.treasureHunt=data.hunt; renderSocialEvents(); renderMap(); });
+socket.on('treasure:announce',(data)=>{ if(data&&data.message){ fanfare(); toast(data.message); } });
+socket.on('treasure:won',(data)=>{
+  if(!data) return;
+  const u=me();
+  if(u&&Number(data.winnerId)===Number(u.id)){
+    u.galeones=(Number(u.galeones)||0)+data.pot;
+    u.treasuresFound=(Number(u.treasuresFound)||0)+1;
+    fanfare(); toast(`🖼️ ¡Has hallado el tesoro! +${data.pot} 🪙`);
+  } else {
+    toast(`🖼️ ${data.winner} halló el tesoro en ${data.roomName}. ¡La próxima es tuya!`);
+  }
+  renderAll();
+  renderMap();
+});
+socket.on('treasure:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('🖼️ '+data.message); } });
+
+// Bromas coordinadas con Fred y George.
+socket.on('prank:started',(data)=>{ if(data&&data.prank) db.prank=data.prank; renderSocialEvents(); });
+socket.on('prank:result',(data)=>{
+  closeMinigame();
+  if(!data) return;
+  if(!data.ok){ buzzSnd(); toast('💣 '+data.message); phase5Cooldowns.prank=Date.now()+30000; renderSocialEvents(); return; }
+  const u=me(); if(u){ u.galeones=(Number(u.galeones)||0)+data.galeones; u.pranksPlaced=(Number(u.pranksPlaced)||0)+data.placed; if(data.cosmetic){ u.unlockedCosmetics=u.unlockedCosmetics||[]; if(!u.unlockedCosmetics.includes(data.cosmetic)) u.unlockedCosmetics.push(data.cosmetic); } }
+  phase5Cooldowns.prank=Date.now()+60000;
+  fanfare();
+  toast(`💣 ¡Travesura completada! ${data.placed} artefacto(s) · +${data.galeones} 🪙 · +${data.clubXp} XP del Club del Dragón`);
+  if(data.cosmetic&&COSMETICS[data.cosmetic]) toast(`🎁 Nueva prenda: ${COSMETICS[data.cosmetic].icon} ${COSMETICS[data.cosmetic].name}`);
+  if(data.title&&TITLES[data.title]) toast(`🏅 Nuevo título: ${TITLES[data.title].icon} ${TITLES[data.title].name}`);
+  renderAll();
+});
+socket.on('prank:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('💣 '+data.message); } });
+
+// Incursiones cooperativas contra Dementores.
+socket.on('raid:state',(data)=>{ if(data&&data.raid) db.dementorRaid=data.raid; renderSocialEvents(); });
+socket.on('raid:alert',(data)=>{ if(data&&data.message){ fanfare(); toast(data.message); } });
+socket.on('raid:patronusResult',(data)=>{
+  if(!data||!data.ok) return;
+  phase5Cooldowns.raid=Date.now()+3000;
+  toast(`☀️ ¡Expecto Patronum! +${data.charge} al escudo (${Math.round((data.shieldHp/Math.max(1,data.maxShield))*100)}%)`);
+  renderSocialEvents();
+});
+socket.on('raid:end',(data)=>{
+  if(!data) return;
+  if(data.reason==='repelled'){ fanfare(); toast('☀️ ¡El castillo repelió a los Dementores! Todos los defensores reciben su recompensa.'); }
+  else { buzzSnd(); toast('💥 El escudo cayó… los Dementores se retiran por ahora.'); }
+  renderAll();
+});
+socket.on('raid:error',(data)=>{ if(data&&data.message){ buzzSnd(); toast('👻 '+data.message); } });
+
 
 const exploreCanvas=$('exploreCanvas');
 const exploreCtx=exploreCanvas?exploreCanvas.getContext('2d'):null;
@@ -9215,6 +9390,17 @@ async function openProphetModal(){
     prophetIssue=null;
   }
   if(!prophetIssue){
+    const feed=Array.isArray(db.prophetFeed)?db.prophetFeed:[];
+    if(feed.length){
+      openModal(`<div class="prophet-paper">
+        <header class="prophet-head"><h2 class="prophet-masthead">📰 El Profeta</h2>
+          <p class="prophet-tagline">EL SEDUCTOR PERIÓDICO DEL MUNDO MÁGICO</p></header>
+        <p style="text-align:center" class="muted">La imprenta mágica está en mantenimiento, pero estas son las últimas noticias del castillo:</p>
+        ${prophetFeedHTML(feed)}
+        <div style="text-align:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar el periódico</button></div>
+      </div>`,true,'','prophet-modal');
+      return;
+    }
     openModal(`<div class="prophet-paper"><p style="text-align:center">📰 El Profeta no ha podido imprimirse hoy. Inténtalo de nuevo en unos minutos.</p>
       <div style="text-align:center;margin-top:10px"><button class="btn sm" type="button" data-do="closeModal">Cerrar</button></div></div>`,true,'','prophet-modal');
     return;
@@ -9222,11 +9408,39 @@ async function openProphetModal(){
   renderProphetModal();
 }
 
-// Actualiza el cintillo de El Profeta bajo los relojes de las Casas con el
-// titular de la última edición (preparado para titulares dinámicos futuros).
+// Renderiza el feed persistente de titulares (El Profeta + El Quisquilloso).
+function prophetFeedHTML(feed){
+  if(!Array.isArray(feed)||!feed.length) return '';
+  return `<div class="prophet-feed">${feed.slice(0,12).map(e=>{
+    const q=e.kind==='quisquilloso';
+    const t=new Date(Number(e.at)||Date.now());
+    const when=`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+    return `<div class="pf-item ${q?'q':''}">
+      <span class="pf-time">${when}</span>
+      <span class="pf-cat">${q?'🗞️ El Quisquilloso':'📰 El Profeta'} · ${esc(e.category||'')}</span>
+      <div class="pf-head">${e.icon||''} ${esc(e.headline||'')}</div>
+      ${e.text?`<div class="pf-text">${esc(e.text)}</div>`:''}
+    </div>`;}).join('')}</div>`;
+}
+
+// Actualiza el cintillo de El Profeta bajo los relojes de las Casas. Si hay
+// titulares en vivo (Fase 5), muestra el más reciente, diferenciando El Profeta
+// (noticia seria) de El Quisquilloso (rumor curioso).
 function updateProphetBanner(p){
-  const el=$('prophetBannerHeadline'); if(!el||!p) return;
-  const headline=(p.lead&&p.lead.headline)||p.masthead||'';
+  const el=$('prophetBannerHeadline'), banner=$('prophetBanner'), mast=$('prophetBannerMasthead');
+  if(!el) return;
+  const feed=Array.isArray(db.prophetFeed)?db.prophetFeed:[];
+  if(feed.length){
+    const top=feed[0];
+    const isQ=top.kind==='quisquilloso';
+    if(banner) banner.classList.toggle('quisquilloso',isQ);
+    if(mast){ mast.textContent=isQ?'🗞️ El Quisquilloso':'📰 El Profeta'; mast.classList.toggle('q',isQ); }
+    el.textContent=`${top.icon||'📰'} “${top.headline}”`;
+    return;
+  }
+  if(banner) banner.classList.remove('quisquilloso');
+  if(mast){ mast.textContent='📰 El Profeta'; mast.classList.remove('q'); }
+  const headline=p&&p.lead&&p.lead.headline?p.lead.headline:(p&&p.masthead)||'';
   el.textContent=headline?`“${headline}”`:'El seductor periódico del mundo mágico — pulsa para leer la edición de hoy';
 }
 
@@ -9258,6 +9472,7 @@ function renderProphetModal(){
       <div class="prophet-body">${paras}</div>
     </section>
     ${secs}
+    ${prophetFeedHTML(db.prophetFeed)}
     <section class="prophet-classified">
       <span class="c-lock">🔒 ${esc(cl.title||'INFORME SELLADO POR EL MINISTERIO')}</span>
       <p class="c-title">${esc(cl.category||'MINISTERIO · CLASIFICADO')} · <span style="color:#8b1e1e">CENSURADO</span></p>
@@ -9309,6 +9524,331 @@ function lumosReveal(){
   lumosUsed=true;
   chime();
   applyLumosReveal(true);
+}
+
+/* ===== FASE 5 (TANDA 6 + 8.4): EVENTOS SOCIALES EN TIEMPO REAL =====
+   El servidor es la fuente de verdad. El cliente solo pinta el estado que
+   recibe por Socket.IO y emite las intenciones (animar, bailar, reclamar el
+   tesoro, colocar la broma o lanzar el Patronus). */
+
+// Cooldowns locales (solo para deshabilitar botones; el servidor revalida).
+const phase5Cooldowns = { cheer: 0, ball: 0, prank: 0, raid: 0 };
+// Hechizos de ánimo (espejo de PHASE5_CHEERS del servidor).
+const PHASE5_CHEERS_CLIENT = {
+  lumos:  { id:'lumos',  label:'Lumos festivo',    icon:'✨', color:'#fde68a', text:'¡Que brille el estadio!' },
+  banner: { id:'banner', label:'Pancarta de Casa', icon:'🚩', color:'#e8b930', text:'¡Vamos, equipo!' },
+  sparks: { id:'sparks', label:'Chispas mágicas',  icon:'🎆', color:'#60a5fa', text:'¡Chispas de ánimo!' },
+  cheers: { id:'cheers', label:'Vítores',          icon:'📣', color:'#c43b34', text:'¡Hip, hip, hurra!' }
+};
+// Puntos objetivo de la broma (espejo de PRANK_TARGETS del servidor).
+const PRANK_TARGETS_CLIENT = [
+  { id:'armadura', label:'la armadura del pasillo', icon:'🛡️', x:0.5, y:0.2 },
+  { id:'tapiz',    label:'el tapiz de la dama',     icon:'🖼️', x:0.2, y:0.5 },
+  { id:'chimenea', label:'la chimenea encendida',   icon:'🔥', x:0.8, y:0.5 },
+  { id:'buzon',    label:'el buzón de las lechuzas',icon:'📮', x:0.5, y:0.8 }
+];
+
+function phase5HasLiveMatch(){
+  return Array.isArray(db.matches) && db.matches.some(m=>m.status==='active');
+}
+
+// Panel principal de los eventos sociales (dentro de #socEvents).
+function renderSocialEvents(){
+  const box=$('socEvents'); if(!box) return;
+  const u=me();
+  const raid=db.dementorRaid||{};
+  const ball=db.ball||{};
+  const hunt=db.treasureHunt;
+  const prank=db.prank||{};
+  const liveMatch=phase5HasLiveMatch();
+  const now=Date.now();
+  const cdLeft=k=>Math.max(0,Math.ceil(((phase5Cooldowns[k]||0)-now)/1000));
+  const cards=[];
+
+  // 8.4 Modo Espectador Interactivo.
+  cards.push(`<div class="soc-card ${liveMatch?'live':''}">
+    <h4>📣 Modo Espectador Interactivo</h4>
+    <p class="soc-desc">${liveMatch?'¡Hay un duelo o partido en marcha! Anima a tu casa con hechizos de ánimo (cooldown 3 s).':'No hay ningún partido ni duelo activo. Cuando empiece uno, podrás animar desde la grada.'}</p>
+    <div class="cheer-bar">${Object.values(PHASE5_CHEERS_CLIENT).map(c=>`<button class="cheer-btn" type="button" data-do="sendCheer" data-cheer="${c.id}" ${(!u||!liveMatch||cdLeft('cheer')>0)?'disabled':''} title="${esc(c.label)}">${c.icon} ${esc(c.label)}${cdLeft('cheer')>0?` (${cdLeft('cheer')} s)`:''}</button>`).join('')}</div>
+  </div>`);
+
+  // 6.2 Baile de Navidad / Fiesta de Fin de Curso.
+  if(ball.active){
+    const others=(db.users||[]).filter(x=>x.house&&isEnrolled(x)&&(!u||x.id!==u.id));
+    const myInv=(ball.invitations||[]).filter(i=>u&&i.to===u.id&&!i.accepted);
+    cards.push(`<div class="soc-card live">
+      <h4>💃 Baile de Navidad en el Gran Comedor</h4>
+      <p class="soc-desc">El baile está en curso${ball.startedByName?` (convocado por ${esc(ball.startedByName)})`:''}. Invita a un acompañante y demuestra tu ritmo.</p>
+      ${myInv.length?`<div class="soc-desc">📨 Tienes ${myInv.length} invitación(es): ${myInv.map(i=>{const f=db.users.find(x=>x.id===i.from);return `<button class="btn sm gold" type="button" data-do="acceptBall" data-from="${i.from}">Aceptar a ${esc(f?f.username:'alguien')}</button>`;}).join(' ')}</div>`:''}
+      <div class="ball-invite-row">
+        <select id="ballPartner">${others.map(x=>`<option value="${x.id}">${esc(x.username)}</option>`).join('')||'<option value="">—nadie conectado—</option>'}</select>
+        <button class="btn sm" type="button" data-do="inviteBall" ${(!u||!others.length)?'disabled':''}>💌 Invitar</button>
+      </div>
+      <div class="soc-actions">
+        <button class="btn sm gold" type="button" data-do="startBallDance" ${(!u||cdLeft('ball')>0)?'disabled':''}>🎵 Bailar minijuego rítmico${cdLeft('ball')>0?` (${cdLeft('ball')} s)`:''}</button>
+      </div>
+    </div>`);
+  } else {
+    cards.push(`<div class="soc-card">
+      <h4>💃 Baile de Navidad / Fiesta de Fin de Curso</h4>
+      <p class="soc-desc">Sin baile en curso. ${u&&u.is_admin?'Convócalo tú desde el Gran Comedor.':'Espera a que el Director lo convoque desde el Gran Comedor.'}</p>
+      ${u&&u.is_admin?`<div class="soc-actions"><button class="btn sm gold" type="button" data-do="startBall">🎺 Convocar el baile</button></div>`:''}
+    </div>`);
+  }
+
+  // 6.3 Búsqueda del Tesoro de los Retratos.
+  if(hunt&&hunt.active){
+    cards.push(`<div class="soc-card live">
+      <h4>🖼️ Búsqueda del Tesoro de los Retratos</h4>
+      <p class="soc-desc"><b>Acertijo del cuadro parlante:</b><br><i>${esc(hunt.riddle)}</i></p>
+      <div class="raid-meta"><span>Bote acumulado</span><span>🪙 ${hunt.pot}</span></div>
+      <div class="soc-actions"><button class="btn sm gold" type="button" data-do="claimTreasure" ${!u?'disabled':''}>✋ He encontrado el objeto (haz clic en la sala correcta)</button></div>
+    </div>`);
+  } else if(hunt&&!hunt.active&&hunt.winnerName){
+    cards.push(`<div class="soc-card">
+      <h4>🖼️ Tesoro de los Retratos</h4>
+      <p class="soc-desc">🏆 ${esc(hunt.winnerName)} resolvió el acertijo y se llevó ${hunt.pot} 🪙.</p>
+      ${u&&u.is_admin?`<div class="soc-actions"><button class="btn sm gold" type="button" data-do="startTreasure">🖼️ Nueva búsqueda</button></div>`:''}
+    </div>`);
+  } else {
+    cards.push(`<div class="soc-card">
+      <h4>🖼️ Búsqueda del Tesoro de los Retratos</h4>
+      <p class="soc-desc">No hay ninguna búsqueda activa. ${u&&u.is_admin?'Convoca al cuadro parlante para lanzar un acertijo generado con IA.':'Espera a que el Director convoque al cuadro parlante.'}</p>
+      ${u&&u.is_admin?`<div class="soc-actions"><button class="btn sm gold" type="button" data-do="startTreasure">🖼️ Convocar el acertijo</button></div>`:''}
+    </div>`);
+  }
+
+  // 6.4 Bromas coordinadas con Fred y George.
+  if(prank.active){
+    cards.push(`<div class="soc-card live">
+      <h4>💣 Broma con Fred y George</h4>
+      <p class="soc-desc">Broma preparada en ${esc(prank.roomName||'los pasillos')} junto a ${esc(prank.targetLabel||'un punto clave')}. Coloca los artefactos evitando a Filch y la Sra. Norris.</p>
+      <div class="raid-meta"><span>Colocaciones totales</span><span>${prank.totalPlacements||0}</span></div>
+      <div class="soc-actions"><button class="btn sm gold" type="button" data-do="startPrank" ${(!u||cdLeft('prank')>0)?'disabled':''}>🥷 Jugar minijuego de sigilo${cdLeft('prank')>0?` (${cdLeft('prank')} s)`:''}</button></div>
+    </div>`);
+  } else {
+    cards.push(`<div class="soc-card">
+      <h4>💣 Bromas Coordinadas con Fred y George</h4>
+      <p class="soc-desc">Prepara una travesura en los pasillos: muévete con sigilo y coloca Bombas Fétidas o Polvo de Oscuridad Peruana.</p>
+      <div class="soc-actions"><button class="btn sm gold" type="button" data-do="preparePrank" ${!u?'disabled':''}>💣 Preparar una broma</button></div>
+    </div>`);
+  }
+
+  // 6.5 Incursiones cooperativas contra Dementores.
+  if(raid.active){
+    const pct=Math.max(0,Math.min(100,Math.round((raid.shieldHp/Math.max(1,raid.maxShield))*100)));
+    const secsLeft=Math.max(0,Math.ceil(((raid.endsAt||0)-now)/1000));
+    cards.push(`<div class="soc-card raid-live">
+      <h4>👻 Incursión de Dementores</h4>
+      <p class="soc-desc">¡Los Dementores asedian el castillo! Lanza Expecto Patronum (cooldown 3 s) para sostener el escudo.</p>
+      <div class="raid-bar ${pct<35?'low':''}"><span style="width:${pct}%"></span></div>
+      <div class="raid-meta"><span>Escudo ${pct}%</span><span>⏱️ ${secsLeft} s · ${(raid.participants||[]).length} defensores</span></div>
+      <div class="soc-actions"><button class="btn sm gold" type="button" data-do="castPatronus" ${(!u||cdLeft('raid')>0)?'disabled':''}>☀️ Expecto Patronum${cdLeft('raid')>0?` (${cdLeft('raid')} s)`:''}</button></div>
+    </div>`);
+  } else {
+    cards.push(`<div class="soc-card">
+      <h4>👻 Incursiones contra Dementores</h4>
+      <p class="soc-desc">${raid.endedReason==='repelled'?'✅ La última oleada fue repelida con éxito.':raid.endedReason==='failed'?'💥 El escudo cayó en la última oleada.':'No hay ninguna incursión activa.'} ${u&&u.is_admin?'Convócala cuando quieras.':'Espera a que el Director convoque una oleada.'}</p>
+      ${u&&u.is_admin?`<div class="soc-actions"><button class="btn sm gold" type="button" data-do="startRaid">👻 Convocar oleada</button></div>`:''}
+    </div>`);
+  }
+
+  box.innerHTML=cards.join('');
+}
+
+// Animación flotante de un hechizo de ánimo (toast visual ligero).
+function showCheerEffect(data){
+  if(!data) return;
+  const layer=document.createElement('div');
+  layer.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:1200;overflow:hidden';
+  for(let i=0;i<14;i++){
+    const s=document.createElement('span');
+    s.textContent=data.icon||'✨';
+    s.style.cssText=`position:absolute;left:${Math.random()*100}%;bottom:-10%;font-size:${18+Math.random()*22}px;opacity:0;transition:transform 1.6s ease-out,opacity 1.6s ease-out`;
+    layer.appendChild(s);
+    requestAnimationFrame(()=>{ s.style.opacity='1'; s.style.transform=`translateY(-${60+Math.random()*40}vh) translateX(${(Math.random()-0.5)*120}px) rotate(${(Math.random()-0.5)*90}deg)`; });
+  }
+  document.body.appendChild(layer);
+  setTimeout(()=>layer.remove(),1800);
+}
+
+// --- Minijuego rítmico del baile (Canvas, patrón de flechas) ---
+let ballGame=null;
+function startBallDance(){
+  const u=me(); must(u&&u.house,'Inicia sesión primero');
+  if(!(db.ball&&db.ball.active)) return toast('El baile no está en curso.');
+  const pattern=6;
+  const seq=Array.from({length:pattern},()=>Math.floor(Math.random()*4)); // 0◀1▲2▼3▶
+  ballGame={ seq, idx:0, hits:0, startedAt:Date.now(), done:false };
+  const partnerSel=$('ballPartner');
+  ballGame.partner=partnerSel?Number(partnerSel.value)||null:null;
+  openCanvasModal('💃 Baile de Navidad','Sigue la secuencia de flechas al ritmo de los violines encantados.','Usa las flechas ◀ ▲ ▼ ▶ o los botones táctiles. Pulsa cada flecha cuando aparezca iluminada.',true);
+  const arrows=['◀','▲','▼','▶'];
+  const draw=()=>{
+    if(!ballGame||ballGame.done) return;
+    const g=ballGame, W=800, H=400;
+    ctx.clearRect(0,0,W,H);
+    const grad=ctx.createLinearGradient(0,0,0,H); grad.addColorStop(0,'#2a1030'); grad.addColorStop(1,'#12071a');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    // Pista de baile.
+    ctx.fillStyle='rgba(255,215,120,.10)'; ctx.beginPath(); ctx.ellipse(W/2,H-70,300,60,0,0,Math.PI*2); ctx.fill();
+    // Patrón de flechas.
+    const step=90, x0=W/2-((g.seq.length-1)*step)/2;
+    g.seq.forEach((dir,i)=>{
+      const x=x0+i*step, y=H/2;
+      const active=i===g.idx;
+      ctx.font='48px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.globalAlpha=active?1:0.4;
+      ctx.fillStyle=i<g.idx?'#7ef0b0':(active?'#ffd76a':'#cfe8d8');
+      ctx.fillText(arrows[dir],x,y);
+      ctx.globalAlpha=1;
+      if(active){ ctx.strokeStyle='#ffd76a'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x,y,34,0,Math.PI*2); ctx.stroke(); }
+    });
+    ctx.fillStyle='#f3e9d2'; ctx.font='18px sans-serif';
+    ctx.fillText(`Aciertos: ${g.hits} / ${g.seq.length}`, W/2, 60);
+    $('mgCanvasHud').textContent=`💃 ${g.hits}/${g.seq.length}`;
+    gameLoop=requestAnimationFrame(draw);
+  };
+  mgClickHandler=null;
+  const onKey=(e)=>{
+    if(!ballGame||ballGame.done) return;
+    const map={ArrowLeft:0,ArrowUp:1,ArrowDown:2,ArrowRight:3};
+    const want=map[e.key]; if(want===undefined) return;
+    e.preventDefault();
+    hitArrow(want);
+  };
+  // Registra el manejador de teclado temporal y las flechas táctiles.
+  ballGame.onKey=onKey;
+  document.addEventListener('keydown',onKey);
+  const bar=$('mgTouchBar');
+  if(bar){
+    bar.dataset.ballMode='1';
+    bar.querySelectorAll('.ctrl-btn').forEach(btn=>{
+      btn.onclick=(e)=>{ e.preventDefault(); const k=btn.dataset.key; const m={'ArrowLeft':0,'ArrowUp':1,'ArrowDown':2,'ArrowRight':3}; if(m[k]!==undefined) hitArrow(m[k]); };
+    });
+  }
+  draw();
+}
+function hitArrow(want){
+  const g=ballGame; if(!g||g.done) return;
+  if(g.seq[g.idx]===want){ g.hits++; chime(); }
+  else { buzzSnd(); }
+  g.idx++;
+  if(g.idx>=g.seq.length) finishBallDance();
+}
+function finishBallDance(){
+  const g=ballGame; if(!g||g.done) return;
+  g.done=true;
+  if(g.onKey) document.removeEventListener('keydown',g.onKey);
+  const bar=$('mgTouchBar'); if(bar) bar.querySelectorAll('.ctrl-btn').forEach(b=>b.onclick=null);
+  const durationMs=Date.now()-g.startedAt;
+  $('mgCanvasHud').textContent='💃 enviando…';
+  socket.emit('ball:dance',{ hits:g.hits, patternLength:g.seq.length, durationMs, partner:g.partner||0 });
+  ballGame=null;
+}
+
+// --- Minijuego de sigilo con Filch (Canvas, cono de visión en movimiento) ---
+let prankGame=null;
+function startPrankMinigame(){
+  const u=me(); must(u&&u.house,'Inicia sesión primero');
+  const prank=db.prank||{};
+  if(!prank.active) return toast('No hay ninguna broma preparada.');
+  const targets=PRANK_TARGETS_CLIENT;
+  const player={ x:60, y:200, w:26, h:26, speed:3.4 };
+  const filch={ x:640, y:120, dir:1, cone:170, half:0.42, speed:1.6 };
+  const norris={ x:180, y:330, dir:-1, cone:120, half:0.5, speed:2.2 };
+  const placed=new Set();
+  prankGame={ placed, startedAt:Date.now(), done:false, hits:0 };
+  openCanvasModal('🥷 Travesura con Fred y George','Muévete con las flechas evitando el cono de visión de Filch y la Sra. Norris. Acércate a un punto ✨ y pulsa ⚡ para colocar la broma.','Flechas / WASD para moverte · Espacio o ⚡ Acción para colocar en un punto objetivo.',true);
+  const loop=()=>{
+    if(!prankGame||prankGame.done) return;
+    const W=800,H=400;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#1a1420'; ctx.fillRect(0,0,W,H);
+    // Pasillo.
+    ctx.strokeStyle='#3a3050'; ctx.lineWidth=2;
+    for(let x=40;x<W;x+=80){ ctx.beginPath(); ctx.moveTo(x,40); ctx.lineTo(x,H-40); ctx.stroke(); }
+    // Movimiento de los vigilantes.
+    [filch,norris].forEach(f=>{
+      f.x+=f.dir*f.speed;
+      if(f.x>W-60){ f.x=W-60; f.dir=-1; } if(f.x<60){ f.x=60; f.dir=1; }
+      // Cono de visión (apunta en la dirección de avance).
+      const ang=f.dir>0?0:Math.PI;
+      const gx=ctx.createRadialGradient(f.x,f.y,10,f.x,f.y,f.cone);
+      gx.addColorStop(0,'rgba(255,120,60,.35)'); gx.addColorStop(1,'rgba(255,120,60,0)');
+      ctx.fillStyle=gx; ctx.beginPath(); ctx.moveTo(f.x,f.y); ctx.arc(f.x,f.y,f.cone,ang-f.half,ang+f.half); ctx.closePath(); ctx.fill();
+      ctx.font='28px sans-serif'; ctx.textAlign='center'; ctx.fillText(f===filch?'🧹':'🐈',f.x,f.y+10);
+    });
+    // Puntos objetivo.
+    targets.forEach(t=>{
+      const tx=t.x*W, ty=t.y*H;
+      ctx.font='26px sans-serif'; ctx.textAlign='center';
+      ctx.globalAlpha=placed.has(t.id)?1:0.9;
+      ctx.fillText(placed.has(t.id)?'💣':t.icon,tx,ty);
+      ctx.globalAlpha=1;
+    });
+    // Jugador.
+    ctx.fillStyle='#7ec8ff'; ctx.fillRect(player.x-player.w/2,player.y-player.h/2,player.w,player.h);
+    // Movimiento.
+    if(keys.ArrowLeft||keys.a) player.x-=player.speed;
+    if(keys.ArrowRight||keys.d) player.x+=player.speed;
+    if(keys.ArrowUp||keys.w) player.y-=player.speed;
+    if(keys.ArrowDown||keys.s) player.y+=player.speed;
+    player.x=Math.max(20,Math.min(W-20,player.x)); player.y=Math.max(20,Math.min(H-20,player.y));
+    // Guarda la posición para validar la colocación en tryPlacePrank.
+    prankGame.px=player.x; prankGame.py=player.y;
+    // Detección de la mirada de los vigilantes.
+    [filch,norris].forEach(f=>{
+      const ang=f.dir>0?0:Math.PI;
+      const a=Math.atan2(player.y-f.y,player.x-f.x);
+      let d=a-ang; while(d>Math.PI)d-=Math.PI*2; while(d<-Math.PI)d+=Math.PI*2;
+      const dist=Math.hypot(player.x-f.x,player.y-f.y);
+      if(dist<f.cone&&Math.abs(d)<f.half){ prankGame.caught=(prankGame.caught||0)+1; }
+    });
+    $('mgCanvasHud').textContent=`💣 Colocadas: ${placed.size}/5 · 👁️ ${prankGame.caught||0}`;
+    ctx.fillStyle='#f3e9d2'; ctx.font='16px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(`Colocadas: ${placed.size}/5`, 20, 26);
+    gameLoop=requestAnimationFrame(loop);
+  };
+  mgClickHandler=null;
+  const onKey=(e)=>{
+    if(!prankGame||prankGame.done) return;
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    if(e.key===' ') tryPlacePrank();
+  };
+  prankGame.onKey=onKey;
+  document.addEventListener('keydown',onKey);
+  const bar=$('mgTouchBar');
+  if(bar){
+    bar.dataset.prankMode='1';
+    const action=bar.querySelector('[data-key=" "]');
+    if(action) action.onclick=(e)=>{ e.preventDefault(); tryPlacePrank(); };
+  }
+  loop();
+}
+function tryPlacePrank(){
+  const g=prankGame; if(!g||g.done) return;
+  const W=800,H=400;
+  // La posición del jugador se guarda en g.px/g.py desde el loop para validar.
+  let near=null;
+  PRANK_TARGETS_CLIENT.forEach(t=>{
+    const tx=t.x*W, ty=t.y*H;
+    if(Math.hypot((g.px||0)-tx,(g.py||0)-ty)<46 && !g.placed.has(t.id)) near=t;
+  });
+  if(!near){ buzzSnd(); toast('💣 Acércate más a un punto objetivo (✨) para colocar.'); return; }
+  g.placed.add(near.id); chime();
+  toast(`💣 Bomba colocada en ${near.label}`);
+  if(g.placed.size>=5) finishPrankMinigame();
+}
+function finishPrankMinigame(){
+  const g=prankGame; if(!g||g.done) return;
+  g.done=true;
+  if(g.onKey) document.removeEventListener('keydown',g.onKey);
+  const bar=$('mgTouchBar'); if(bar){ const a=bar.querySelector('[data-key=" "]'); if(a) a.onclick=null; }
+  const durationMs=Date.now()-g.startedAt;
+  $('mgCanvasHud').textContent='💣 enviando…';
+  socket.emit('prank:finish',{ placed:g.placed.size, durationMs });
+  prankGame=null;
 }
 
 /* ===== PARTE B: ACTIVIDADES SOCIALES (estilo Hogwarts Mystery, sin energía) ===== */
@@ -9813,6 +10353,17 @@ function closeMinigame() {
   }
   if (gameLoop) { cancelAnimationFrame(gameLoop); gameLoop = null; }
   Object.keys(keys).forEach(k => keys[k] = false);
+  // Fase 5: limpia los minijuegos del baile y de la broma si quedaran abiertos.
+  if (typeof ballGame !== 'undefined' && ballGame) {
+    if (ballGame.onKey) document.removeEventListener('keydown', ballGame.onKey);
+    ballGame = null;
+  }
+  if (typeof prankGame !== 'undefined' && prankGame) {
+    if (prankGame.onKey) document.removeEventListener('keydown', prankGame.onKey);
+    prankGame = null;
+  }
+  const bar = $('mgTouchBar');
+  if (bar) bar.querySelectorAll('.ctrl-btn').forEach(b => { b.onclick = null; });
   const modal = document.getElementById('minigameModal');
   if (modal) modal.style.display = 'none';
 }
@@ -10759,6 +11310,44 @@ document.addEventListener('click',e=>{
     case 'openChestNow':openChestNow(d.id);break;
     case 'openMacroMap':openMacroMapModal();break;
     case 'openProphet':openProphetModal();break;
+    /* FASE 5: eventos sociales en tiempo real (Tanda 6 + 8.4). */
+    case 'sendCheer':{
+      const u=me(); must(u,'Inicia sesión para animar');
+      phase5Cooldowns.cheer=Date.now()+3000;
+      socket.emit('spectator:cheer',{ cheer:d.cheer, room:userLoc(u) });
+      renderSocialEvents();
+      break;
+    }
+    case 'startBall':socket.emit('event:ball',{action:'start'});break;
+    case 'stopBall':socket.emit('event:ball',{action:'stop'});break;
+    case 'inviteBall':{
+      const sel=$('ballPartner'); const to=sel?Number(sel.value):0;
+      if(!to){toast('Elige a un acompañante');break;}
+      socket.emit('event:ball',{action:'invite',to});
+      break;
+    }
+    case 'acceptBall':socket.emit('event:ball',{action:'accept',from:Number(d.from)});break;
+    case 'startBallDance':startBallDance();break;
+    case 'startTreasure':socket.emit('treasure:start',{force:true});break;
+    case 'claimTreasure':{
+      const u=me(); must(u,'Inicia sesión para reclamar el tesoro');
+      socket.emit('treasure:claim',{room:userLoc(u)});
+      break;
+    }
+    case 'preparePrank':{
+      const u=me(); must(u,'Inicia sesión para preparar la broma');
+      socket.emit('prank:start',{room:userLoc(u), target:(PRANK_TARGETS_CLIENT[Math.floor(Math.random()*PRANK_TARGETS_CLIENT.length)]||{}).id});
+      break;
+    }
+    case 'startPrank':startPrankMinigame();break;
+    case 'startRaid':socket.emit('raid:start',{force:true});break;
+    case 'castPatronus':{
+      const u=me(); must(u,'Inicia sesión para lanzar el Patronus');
+      phase5Cooldowns.raid=Date.now()+3000;
+      socket.emit('raid:patronus');
+      renderSocialEvents();
+      break;
+    }
     case 'lumosReveal':lumosReveal();break;
     case 'openButterbeer':openButterbeerModal();break;
     case 'butterbeerPick':startButterbeer(Number(d.id));break;
@@ -11005,6 +11594,14 @@ setInterval(()=>{for(const m of db.matches){if(m.status!=='active'||m.resolving)
 let sig='';
 setInterval(()=>{const u=me();const s=Object.keys(ACTS).map(k=>{const c=classStatus(k);return c.st+Math.ceil(API.cooldown(k)/1000)}).join('|')+db.free+db.clockMode+curDay()+curMin()+(u?userLoc(u)+Math.ceil(API.cooldown('free_'+userLoc(u))/1000):'');
   if(s!==sig){sig=s;renderPlay();renderArcade();renderAnimagusEvent();renderMortifagosEvent();renderNpcTrials();renderRelations();renderProfessors();renderMap();renderYou();renderSchedule();renderClock()}},2000);
+
+// Fase 5: refresca los eventos sociales para actualizar los temporizadores
+// (cooldowns del espectador, cuenta atrás del escudo de la incursión).
+setInterval(()=>{
+  const raid=db.dementorRaid;
+  const active=(raid&&raid.active)||(db.ball&&db.ball.active)||(db.treasureHunt&&db.treasureHunt.active)||(db.prank&&db.prank.active)||phase5HasLiveMatch();
+  if(active||Object.values(phase5Cooldowns).some(t=>t>Date.now())) renderSocialEvents();
+},1000);
 
 // Ciclo autónomo de NPCs: cada 18 segundos un bot entrena, suma puntos a su casa y explora el castillo
 setInterval(()=>{
