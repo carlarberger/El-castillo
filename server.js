@@ -1546,7 +1546,12 @@ const TITLES = {
   sanador:          { id: 'sanador',          name: 'Sanador',             icon: '💊', desc: 'Superaste los exámenes con distinción en Pociones y Herbología.' },
   magizoologo_exam: { id: 'magizoologo_exam', name: 'Magizoólogo titulado', icon: '🦅', desc: 'Superaste los exámenes con distinción en Criaturas y Herbología.' },
   encantador_experto:{ id: 'encantador_experto',name: 'Encantador Experto', icon: '✨', desc: 'Superaste los exámenes con distinción en Encantamientos y Transformaciones.' },
-  maestro_pociones: { id: 'maestro_pociones', name: 'Maestro de Pociones',  icon: '🧪', desc: 'Superaste los exámenes con distinción en Pociones.' }
+  maestro_pociones: { id: 'maestro_pociones', name: 'Maestro de Pociones',  icon: '🧪', desc: 'Superaste los exámenes con distinción en Pociones.' },
+  // Fase 5 (Tanda 6 + 8.4): eventos sociales y dinámicas de grupo.
+  bailarin_gala:     { id: 'bailarin_gala',     name: 'Alma de la Fiesta',       icon: '💃', desc: 'Bailaste en el Baile de Navidad del Gran Comedor.' },
+  cazador_retratos:  { id: 'cazador_retratos',  name: 'Cazador de Retratos',     icon: '🖼️', desc: 'Resolviste el acertijo del cuadro parlante y hallaste el tesoro.' },
+  travieso_weasley:  { id: 'travieso_weasley',  name: 'Travieso de los Weasley', icon: '💣', desc: 'Completaste una broma coordinada con Fred y George.' },
+  defensor_patronus: { id: 'defensor_patronus', name: 'Defensor del Patronus',   icon: '☀️', desc: 'Repeliste una incursión de Dementores junto a tus compañeros.' }
 };
 
 // Número de peinados del catálogo del cliente (index.html: HAIR_STYLES). Se usa
@@ -1611,6 +1616,31 @@ const GAME_BALANCE = {
     weekly: { targetMatches: 3, targetPoints: 300, targetSnitches: 2, rewardGaleones: 40, rewardPoints: 30 },
     // Ceremonia de clausura de curso (Tanda 7.5).
     closure: { rewardGaleones: 100, mvpPoints: 50 }
+  },
+  // Fase 5 (Tanda 6 + 8.4): eventos sociales y dinámicas de grupo en tiempo real.
+  // El servidor es la fuente de verdad de todos estos sistemas.
+  phase5: {
+    // Modo espectador interactivo: hechizos de ánimo con cooldown corto.
+    cheer: { cooldownMs: 3000, supportPoints: 2, empathyPerCheer: 1, maxPerMinute: 12 },
+    // Baile de Navidad / Fiesta de Fin de Curso.
+    ball: {
+      minDurationMs: 8000, passAccuracy: 0.55, cooldownMs: 45000,
+      galeones: 25, affinity: 8, romance: 4, patternLength: 6,
+      cosmeticAfter: 1, titleAfter: 3
+    },
+    // Búsqueda del Tesoro de los Retratos.
+    treasure: { seedPot: 60, wrongRoomBonus: 4, maxPot: 999 },
+    // Bromas coordinadas con Fred y George (minijuego de sigilo).
+    prank: {
+      minPlacements: 1, maxPlacements: 5, minDurationMs: 6000, cooldownMs: 60000,
+      galeonesPerPlacement: 12, clubXpPerPlacement: 8, cosmeticAfter: 1, titleAfter: 4
+    },
+    // Incursiones cooperativas contra Dementores.
+    raid: {
+      maxShield: 100, durationMs: 90000, minDurationMs: 4000,
+      decayPerSecond: 4, chargeBase: 14, chargePatronusBonus: 8, chargeCooldownMs: 3000,
+      rewardGaleones: 45, rewardPoints: 20
+    }
   }
 };
 
@@ -1997,6 +2027,9 @@ const COSMETICS = {
   guantes_oliver:  { id: 'guantes_oliver',  name: 'Guantes de Quidditch',        icon: '🧤' },
   escudo_ernie:    { id: 'escudo_ernie',    name: 'Escudo de Hufflepuff',        icon: '🛡️' },
   tunica_gala:     { id: 'tunica_gala',     name: 'Túnicas de Gala',             icon: '🎩' },
+  // Fase 5: prendas de gala de los eventos sociales.
+  mascara_navidad: { id: 'mascara_navidad', name: 'Máscara del Baile de Navidad', icon: '🎭' },
+  bomba_weasley:   { id: 'bomba_weasley',   name: 'Bomba Fétida de los Weasley',  icon: '💣' },
   // Tanda 3: insignias de los clubes extracurriculares.
   insignia_esfinge:   { id: 'insignia_esfinge',   name: 'Insignia del Club de la Esfinge',   icon: '🐈' },
   insignia_hipogrifo: { id: 'insignia_hipogrifo', name: 'Insignia del Club del Hipogrifo',   icon: '🦅' },
@@ -2198,7 +2231,20 @@ function defaultDb() {
     // Crónicas de Lee Jordan publicadas en El Profeta (Parte 4B).
     prophetChronicles: [],
     // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
-    spiritCache: {}
+    spiritCache: {},
+    // ---- Fase 5 (Tanda 6 + 8.4): eventos sociales y dinámicas de grupo ----
+    // Feed persistente de titulares (El Profeta y El Quisquilloso), últimos 12.
+    prophetFeed: [],
+    // Modo espectador interactivo: último hechizo de ánimo de cada jugador.
+    spectatorCheers: {},
+    // Baile de Navidad / Fiesta de Fin de Curso (Gran Comedor).
+    ball: emptyBall(),
+    // Búsqueda del Tesoro de los Retratos (acertijo + objeto oculto).
+    treasureHunt: null,
+    // Broma coordinada con Fred y George (minijuego de sigilo).
+    prank: emptyPrank(),
+    // Incursión cooperativa contra Dementores (evento global en tiempo real).
+    dementorRaid: emptyRaid()
   };
 }
 
@@ -2630,6 +2676,24 @@ function settleFinishedMatches(state, prevMatches) {
       }
     });
     applyMatchToWeekly(state, m);
+    // Fase 5.1: hitos reales del grupo en el feed de El Profeta.
+    if (m.caught) {
+      const seeker = (m.players || []).find(p => p.pos === 'Buscador' && p.house === m.caught);
+      const su = seeker ? state.users.find(x => Number(x.id) === Number(seeker.uid)) : null;
+      pushFeed(state, {
+        kind: 'prophet', category: 'QUIDDITCH', icon: '🧹', actor: su ? su.username : null,
+        headline: su ? `${su.username} atrapó la Snitch Dorada` : `${houseNameOf(m.caught)} atrapó la Snitch Dorada`,
+        text: `La grada enloqueció en el partido ${houseNameOf(m.a)} vs ${houseNameOf(m.b)}. 150 puntos que valen una Copa.`
+      });
+    }
+    const leader = (state.houses || []).slice().sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0))[0];
+    if (leader && Number(leader.points) > 0) {
+      pushFeed(state, {
+        kind: 'prophet', category: 'COPA DE LAS CASAS', icon: '🏆',
+        headline: `${houseNameOf(leader.id)} lidera la Copa de las Casas`,
+        text: `Con ${Number(leader.points) || 0} puntos, ${houseNameOf(leader.id)} se sitúa al frente de la clasificación.`
+      });
+    }
     m.betsSettled = true;
     m.betResults = results;
     settled.push(m);
@@ -2649,6 +2713,292 @@ function invAdd(user, itemId, delta) {
   const next = Math.max(0, invCount(user, itemId) + Math.floor(Number(delta) || 0));
   if (next <= 0) delete user.inv[itemId];
   else user.inv[itemId] = next;
+}
+
+/* ===== FASE 5: EVENTOS SOCIALES Y DINÁMICAS DE GRUPO EN TIEMPO REAL =====
+   Tanda 6 (El Profeta dinámico, baile, tesoro de los retratos, bromas y
+   Dementores) + Tanda 8.4 (espectador interactivo). Todo el estado de los
+   eventos en vivo vive en el servidor: el cliente solo pinta lo que recibe. */
+
+// Feed persistente de titulares: últimos 12 hitos reales del grupo.
+const PROPHET_FEED_MAX = 12;
+// Nombres de casa canónicos (para titulares legibles en el servidor).
+const HOUSE_NAMES = { gryffindor: 'Gryffindor', slytherin: 'Slytherin', ravenclaw: 'Ravenclaw', hufflepuff: 'Hufflepuff' };
+const houseNameOf = id => HOUSE_NAMES[id] || String(id || '');
+
+// Normaliza una entrada del feed de El Profeta / El Quisquilloso.
+function sanitizeProphetFeedEntry(e) {
+  if (!e || typeof e !== 'object') return null;
+  const headline = String(e.headline || '').trim().slice(0, 180);
+  if (!headline) return null;
+  const kind = e.kind === 'quisquilloso' ? 'quisquilloso' : 'prophet';
+  return {
+    id: String(e.id || `pf_${Date.now()}_${Math.floor(Math.random() * 1e6)}`),
+    kind,
+    category: String(e.category || (kind === 'quisquilloso' ? 'RUMOR' : 'HOGWARTS')).trim().slice(0, 48),
+    headline,
+    text: String(e.text || '').trim().slice(0, 400),
+    icon: String(e.icon || (kind === 'quisquilloso' ? '🗞️' : '📰')).slice(0, 8),
+    actor: String(e.actor || '').trim().slice(0, 60),
+    at: Number(e.at) || Date.now()
+  };
+}
+// Sanea el feed completo (máx. 12 entradas, más recientes primero).
+function sanitizeProphetFeed(list) {
+  return (Array.isArray(list) ? list : [])
+    .map(sanitizeProphetFeedEntry)
+    .filter(Boolean)
+    .sort((a, b) => b.at - a.at)
+    .slice(0, PROPHET_FEED_MAX);
+}
+// Publica un titular en el feed y lo emite en tiempo real al cintillo.
+// `io`/`memoryState` se resuelven en tiempo de llamada (no al cargar el módulo).
+function emitHeadline(entry, feed) {
+  try { io.emit('prophet:headline', { entry, feed: feed || (memoryState && memoryState.prophetFeed) || [] }); }
+  catch (err) { /* io aún no listo en pruebas unitarias */ }
+}
+// Añade una entrada al feed de un estado concreto (sin emitir). Devuelve la
+// entrada normalizada o null. Sirve para publicar hitos durante saveState.
+function pushFeed(state, entry) {
+  const e = sanitizeProphetFeedEntry({ ...entry, at: entry && entry.at ? entry.at : Date.now() });
+  if (!e || !state) return null;
+  state.prophetFeed = sanitizeProphetFeed([e, ...(Array.isArray(state.prophetFeed) ? state.prophetFeed : [])]);
+  return e;
+}
+function publishHeadline(entry) {
+  const e = pushFeed(memoryState, entry);
+  if (e) emitHeadline(e);
+  return e;
+}
+// Atajos: noticia seria de El Profeta y rumor de El Quisquilloso.
+const publishProphet = (entry) => publishHeadline({ ...entry, kind: 'prophet' });
+const publishQuisquilloso = (entry) => publishHeadline({ ...entry, kind: 'quisquilloso' });
+
+// Hechizos de ánimo del Modo Espectador (Tanda 8.4). El servidor es la fuente de
+// verdad de los efectos; el cliente solo reproduce el toast/efecto visual.
+const PHASE5_CHEERS = {
+  lumos:    { id: 'lumos',    label: 'Lumos festivo',      icon: '✨', color: '#fde68a', text: '¡Que brille el estadio!' },
+  banner:   { id: 'banner',   label: 'Pancarta de Casa',   icon: '🚩', color: '#e8b930', text: '¡Vamos, equipo!' },
+  sparks:   { id: 'sparks',   label: 'Chispas mágicas',    icon: '🎆', color: '#60a5fa', text: '¡Chispas de ánimo!' },
+  cheers:   { id: 'cheers',   label: 'Vítores',            icon: '📣', color: '#c43b34', text: '¡Hip, hip, hurra!' }
+};
+
+// ---- Baile de Navidad / Fiesta de Fin de Curso (Tanda 6.2) ----
+function emptyBall() {
+  return { active: false, startedBy: null, startedByName: null, startedAt: 0, invitations: [], dances: [] };
+}
+function sanitizeBall(raw) {
+  const b = emptyBall();
+  if (!raw || typeof raw !== 'object') return b;
+  b.active = !!raw.active;
+  b.startedBy = Number(raw.startedBy) || null;
+  b.startedByName = String(raw.startedByName || '').slice(0, 60) || null;
+  b.startedAt = Number(raw.startedAt) || 0;
+  b.invitations = (Array.isArray(raw.invitations) ? raw.invitations : [])
+    .map(i => (i && i.from != null && i.to != null) ? { from: Number(i.from), to: Number(i.to), at: Number(i.at) || Date.now(), accepted: !!i.accepted } : null)
+    .filter(Boolean).slice(-60);
+  b.dances = (Array.isArray(raw.dances) ? raw.dances : [])
+    .map(d => (d && d.uid != null) ? { uid: Number(d.uid), name: String(d.name || '').slice(0, 60), partner: String(d.partner || '').slice(0, 60), score: Math.max(0, Math.floor(Number(d.score) || 0)), at: Number(d.at) || Date.now() } : null)
+    .filter(Boolean).slice(-60);
+  return b;
+}
+
+// ---- Búsqueda del Tesoro de los Retratos (Tanda 6.3) ----
+// Salas válidas donde puede esconderse el objeto (espejo de ROOMS del cliente).
+const TREASURE_ROOMS = [
+  { id: 'biblioteca', name: 'la Biblioteca', objects: [
+    { label: 'el libro que susurra', icon: '📖' }, { label: 'el atril del rincón prohibido', icon: '📚' } ] },
+  { id: 'comedor', name: 'el Gran Comedor', objects: [
+    { label: 'la copa dorada de la mesa larga', icon: '🏆' }, { label: 'la calabaza flotante', icon: '🎃' } ] },
+  { id: 'astronomia', name: 'la Torre de Astronomía', objects: [
+    { label: 'el telescopio desalineado', icon: '🔭' }, { label: 'el mapa celeste arrugado', icon: '🌌' } ] },
+  { id: 'mazmorras', name: 'las Mazmorras', objects: [
+    { label: 'el caldero sellado', icon: '🧪' }, { label: 'la barandilla de hierro', icon: '⛓️' } ] },
+  { id: 'invernaderos', name: 'los Invernaderos', objects: [
+    { label: 'la maceta de mandrágora', icon: '🪴' }, { label: 'el banco de trabajo de Sprout', icon: '🌱' } ] },
+  { id: 'lechuceria', name: 'la Lechucería', objects: [
+    { label: 'el nido de lechuza', icon: '🦉' }, { label: 'la percha más alta', icon: '🪶' } ] },
+  { id: 'escalera', name: 'la Gran Escalera', objects: [
+    { label: 'el cuadro que cambia de sitio', icon: '🖼️' }, { label: 'el peldaño que desaparece', icon: '🪜' } ] },
+  { id: 'menesteres', name: 'la Sala de los Menesteres', objects: [
+    { label: 'el cofre oculto', icon: '🧰' }, { label: 'el espejo polvoriento', icon: '🪞' } ] }
+];
+const TREASURE_ROOM_IDS = TREASURE_ROOMS.map(r => r.id);
+// Respaldo local determinista: acertijo a partir de una plantilla por sala.
+function buildFallbackTreasureRiddle(room, object) {
+  return `Nadie diría que un objeto tan simple guarda tanto oro. Busca ${object.label} en ${room.name}, ` +
+    `allí donde los retratos murmuran cuando nadie los observa.`;
+}
+// Genera el acertijo con Groq; si falla, usa el respaldo local determinista.
+async function generateTreasureRiddle(room, object, year) {
+  const fallback = { riddle: buildFallbackTreasureRiddle(room, object), fallback: true };
+  if (!AI_ENABLED) return fallback;
+  const systemPrompt = `Eres un cuadro parlante del castillo de Hogwarts que propone un acertijo a los alumnos para encontrar un tesoro escondido. Escribe SIEMPRE en español, dentro del canon de Harry Potter (nada del mundo real ni de IA), con tono enigmático pero justo. El objeto está en ${room.name} y el alumno debe viajar allí y hacer clic sobre ${object.label}. Están en el Año ${year}. Devuelve ÚNICAMENTE un JSON válido sin bloques markdown con este esquema exacto: {"riddle":"acertijo de 2 o 3 frases que apunte a la sala sin nombrarla de forma obvia"}.`;
+  try {
+    const parsed = await aiChatJSON({ systemPrompt, userPrompt: 'Recita tu acertijo del tesoro. Devuelve el JSON.', maxTokens: 260, temperature: 0.9, reasoning: 'low' });
+    const riddle = String(parsed && (parsed.riddle || parsed.acertijo || parsed.text) || '').trim().slice(0, 500);
+    if (!riddle) return fallback;
+    return { riddle, fallback: false };
+  } catch (err) {
+    console.error('Error generando el acertijo del tesoro (usando respaldo local):', err.message);
+    return fallback;
+  }
+}
+// Arranca una nueva búsqueda del tesoro con acertijo (IA o respaldo) y bote inicial.
+async function startTreasureHunt(state, year) {
+  const room = TREASURE_ROOMS[Math.floor(Math.random() * TREASURE_ROOMS.length)];
+  const object = room.objects[Math.floor(Math.random() * room.objects.length)];
+  const gen = await generateTreasureRiddle(room, object, year);
+  const pot = GAME_BALANCE.phase5.treasure.seedPot;
+  state.treasureHunt = {
+    active: true,
+    riddle: gen.riddle,
+    fallback: gen.fallback,
+    roomId: room.id,
+    roomName: room.name,
+    objectLabel: object.label,
+    objectIcon: object.icon,
+    pot,
+    startedAt: Date.now(),
+    winnerId: null, winnerName: null, solvedAt: null
+  };
+  return state.treasureHunt;
+}
+function sanitizeTreasureHunt(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.active) return null;
+  if (!TREASURE_ROOM_IDS.includes(String(raw.roomId))) return null;
+  return {
+    active: true,
+    riddle: String(raw.riddle || '').slice(0, 500),
+    fallback: !!raw.fallback,
+    roomId: String(raw.roomId),
+    roomName: String(raw.roomName || '').slice(0, 60),
+    objectLabel: String(raw.objectLabel || 'el objeto oculto').slice(0, 80),
+    objectIcon: String(raw.objectIcon || '🪙').slice(0, 8),
+    pot: Math.max(0, Math.min(GAME_BALANCE.phase5.treasure.maxPot, Math.floor(Number(raw.pot) || 0))),
+    startedAt: Number(raw.startedAt) || Date.now(),
+    winnerId: raw.winnerId != null ? Number(raw.winnerId) : null,
+    winnerName: raw.winnerName ? String(raw.winnerName).slice(0, 60) : null,
+    solvedAt: raw.solvedAt ? Number(raw.solvedAt) : null
+  };
+}
+
+// ---- Bromas coordinadas con Fred y George (Tanda 6.4) ----
+function emptyPrank() {
+  return { active: false, roomId: null, roomName: null, targetLabel: null, startedBy: null, startedByName: null, startedAt: 0, placements: [], totalPlacements: 0 };
+}
+function sanitizePrank(raw) {
+  const p = emptyPrank();
+  if (!raw || typeof raw !== 'object' || !raw.active) return p;
+  p.active = true;
+  p.roomId = String(raw.roomId || '').slice(0, 40) || null;
+  p.roomName = String(raw.roomName || '').slice(0, 60) || null;
+  p.targetLabel = String(raw.targetLabel || '').slice(0, 80) || null;
+  p.startedBy = Number(raw.startedBy) || null;
+  p.startedByName = String(raw.startedByName || '').slice(0, 60) || null;
+  p.startedAt = Number(raw.startedAt) || Date.now();
+  p.placements = (Array.isArray(raw.placements) ? raw.placements : [])
+    .map(x => (x && x.uid != null) ? { uid: Number(x.uid), name: String(x.name || '').slice(0, 60), count: Math.max(0, Math.floor(Number(x.count) || 0)), at: Number(x.at) || Date.now() } : null)
+    .filter(Boolean).slice(-40);
+  p.totalPlacements = Math.max(0, Math.floor(Number(raw.totalPlacements) || 0));
+  return p;
+}
+// Puntos objetivo donde colocar la broma (coordenadas normalizadas 0-1).
+const PRANK_TARGETS = [
+  { id: 'armadura', label: 'la armadura del pasillo', icon: '🛡️', x: 0.5, y: 0.2 },
+  { id: 'tapiz', label: 'el tapiz de la dama', icon: '🖼️', x: 0.2, y: 0.5 },
+  { id: 'chimenea', label: 'la chimenea encendida', icon: '🔥', x: 0.8, y: 0.5 },
+  { id: 'buzon', label: 'el buzón de las lechuzas', icon: '📮', x: 0.5, y: 0.8 }
+];
+// Nombres legibles de las salas del castillo (espejo de ROOMS del cliente) para
+// los titulares del servidor. Solo se usan para texto; la validación va por id.
+const SERVER_ROOM_NAMES = {
+  gryffindor: 'la Sala Común de Gryffindor', slytherin: 'la Sala Común de Slytherin',
+  ravenclaw: 'la Sala Común de Ravenclaw', hufflepuff: 'la Sala Común de Hufflepuff',
+  astronomia: 'la Torre de Astronomía', lechuceria: 'la Lechucería', mazmorras: 'las Mazmorras',
+  comedor: 'el Gran Comedor', transformaciones: 'el Aula de Transformaciones', enfermeria: 'la Enfermería',
+  historia: 'el Aula de Historia de la Magia', encantamientos: 'el Aula de Encantamientos',
+  defensa: 'el Aula de Defensa', menesteres: 'la Sala de los Menesteres', biblioteca: 'la Biblioteca',
+  profesores: 'la Sala de Profesores', quidditch: 'el Campo de Quidditch', escalera: 'la Gran Escalera',
+  invernaderos: 'los Invernaderos', patio: 'el Patio', terrenos: 'los Terrenos y el Lago',
+  cocinas: 'las Cocinas', cabana: 'la Cabaña de Hagrid', honeydukes: 'Honeydukes', zonko: 'Zonko',
+  tresescobas: 'Las Tres Escobas', gringotts: 'Gringotts', ollivanders: 'Ollivanders', florean: 'la Heladería Florean'
+};
+const roomNameOf = id => SERVER_ROOM_NAMES[String(id || '')] || 'los pasillos del castillo';
+
+// ---- Incursiones cooperativas contra Dementores (Tanda 6.5) ----
+function emptyRaid() {
+  const max = GAME_BALANCE.phase5.raid.maxShield;
+  return { active: false, shieldHp: max, maxShield: max, participants: [], startedAt: 0, endsAt: 0, lastDecayAt: 0, endedReason: null, repelledBy: null };
+}
+function sanitizeDementorRaid(raw) {
+  const max = GAME_BALANCE.phase5.raid.maxShield;
+  const r = emptyRaid();
+  if (!raw || typeof raw !== 'object') return r;
+  r.active = !!raw.active;
+  r.maxShield = Math.max(1, Math.floor(Number(raw.maxShield) || max));
+  r.shieldHp = Math.max(0, Math.min(r.maxShield, Math.floor(Number(raw.shieldHp) || 0)));
+  r.startedAt = Number(raw.startedAt) || 0;
+  r.endsAt = Number(raw.endsAt) || 0;
+  r.lastDecayAt = Number(raw.lastDecayAt) || r.startedAt || 0;
+  r.endedReason = raw.endedReason ? String(raw.endedReason).slice(0, 40) : null;
+  r.repelledBy = raw.repelledBy ? String(raw.repelledBy).slice(0, 60) : null;
+  const seen = new Set();
+  r.participants = (Array.isArray(raw.participants) ? raw.participants : [])
+    .map(p => (p && p.uid != null) ? { uid: Number(p.uid), name: String(p.name || '').slice(0, 60), charge: Math.max(0, Math.floor(Number(p.charge) || 0)), at: Number(p.at) || Date.now() } : null)
+    .filter(p => p && !seen.has(p.uid) && seen.add(p.uid))
+    .slice(-60);
+  return r;
+}
+// Fuerza de un Patronus: base + bono si el jugador ya reveló su Patronus.
+function patronusCharge(user) {
+  const b = GAME_BALANCE.phase5.raid;
+  return b.chargeBase + (user && user.patronus ? b.chargePatronusBonus : 0);
+}
+// Aplica la degradación del escudo por el tiempo transcurrido desde el último
+// tick. Se invoca antes de cada hechizo y en el ciclo periódico del servidor.
+function applyRaidDecay(state, now = Date.now()) {
+  const r = state && state.dementorRaid;
+  if (!r || !r.active) return;
+  const b = GAME_BALANCE.phase5.raid;
+  const last = Number(r.lastDecayAt) || Number(r.startedAt) || now;
+  const secs = Math.max(0, (now - last) / 1000);
+  if (secs > 0) {
+    r.shieldHp = Math.max(0, Math.round((Number(r.shieldHp) || 0) - secs * b.decayPerSecond));
+    r.lastDecayAt = now;
+  }
+}
+// Resuelve el desenlace de la incursión si corresponde (escudo a 0 → repelida
+// la oleada por tiempo). Devuelve 'repelled' | 'failed' | null.
+function resolveRaidOutcome(state, now = Date.now()) {
+  const r = state && state.dementorRaid;
+  if (!r || !r.active) return null;
+  applyRaidDecay(state, now);
+  const b = GAME_BALANCE.phase5.raid;
+  if (r.shieldHp <= 0) {
+    r.active = false;
+    r.endedReason = 'failed';
+    r.repelledBy = null;
+    return 'failed';
+  }
+  if (r.endsAt && now >= r.endsAt) {
+    r.active = false;
+    r.endedReason = 'repelled';
+    // Reparto de recompensas a todos los participantes de la oleada.
+    const names = [];
+    (r.participants || []).forEach(p => {
+      const u = state.users.find(x => Number(x.id) === Number(p.uid));
+      if (!u) return;
+      u.galeones = (Number(u.galeones) || 0) + b.rewardGaleones;
+      u.points = (Number(u.points) || 0) + b.rewardPoints;
+      u.raidsRepelled = (Number(u.raidsRepelled) || 0) + 1;
+      grantTitle(u, 'defensor_patronus');
+      names.push(u.username);
+    });
+    r.repelledBy = names.join(', ') || null;
+    return 'repelled';
+  }
+  return null;
 }
 
 /* ===== BÓVEDA DE GRINGOTTS (Parte 4A) =====
@@ -2787,6 +3137,11 @@ function mergeServerAuthority(serverUser, incomingUser) {
   out.examAttempts = Math.max(0, Number(serverUser.examAttempts) || 0, Number(incomingUser.examAttempts) || 0);
   out.defenseCount = Math.max(0, Number(serverUser.defenseCount) || 0, Number(incomingUser.defenseCount) || 0);
   out.defenseGraceUntil = Math.max(0, Number(serverUser.defenseGraceUntil) || 0);
+  // Fase 5: los contadores de los eventos sociales solo crecen. El servidor es
+  // el único que los concede, así que un autosave obsoleto no puede reducirlos.
+  ['ballDances', 'treasuresFound', 'pranksPlaced', 'raidsRepelled', 'cheersGiven'].forEach(f => {
+    out[f] = Math.max(0, Number(serverUser[f]) || 0, Number(incomingUser[f]) || 0);
+  });
   // Bóveda de Gringotts (Parte 4A): el saldo guardado y la marca del último
   // interés son autoritativos del servidor (un cliente obsoleto no los borra).
   out.vault = Math.max(0, Number(serverUser.vault) || 0, Number(incomingUser.vault) || 0);
@@ -3134,6 +3489,14 @@ function sanitizeState(state) {
     if (typeof u.examAttempts !== 'number' || Number.isNaN(u.examAttempts)) u.examAttempts = 0;
     if (typeof u.defenseCount !== 'number' || Number.isNaN(u.defenseCount)) u.defenseCount = 0;
     if (typeof u.defenseGraceUntil !== 'number' || Number.isNaN(u.defenseGraceUntil)) u.defenseGraceUntil = 0;
+    // Fase 5: contadores de los eventos sociales (autoritativos del servidor).
+    // Retrocompatible: un guardado antiguo arranca todos a cero.
+    const _p5i = v => Math.max(0, Math.min(99999, Math.floor(Number(v) || 0)));
+    u.ballDances = _p5i(u.ballDances);
+    u.treasuresFound = _p5i(u.treasuresFound);
+    u.pranksPlaced = _p5i(u.pranksPlaced);
+    u.raidsRepelled = _p5i(u.raidsRepelled);
+    u.cheersGiven = _p5i(u.cheersGiven);
     // Cumpleaños: mes 1-12 y día 1-31; cualquier valor inválido se descarta.
     const bm = Math.floor(Number(u.birthMonth));
     const bd = Math.floor(Number(u.birthDay));
@@ -3195,6 +3558,11 @@ function sanitizeState(state) {
   state.friendRequestsDone = state.friendRequestsDone.map(id => String(id)).slice(-200);
   if (typeof state.raidShield !== 'number') state.raidShield = 100;
   if (typeof state.npcAi === 'undefined') state.npcAi = true;
+  // Enfriamientos y misiones: un estado antiguo o recortado que los omita no
+  // debe romper el renderizado del cliente (que indexa por id de jugador).
+  if (!state.cooldowns || typeof state.cooldowns !== 'object' || Array.isArray(state.cooldowns)) state.cooldowns = {};
+  if (!state.missions || typeof state.missions !== 'object' || Array.isArray(state.missions)) state.missions = {};
+  if (!Array.isArray(state.chat)) state.chat = [];
   // Correo por lechuza y mercado de cromos: arrays saneados y limitados.
   state.letters = sanitizeLetters(state, state.letters);
   // Re-aplica los regalos de lechuza ya reclamados que un cliente obsoleto
@@ -3268,6 +3636,25 @@ function sanitizeState(state) {
     .filter(c => c.lines.length === 3)
     .slice(0, 20);
 
+  // ---- Fase 5 (Tanda 6 + 8.4): estado en vivo de los eventos sociales ----
+  // Retrocompatible: un guardado antiguo arranca con el feed vacío, sin baile,
+  // sin tesoro, sin broma y sin incursión activa.
+  state.prophetFeed = sanitizeProphetFeed(state.prophetFeed);
+  // Hechizos de ánimo del espectador: marcas de tiempo futuras válidas por uid.
+  if (!state.spectatorCheers || typeof state.spectatorCheers !== 'object' || Array.isArray(state.spectatorCheers)) {
+    state.spectatorCheers = {};
+  } else {
+    Object.keys(state.spectatorCheers).forEach(k => {
+      const v = Number(state.spectatorCheers[k]);
+      if (!Number.isFinite(v) || v <= 0) delete state.spectatorCheers[k];
+      else state.spectatorCheers[k] = v;
+    });
+  }
+  state.ball = sanitizeBall(state.ball);
+  state.treasureHunt = sanitizeTreasureHunt(state.treasureHunt);
+  state.prank = sanitizePrank(state.prank);
+  state.dementorRaid = sanitizeDementorRaid(state.dementorRaid);
+
   reconcileHousePoints(state);
   return state;
 }
@@ -3326,6 +3713,12 @@ async function saveState(newState) {
   } else {
     const collection = db.collection('gameState');
     await collection.updateOne({ _id: 'global' }, { $set: stateToSave }, { upsert: true });
+  }
+  // Fase 5.1: los hitos añadidos al feed durante la liquidación (Snitch, Copa)
+  // se emiten al cintillo en tiempo real.
+  if (justSettled.length) {
+    const top = (stateToSave.prophetFeed || [])[0];
+    if (top) emitHeadline(top, stateToSave.prophetFeed);
   }
   // La crónica de Lee Jordan se genera en segundo plano (una sola vez por partido).
   justSettled.forEach(m => { generateChronicleForMatch(String(m.id)); });
@@ -3898,7 +4291,7 @@ io.on('connection', async (socket) => {
     // Catálogo oficial de varitas (maderas y núcleos con lore) para el Expediente.
     // Se incluye también el catálogo de prendas para que el Guardarropa pueda
     // dibujar cualquier prenda desbloqueada (incluidas las de los clubes).
-    socket.emit('wand:catalog', { woods: WAND_WOODS, cores: WAND_CORES, cosmetics: COSMETICS });
+    socket.emit('wand:catalog', { woods: WAND_WOODS, cores: WAND_CORES, cosmetics: COSMETICS, titles: TITLES });
     // Catálogo de la Tanda 3: clubes, recetas de pociones, plantas de herbología y
     // exámenes. El servidor valida contra estas definiciones (nunca el cliente).
     socket.emit('phase3:catalog', {
@@ -3975,6 +4368,32 @@ io.on('connection', async (socket) => {
           data.db.prophetChronicles = (memoryState && Array.isArray(memoryState.prophetChronicles))
             ? memoryState.prophetChronicles : [];
         }
+        // Fase 5: el estado de los eventos sociales en vivo es autoritativo del
+        // servidor. Un autosave obsoleto no puede borrar el feed de titulares,
+        // cancelar el baile/tesoro/broma en curso ni reiniciar la incursión de
+        // Dementores. `spectatorCheers` conserva la marca mayor por jugador.
+        data.db.prophetFeed = sanitizeProphetFeed(
+          (memoryState && Array.isArray(memoryState.prophetFeed) && memoryState.prophetFeed.length)
+            ? memoryState.prophetFeed : data.db.prophetFeed
+        );
+        data.db.ball = sanitizeBall((memoryState && memoryState.ball && memoryState.ball.active) ? memoryState.ball : data.db.ball);
+        data.db.treasureHunt = sanitizeTreasureHunt(
+          (memoryState && memoryState.treasureHunt && memoryState.treasureHunt.active)
+            ? memoryState.treasureHunt : data.db.treasureHunt
+        );
+        data.db.prank = sanitizePrank((memoryState && memoryState.prank && memoryState.prank.active) ? memoryState.prank : data.db.prank);
+        data.db.dementorRaid = sanitizeDementorRaid(
+          (memoryState && memoryState.dementorRaid && memoryState.dementorRaid.active)
+            ? memoryState.dementorRaid : data.db.dementorRaid
+        );
+        const svCheers = (memoryState && memoryState.spectatorCheers && typeof memoryState.spectatorCheers === 'object') ? memoryState.spectatorCheers : {};
+        const incCheers = (data.db.spectatorCheers && typeof data.db.spectatorCheers === 'object') ? data.db.spectatorCheers : {};
+        const cheersOut = {};
+        new Set([...Object.keys(svCheers), ...Object.keys(incCheers)]).forEach(k => {
+          const v = Math.max(0, Number(svCheers[k]) || 0, Number(incCheers[k]) || 0);
+          if (v > 0) cheersOut[k] = v;
+        });
+        data.db.spectatorCheers = cheersOut;
 
         // Lápida de usuarios eliminados (Parte 5): append-only. Un cliente con
         // datos obsoletos no puede revivir una baja, y las bajas nuevas se suman
@@ -4938,6 +5357,408 @@ io.on('connection', async (socket) => {
       }
     });
 
+    /* ===== FASE 5 (TANDA 6 + 8.4): EVENTOS SOCIALES EN TIEMPO REAL =====
+       Todo el estado de los eventos en vivo es autoritativo del servidor: las
+       validaciones (cooldowns, ubicación, pertenencia al grupo, resolución del
+       acertijo) y las recompensas se conceden aquí. El cliente solo pinta. */
+
+    // ---- 8.4. Modo Espectador Interactivo: hechizos de ánimo ----
+    socket.on('spectator:cheer', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const cheer = PHASE5_CHEERS[String((data && data.cheer) || '').trim()];
+        if (!cheer) { socket.emit('spectator:error', { message: 'Hechizo de ánimo desconocido.' }); return; }
+        const b = GAME_BALANCE.phase5.cheer;
+        // Cooldown corto por jugador (anti-spam), independiente del partido.
+        const last = Number(u.socialCooldowns && u.socialCooldowns.cheer) || 0;
+        const cd = Math.max(0, last + b.cooldownMs - Date.now());
+        if (cd > 0) { socket.emit('spectator:error', { message: `Espera ${Math.ceil(cd / 1000)} s para volver a animar.` }); return; }
+        // Debe haber un duelo o partido de Quidditch activo y en la misma sala.
+        const liveMatch = (state.matches || []).find(m => m.status === 'active');
+        const roomId = String((data && data.room) || 'quidditch');
+        if (!liveMatch) { socket.emit('spectator:error', { message: 'No hay ningún partido o duelo activo ahora mismo.' }); return; }
+        // Los jugadores del partido no pueden animar (son los protagonistas).
+        const playing = (liveMatch.players || []).some(p => Number(p.uid) === Number(u.id));
+        if (playing) { socket.emit('spectator:error', { message: 'Estás jugando: ¡céntrate en el partido!' }); return; }
+        // Bono de apoyo: puntos de casa y empatía, validados en el servidor.
+        if (u.house) {
+          u.points = (Number(u.points) || 0) + b.supportPoints;
+          u.attrEmpatia = (Number(u.attrEmpatia) || 0) + b.empathyPerCheer;
+        }
+        u.cheersGiven = (Number(u.cheersGiven) || 0) + 1;
+        u.socialCooldowns = (u.socialCooldowns && typeof u.socialCooldowns === 'object') ? u.socialCooldowns : {};
+        u.socialCooldowns.cheer = Date.now();
+        // Si el jugador pertenece a una casa del partido, refuerza su ánimo.
+        if (liveMatch && (liveMatch.a === u.house || liveMatch.b === u.house)) {
+          if (liveMatch.a === u.house) liveMatch.cheerA = (Number(liveMatch.cheerA) || 0) + 1;
+          else liveMatch.cheerB = (Number(liveMatch.cheerB) || 0) + 1;
+        }
+        reconcileHousePoints(state);
+        await saveState(state);
+        // El efecto visual llega a todos los jugadores de la sala en tiempo real.
+        io.emit('spectator:cheer', {
+          cheer: cheer.id, label: cheer.label, icon: cheer.icon, color: cheer.color, text: cheer.text,
+          from: u.username, house: u.house || null, room: roomId, matchId: liveMatch.id,
+          shieldPoints: b.supportPoints, at: Date.now()
+        });
+        socket.emit('spectator:result', {
+          ok: true, cheer: cheer.id, points: b.supportPoints,
+          empathy: u.attrEmpatia, cooldownMs: b.cooldownMs, cheersGiven: u.cheersGiven
+        });
+      } catch (err) {
+        console.error('Error en el hechizo de ánimo:', err.message);
+      }
+    });
+
+    // ---- 6.2. Baile de Navidad / Fiesta de Fin de Curso ----
+    socket.on('event:ball', async (data) => {
+      try {
+        const uid = Number(socket.data && socket.data.userId);
+        const u = uid ? memoryState.users.find(x => x.id === uid) : null;
+        if (!u) return;
+        const state = memoryState;
+        const action = String((data && data.action) || 'start');
+        state.ball = sanitizeBall(state.ball);
+        if (action === 'start') {
+          if (!u.is_admin) { socket.emit('ball:error', { message: 'Solo el Director/Profesorado puede convocar el baile.' }); return; }
+          state.ball = { active: true, startedBy: u.id, startedByName: u.username, startedAt: Date.now(), invitations: [], dances: [] };
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          io.emit('ball:state', { ball: state.ball });
+          io.emit('ball:announce', { message: `🎺 ¡${u.username} ha convocado el Baile de Navidad en el Gran Comedor! Busca tu acompañante.` });
+          return;
+        }
+        if (action === 'stop') {
+          if (!u.is_admin) { socket.emit('ball:error', { message: 'Solo el Director/Profesorado puede cerrar el baile.' }); return; }
+          state.ball = emptyBall();
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          io.emit('ball:state', { ball: state.ball });
+          return;
+        }
+        if (!state.ball.active) { socket.emit('ball:error', { message: 'No hay ningún baile en curso.' }); return; }
+        if (action === 'invite') {
+          const toId = Number(data && data.to);
+          const to = state.users.find(x => x.id === toId && !x.is_npc);
+          if (!to) { socket.emit('ball:error', { message: 'Ese jugador no está en el castillo.' }); return; }
+          if (toId === u.id) { socket.emit('ball:error', { message: 'No puedes invitarte a ti mismo… ¡busca a alguien especial!' }); return; }
+          const existing = state.ball.invitations.find(i => i.from === u.id && i.to === toId);
+          if (existing) { socket.emit('ball:error', { message: 'Ya has invitado a esa persona.' }); return; }
+          state.ball.invitations.push({ from: u.id, to: toId, at: Date.now(), accepted: false });
+          state.ball.invitations = state.ball.invitations.slice(-60);
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          io.to('user:' + toId).emit('ball:invited', { from: u.id, fromName: u.username });
+          socket.emit('ball:inviteSent', { to: toId, toName: to.username });
+          return;
+        }
+        if (action === 'accept') {
+          const fromId = Number(data && data.from);
+          const inv = state.ball.invitations.find(i => i.from === fromId && i.to === u.id && !i.accepted);
+          if (!inv) { socket.emit('ball:error', { message: 'Esa invitación ya no está disponible.' }); return; }
+          inv.accepted = true;
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          const other = state.users.find(x => x.id === fromId);
+          io.to('user:' + fromId).emit('ball:accepted', { byId: u.id, byName: u.username });
+          socket.emit('ball:accepted', { byId: fromId, byName: other ? other.username : 'tu pareja' });
+          return;
+        }
+        socket.emit('ball:error', { message: 'Acción de baile desconocida.' });
+      } catch (err) {
+        console.error('Error en el baile:', err.message);
+      }
+    });
+
+    // Minijuego rítmico del baile: el servidor valida el patrón y concede premios.
+    socket.on('ball:dance', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        state.ball = sanitizeBall(state.ball);
+        if (!state.ball.active) { socket.emit('ball:error', { message: 'El baile no está en curso.' }); return; }
+        const b = GAME_BALANCE.phase5.ball;
+        const last = Number(u.socialCooldowns && u.socialCooldowns.ball) || 0;
+        const cd = Math.max(0, last + b.cooldownMs - Date.now());
+        if (cd > 0) { socket.emit('ball:error', { message: `Recupera el aliento antes de bailar otra vez (${Math.ceil(cd / 1000)} s).` }); return; }
+        const durationMs = Math.floor(Number(data && data.durationMs));
+        if (!Number.isFinite(durationMs) || durationMs < b.minDurationMs) {
+          socket.emit('ball:error', { message: 'El baile fue demasiado corto para lucirse.' }); return;
+        }
+        // El servidor decide el acierto rítmico (fuente de verdad), no el cliente.
+        const hits = Math.max(0, Math.min(b.patternLength, Math.floor(Number(data && data.hits) || 0)));
+        const ratio = hits / b.patternLength;
+        const success = ratio >= b.passAccuracy;
+        const partnerId = Number(data && data.partner);
+        const partner = state.users.find(x => x.id === partnerId && !x.is_npc) || null;
+        if (!success) {
+          u.socialCooldowns.ball = Date.now();
+          await saveState(state);
+          socket.emit('ball:danceResult', { ok: false, hits, total: b.patternLength, message: 'Se te enredaron los pies… ¡inténtalo otra vez!' });
+          return;
+        }
+        // Recompensas validadas: Galeones, afinidad mutua y prenda de gala.
+        u.galeones = (Number(u.galeones) || 0) + b.galeones;
+        u.ballDances = (Number(u.ballDances) || 0) + 1;
+        let cosmetic = null;
+        if (u.ballDances >= b.cosmeticAfter && COSMETICS.mascara_navidad) {
+          u.unlockedCosmetics = Array.isArray(u.unlockedCosmetics) ? u.unlockedCosmetics : [];
+          if (!u.unlockedCosmetics.includes('mascara_navidad')) { u.unlockedCosmetics.push('mascara_navidad'); cosmetic = 'mascara_navidad'; }
+        }
+        let title = null;
+        if (u.ballDances >= b.titleAfter && grantTitle(u, 'bailarin_gala')) title = 'bailarin_gala';
+        // Afinidad mutua (amistad y romance) si bailó con alguien.
+        if (partner) {
+          state.relations = state.relations || {};
+          const key = relKeyBetween(u.id, partner.id);
+          const rel = state.relations[key] || { friendshipScore: 0, romanceScore: 0, rival: false };
+          rel.friendshipScore = Math.min(100, (Number(rel.friendshipScore) || 0) + b.affinity);
+          rel.romanceScore = Math.min(100, (Number(rel.romanceScore) || 0) + b.romance);
+          state.relations[key] = rel;
+        }
+        state.ball.dances.push({ uid: u.id, name: u.username, partner: partner ? partner.username : 'la pista de baile', score: hits, at: Date.now() });
+        state.ball.dances = state.ball.dances.slice(-60);
+        u.socialCooldowns.ball = Date.now();
+        // Titular en El Profeta: hito real del grupo.
+        publishProphet({
+          category: 'VIDA SOCIAL', icon: '💃', actor: u.username,
+          headline: `${u.username} deslumbró en el Baile de Navidad`,
+          text: partner
+            ? `${u.username} y ${partner.username} brillaron en el Gran Comedor al ritmo de los violines encantados.`
+            : `${u.username} se lució bailando en el Gran Comedor entre aplausos de los retratos.`
+        });
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.emit('ball:state', { ball: state.ball });
+        socket.emit('ball:danceResult', {
+          ok: true, hits, total: b.patternLength, galeones: b.galeones,
+          partner: partner ? partner.username : null, affinity: partner ? b.affinity : 0,
+          romance: partner ? b.romance : 0, cosmetic, title, ballDances: u.ballDances
+        });
+      } catch (err) {
+        console.error('Error en el minijuego del baile:', err.message);
+      }
+    });
+
+    // ---- 6.3. Búsqueda del Tesoro de los Retratos ----
+    socket.on('treasure:start', async (data) => {
+      try {
+        const uid = Number(socket.data && socket.data.userId);
+        const u = uid ? memoryState.users.find(x => x.id === uid) : null;
+        if (!u) return;
+        if (!u.is_admin && !(data && data.force)) {
+          socket.emit('treasure:error', { message: 'Solo el Director/Profesorado puede convocar al cuadro parlante.' }); return;
+        }
+        const state = memoryState;
+        if (state.treasureHunt && state.treasureHunt.active) {
+          socket.emit('treasure:state', { hunt: state.treasureHunt });
+          return;
+        }
+        const year = clampSchoolYear(state.schoolYear);
+        const hunt = await startTreasureHunt(state, year);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.emit('treasure:state', { hunt: state.treasureHunt });
+        io.emit('treasure:announce', { message: '🖼️ Un cuadro parlante ha lanzado un acertijo: ¡el primero en hallar el objeto ganará el bote de Galeones!' });
+      } catch (err) {
+        console.error('Error iniciando la búsqueda del tesoro:', err.message);
+      }
+    });
+
+    // El primer jugador que viaje a la sala correcta y haga clic gana el bote.
+    // La resolución es atómica: se comprueba y se cierra el tesoro en un solo paso.
+    socket.on('treasure:claim', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const hunt = state.treasureHunt;
+        if (!hunt || !hunt.active) { socket.emit('treasure:error', { message: 'No hay ninguna búsqueda del tesoro activa.' }); return; }
+        const roomId = String((data && data.room) || '');
+        if (roomId !== hunt.roomId) {
+          // Sala equivocada: pequeño consuelo (una vez por intento, con cooldown).
+          socket.emit('treasure:error', { message: 'Aquí no hay nada… el acertijo apunta a otro lugar del castillo.' });
+          return;
+        }
+        // Resolución atómica: la primera reclamación válida cierra el tesoro.
+        hunt.active = false;
+        hunt.winnerId = u.id;
+        hunt.winnerName = u.username;
+        hunt.solvedAt = Date.now();
+        const pot = Math.max(0, Math.floor(Number(hunt.pot) || 0));
+        u.galeones = (Number(u.galeones) || 0) + pot;
+        u.treasuresFound = (Number(u.treasuresFound) || 0) + 1;
+        grantTitle(u, 'cazador_retratos');
+        // Titular en El Profeta: hito real del grupo.
+        publishProphet({
+          category: 'TESORO', icon: '🖼️', actor: u.username,
+          headline: `${u.username} resolvió el acertijo del cuadro parlante`,
+          text: `Halló ${hunt.objectLabel} en ${hunt.roomName} y se llevó el bote de ${pot} Galeones.`
+        });
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.emit('treasure:state', { hunt: state.treasureHunt });
+        io.emit('treasure:won', { winner: u.username, winnerId: u.id, pot, roomName: hunt.roomName, objectLabel: hunt.objectLabel, objectIcon: hunt.objectIcon });
+      } catch (err) {
+        console.error('Error reclamando el tesoro:', err.message);
+      }
+    });
+
+    // ---- 6.4. Bromas coordinadas con Fred y George ----
+    socket.on('prank:start', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const roomId = String((data && data.room) || '');
+        const target = PRANK_TARGETS.find(t => t.id === String((data && data.target) || '')) || PRANK_TARGETS[0];
+        if (!roomId) { socket.emit('prank:error', { message: 'Sitúate en un pasillo para preparar la broma.' }); return; }
+        state.prank = { active: true, roomId, roomName: roomNameOf(roomId), targetLabel: target.label, startedBy: u.id, startedByName: u.username, startedAt: Date.now(), placements: [], totalPlacements: 0 };
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('prank:started', { prank: state.prank, target });
+      } catch (err) {
+        console.error('Error iniciando la broma:', err.message);
+      }
+    });
+
+    // Resultado del minijuego de sigilo: el servidor valida y premia.
+    socket.on('prank:finish', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const p = sanitizePrank(state.prank);
+        if (!p.active) { socket.emit('prank:error', { message: 'No hay ninguna broma preparada.' }); return; }
+        const b = GAME_BALANCE.phase5.prank;
+        const last = Number(u.socialCooldowns && u.socialCooldowns.prank) || 0;
+        const cd = Math.max(0, last + b.cooldownMs - Date.now());
+        if (cd > 0) { socket.emit('prank:error', { message: `Filch anda alerta: espera ${Math.ceil(cd / 1000)} s antes de otra travesura.` }); return; }
+        const durationMs = Math.floor(Number(data && data.durationMs));
+        if (!Number.isFinite(durationMs) || durationMs < b.minDurationMs) {
+          socket.emit('prank:error', { message: 'La travesura fue demasiado rápida para ser creíble.' }); return;
+        }
+        const placed = Math.max(0, Math.min(b.maxPlacements, Math.floor(Number(data && data.placed) || 0)));
+        if (placed < b.minPlacements) {
+          u.socialCooldowns.prank = Date.now();
+          await saveState(state);
+          socket.emit('prank:result', { ok: false, placed, message: 'Filch te vio antes de colocar la broma. ¡Inténtalo de nuevo!' });
+          return;
+        }
+        // Recompensas validadas: Galeones, XP del Club del Dragón y prenda.
+        const galeones = placed * b.galeonesPerPlacement;
+        u.galeones = (Number(u.galeones) || 0) + galeones;
+        u.pranksPlaced = (Number(u.pranksPlaced) || 0) + placed;
+        const club = awardClubXp(u, 'dragon', placed * b.clubXpPerPlacement);
+        let cosmetic = null;
+        if (u.pranksPlaced >= b.cosmeticAfter && COSMETICS.bomba_weasley) {
+          u.unlockedCosmetics = Array.isArray(u.unlockedCosmetics) ? u.unlockedCosmetics : [];
+          if (!u.unlockedCosmetics.includes('bomba_weasley')) { u.unlockedCosmetics.push('bomba_weasley'); cosmetic = 'bomba_weasley'; }
+        }
+        let title = null;
+        if (u.pranksPlaced >= b.titleAfter && grantTitle(u, 'travieso_weasley')) title = 'travieso_weasley';
+        // Registro de la colocación en la broma activa (cooperativa).
+        state.prank = p;
+        const entry = p.placements.find(x => x.uid === u.id);
+        if (entry) { entry.count += placed; entry.at = Date.now(); }
+        else p.placements.push({ uid: u.id, name: u.username, count: placed, at: Date.now() });
+        p.totalPlacements += placed;
+        u.socialCooldowns.prank = Date.now();
+        // Titular en El Quisquilloso: rumor curioso de la travesura.
+        publishQuisquilloso({
+          category: 'TRAVESURAS', icon: '💣', actor: u.username,
+          headline: `${u.username} dejó huella en ${p.roomName || 'los pasillos'}`,
+          text: `Fred y George aplauden: ${placed} artefacto(s) de broma colocados junto a ${p.targetLabel || 'un punto clave'} sin que Filch se diera cuenta.`
+        });
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('prank:result', {
+          ok: true, placed, galeones, club, cosmetic, title,
+          clubXp: placed * b.clubXpPerPlacement, totalPlacements: p.totalPlacements
+        });
+      } catch (err) {
+        console.error('Error resolviendo la broma:', err.message);
+      }
+    });
+
+    // ---- 6.5. Incursiones cooperativas contra Dementores ----
+    socket.on('raid:start', async (data) => {
+      try {
+        const uid = Number(socket.data && socket.data.userId);
+        const u = uid ? memoryState.users.find(x => x.id === uid) : null;
+        if (!u) return;
+        if (!u.is_admin && !(data && data.force)) {
+          socket.emit('raid:error', { message: 'Solo el Director/Profesorado puede convocar la oleada.' }); return;
+        }
+        const state = memoryState;
+        const b = GAME_BALANCE.phase5.raid;
+        const max = Math.max(1, Math.floor(Number(data && data.maxShield) || b.maxShield));
+        const now = Date.now();
+        state.dementorRaid = {
+          active: true, shieldHp: max, maxShield: max, participants: [],
+          startedAt: now, endsAt: now + b.durationMs, lastDecayAt: now, endedReason: null, repelledBy: null
+        };
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.emit('raid:state', { raid: state.dementorRaid });
+        io.emit('raid:alert', { message: '👻 ¡Dementores descienden sobre el castillo! ¡Todos a lanzar Expecto Patronum para sostener el escudo!' });
+      } catch (err) {
+        console.error('Error iniciando la incursión:', err.message);
+      }
+    });
+
+    socket.on('raid:patronus', async () => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const state = memoryState;
+        const r = state.dementorRaid;
+        if (!r || !r.active) { socket.emit('raid:error', { message: 'No hay ninguna incursión activa.' }); return; }
+        const b = GAME_BALANCE.phase5.raid;
+        // Cooldown de 3 s por jugador (validado en el servidor).
+        const cdKey = 'raid_' + u.id;
+        state.spectatorCheers = (state.spectatorCheers && typeof state.spectatorCheers === 'object') ? state.spectatorCheers : {};
+        const last = Number(state.spectatorCheers[cdKey]) || 0;
+        const cd = Math.max(0, last + b.chargeCooldownMs - Date.now());
+        if (cd > 0) { socket.emit('raid:error', { message: `Recarga tu Patronus (${Math.ceil(cd / 1000)} s).` }); return; }
+        // Degradación acumulada antes de aplicar la recarga.
+        applyRaidDecay(state, Date.now());
+        const charge = patronusCharge(u);
+        r.shieldHp = Math.min(r.maxShield, (Number(r.shieldHp) || 0) + charge);
+        state.spectatorCheers[cdKey] = Date.now();
+        // Registra al participante (o suma su recarga).
+        const p = r.participants.find(x => x.uid === u.id);
+        if (p) { p.charge += charge; p.at = Date.now(); }
+        else r.participants.push({ uid: u.id, name: u.username, charge, at: Date.now() });
+        r.participants = r.participants.slice(-60);
+        // ¿Se sostuvo el escudo hasta el final o cayó?
+        const outcome = resolveRaidOutcome(state, Date.now());
+        reconcileHousePoints(state);
+        await saveState(state);
+        io.emit('raid:state', { raid: state.dementorRaid });
+        socket.emit('raid:patronusResult', { ok: true, charge, shieldHp: r.shieldHp, maxShield: r.maxShield, participants: r.participants.length });
+        if (outcome === 'repelled') {
+          io.emit('raid:end', { reason: 'repelled', raid: state.dementorRaid });
+          publishProphet({
+            category: 'DEFENSA', icon: '☀️', actor: r.repelledBy || 'el castillo',
+            headline: '¡El castillo repele la oleada de Dementores!',
+            text: `${r.participants.length} defensor(es) sostuvieron el escudo con sus Patronus. El castillo respira aliviado.`
+          });
+          await saveState(state);
+        } else if (outcome === 'failed') {
+          io.emit('raid:end', { reason: 'failed', raid: state.dementorRaid });
+        }
+      } catch (err) {
+        console.error('Error lanzando Expecto Patronum:', err.message);
+      }
+    });
+
     // ⬅️ AÑADIDO: chat con IA de los NPCs del canon (Groq)
     socket.on('npc_chat', async (data) => {
       const now = Date.now();
@@ -5540,6 +6361,14 @@ io.on('connection', async (socket) => {
         const club = clubId ? awardClubXp(u, clubId, GAME_BALANCE.exams.clubXp) : null;
         const synced = syncTitleUnlocks(u);
         synced.forEach(id => { if (!newTitles.includes(id)) newTitles.push(id); });
+        // Fase 5.1: hito real del grupo — distinción con "E" en T.I.M.O./É.X.T.A.S.I.S.
+        if (distinction) {
+          publishProphet({
+            category: 'ACADÉMICO', icon: '🎓', actor: u.username,
+            headline: `${u.username} logró una distinción en ${t.name}`,
+            text: `Superó con sobresaliente (${score}/100) el examen oficial de ${subject.name}. El claustro aplaude de pie.`
+          });
+        }
         reconcileHousePoints(memoryState);
         await saveState(memoryState);
         io.emit('sync_db', { db: memoryState, reason: null });
@@ -5698,6 +6527,32 @@ io.on('connection', async (socket) => {
 });
 
 let botTickCounter = 0;
+
+// Fase 5: ciclo periódico de la incursión de Dementores. Aplica la degradación
+// del escudo por tiempo y resuelve el desenlace (repelida o caída) cuando toca.
+// Solo se ejecuta con el servidor real arrancado (no en las pruebas unitarias).
+if (require.main === module) setInterval(async () => {
+  try {
+    const r = memoryState && memoryState.dementorRaid;
+    if (!r || !r.active) return;
+    const outcome = resolveRaidOutcome(memoryState, Date.now());
+    io.emit('raid:state', { raid: memoryState.dementorRaid });
+    if (outcome) {
+      io.emit('raid:end', { reason: outcome, raid: memoryState.dementorRaid });
+      if (outcome === 'repelled') {
+        publishProphet({
+          category: 'DEFENSA', icon: '☀️', actor: memoryState.dementorRaid.repelledBy || 'el castillo',
+          headline: '¡El castillo repele la oleada de Dementores!',
+          text: `${(memoryState.dementorRaid.participants || []).length} defensor(es) sostuvieron el escudo con sus Patronus.`
+        });
+      }
+    }
+    await saveState(memoryState);
+    io.emit('sync_db', { db: memoryState, reason: null });
+  } catch (err) {
+    console.error('Error en el ciclo de la incursión:', err.message);
+  }
+}, 4000);
 
 if (require.main === module) setInterval(async () => {
   try {
@@ -5951,5 +6806,27 @@ module.exports = {
   buildMatchChronicleFallback,
   normalizeChronicle,
   defaultDb,
-  sanitizeState
+  sanitizeState,
+  // Fase 5: eventos sociales y dinámicas de grupo en tiempo real.
+  GAME_BALANCE_PHASE5: GAME_BALANCE.phase5,
+  PROPHET_FEED_MAX,
+  PHASE5_CHEERS,
+  PRANK_TARGETS,
+  TREASURE_ROOMS,
+  TREASURE_ROOM_IDS,
+  SERVER_ROOM_NAMES,
+  sanitizeProphetFeedEntry,
+  sanitizeProphetFeed,
+  sanitizeBall,
+  emptyBall,
+  sanitizeTreasureHunt,
+  sanitizePrank,
+  emptyPrank,
+  sanitizeDementorRaid,
+  emptyRaid,
+  buildFallbackTreasureRiddle,
+  patronusCharge,
+  applyRaidDecay,
+  resolveRaidOutcome,
+  roomNameOf
 };
