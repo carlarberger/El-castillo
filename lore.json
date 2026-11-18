@@ -478,5 +478,296 @@
     "minYear": 1,
     "keywords": ["merodeadores", "los merodeadores", "james potter", "cornamenta", "peter pettigrew", "colagusano", "amistad de los merodeadores"],
     "info": "Los Merodeadores fueron cuatro amigos de Gryffindor en los años setenta: James Potter (Cornamenta), Sirius Black (Canuto), Remus Lupin (Lunático) y Peter Pettigrew (Colagusano). Crearon el Mapa del Merodeador y aprendieron a convertirse en animagos para acompañar a Lupin en sus transformaciones. Su amistad terminó cuando Pettigrew traicionó a los Potter y provocó su muerte. El mapa y sus apodos siguen siendo parte del legado de Hogwarts."
+  },
+  {
+    "categoria": "_guia_campo",
+    "minYear": 1,
+    "keywords": ["guia de campo", "paginas de la guia"],
+    "info": "Catalogo de Paginas de la Guia de Campo repartidas por el castillo (Tanda 2.1).",
+    "guidePages": [
+      {
+        "id": "gp_gran_comedor",
+        "roomId": "comedor",
+        "title": "El Techo Encantado del Gran Comedor",
+        "category": "Historia",
+        "loreText": "El techo del Gran Comedor está encantado para reflejar el cielo exterior: estrellas, nubes y hasta tormentas. Las velas flotan sobre las mesas largas de cada casa."
+      },
+      {
+        "id": "gp_biblioteca",
+        "roomId": "biblioteca",
+        "title": "La Sección Prohibida",
+        "category": "Historia",
+        "loreText": "Detrás de una reja con candado, la Sección Prohibida guarda tomos sobre magia oscura. Se necesita un permiso firmado de un profesor para consultarla."
+      },
+      {
+        "id": "gp_patio",
+        "roomId": "patio",
+        "title": "El Patio de la Torre",
+        "category": "Arquitectura",
+        "loreText": "El Patio central conecta las principales torres del castillo. Sus fuentes encantadas cambian de color según la casa que va en cabeza en la Copa de las Casas."
+      },
+      {
+        "id": "gp_invernaderos",
+        "roomId": "invernaderos",
+        "title": "Los Invernaderos de Sprout",
+        "category": "Herbología",
+        "loreText": "El Invernadero 3 alberga las plantas más peligrosas: Mandrágoras, Tentáculas Venenosas y el Lazo del Diablo, que odia la luz solar."
+      },
+      {
+        "id": "gp_astronomia",
+        "roomId": "astronomia",
+        "title": "La Torre de Astronomía",
+        "category": "Astronomía",
+        "loreText": "La torre más alta de Hogwarts. Desde su cúpula, los alumnos trazan constelaciones y aprenden a distinguir planetas de estrellas."
+      },
+      {
+        "id": "gp_mazmorras",
+        "roomId": "mazmorras",
+        "title": "El Aula de Pociones",
+        "category": "Pociones",
+        "loreText": "Bajo el castillo, fría y húmeda, se imparte Pociones. En sus estantes hay ingredientes que serían mortales mal combinados."
+      },
+      {
+        "id": "gp_terrenos",
+        "roomId": "terrenos",
+        "title": "El Lago Negro",
+        "category": "Criaturas",
+        "loreText": "Sus aguas profundas esconden sirenas, el Calamar Gigante y colonias de Grindylows. Nunca se debe nadar en él sin supervisión."
+      },
+      {
+        "id": "gp_cabana",
+        "roomId": "cabana",
+        "title": "La Cabaña de Hagrid",
+        "category": "Criaturas",
+        "loreText": "Al borde del Bosque Prohibido vive Rubeus Hagrid, Guardián de las Llaves y los Terrenos, siempre rodeado de criaturas incomprendidas."
+      }
+    ]
+  },
+  {
+    "categoria": "_arithmancy",
+    "minYear": 1,
+    "keywords": ["puertas de aritmancia", "aritmancia"],
+    "info": "Catalogo de Puertas de Aritmancia del castillo (Tanda 2.2).",
+    "arithmancyDoors": [
+      {
+        "id": "arith_escalera",
+        "roomId": "escalera",
+        "name": "Puerta de Aritmancia · Gran Escalera",
+        "target": 24,
+        "vertices": [
+          {
+            "kind": "num",
+            "value": 9
+          },
+          {
+            "kind": "creature",
+            "value": 3
+          },
+          {
+            "kind": "num",
+            "value": 4
+          }
+        ],
+        "missing": "left",
+        "reward": {
+          "galeones": 40,
+          "cromoRarity": "Raro"
+        }
+      },
+      {
+        "id": "arith_biblioteca",
+        "roomId": "biblioteca",
+        "name": "Puerta de Aritmancia · Biblioteca",
+        "target": 18,
+        "vertices": [
+          {
+            "kind": "creature",
+            "value": 2
+          },
+          {
+            "kind": "num",
+            "value": 7
+          },
+          {
+            "kind": "creature",
+            "value": 4
+          }
+        ],
+        "missing": "right",
+        "reward": {
+          "galeones": 35,
+          "cromoRarity": "Raro"
+        }
+      },
+      {
+        "id": "arith_defensa",
+        "roomId": "defensa",
+        "name": "Puerta de Aritmancia · Aula de Duelos",
+        "target": 30,
+        "vertices": [
+          {
+            "kind": "num",
+            "value": 12
+          },
+          {
+            "kind": "creature",
+            "value": 8
+          },
+          {
+            "kind": "num",
+            "value": 5
+          }
+        ],
+        "missing": "center",
+        "reward": {
+          "galeones": 45,
+          "cromoRarity": "Legendario"
+        }
+      }
+    ]
+  },
+  {
+    "categoria": "_pasadizos",
+    "minYear": 1,
+    "keywords": ["pasadizos secretos", "bruja tuerta"],
+    "info": "Catalogo de Pasadizos Secretos del Mapa del Merodeador (Tanda 2.3).",
+    "secretPassages": [
+      {
+        "id": "pasadizo_bruja_tuerta",
+        "roomId": "escalera",
+        "name": "Estatua de la Bruja Tuerta",
+        "targetRoom": "honeydukes",
+        "icon": "🪨",
+        "hint": "Toca la joroba de la estatua del tercer piso y susurra «Disimilitudo» para bajar a Honeydukes."
+      },
+      {
+        "id": "pasadizo_tapiz_quinto",
+        "roomId": "encantamientos",
+        "name": "Tapiz del Quinto Piso",
+        "targetRoom": "mazmorras",
+        "icon": "🧵",
+        "hint": "Cruza el tapiz de Barnabas el Chiflado y aparecerás en las mazmorras."
+      },
+      {
+        "id": "pasadizo_espejo",
+        "roomId": "menesteres",
+        "name": "Espejo del Séptimo Piso",
+        "targetRoom": "lechuceria",
+        "icon": "🪞",
+        "hint": "Un espejo falso esconde un atajo directo a la Lechucería."
+      }
+    ]
+  },
+  {
+    "categoria": "_constelaciones",
+    "minYear": 1,
+    "keywords": ["constelaciones", "mesa de astronomia"],
+    "info": "Catalogo de Constelaciones de las Mesas de Astronomía (Tanda 2.4).",
+    "constellations": [
+      {
+        "id": "const_fenix",
+        "name": "El Fénix",
+        "creature": "fenix",
+        "icon": "🪶",
+        "desc": "Ave de fuego que renace de sus cenizas.",
+        "reward": {
+          "xp": 20,
+          "sabiduria": 10,
+          "points": 8
+        }
+      },
+      {
+        "id": "const_centauro",
+        "name": "El Centauro",
+        "creature": "hipogrifo",
+        "icon": "🏹",
+        "desc": "Guardián de los cielos y de los bosques.",
+        "reward": {
+          "xp": 20,
+          "sabiduria": 10,
+          "points": 8
+        }
+      },
+      {
+        "id": "const_dragon",
+        "name": "El Dragón",
+        "creature": "thestral",
+        "icon": "🐉",
+        "desc": "Fuego y poder en el firmamento.",
+        "reward": {
+          "xp": 25,
+          "sabiduria": 12,
+          "points": 10
+        }
+      }
+    ]
+  },
+  {
+    "categoria": "_cofres",
+    "minYear": 1,
+    "keywords": ["cofres", "alohomora"],
+    "info": "Catalogo de Cofres cerrados por nivel de Alohomora (Tanda 2.5).",
+    "chests": [
+      {
+        "id": "cofre_biblioteca",
+        "roomId": "biblioteca",
+        "name": "Cofre de la Biblioteca",
+        "lockLevel": 1,
+        "reward": {
+          "galeones": 30,
+          "cromoRarity": "Comun"
+        }
+      },
+      {
+        "id": "cofre_escalera",
+        "roomId": "escalera",
+        "name": "Cofre de la Gran Escalera",
+        "lockLevel": 2,
+        "reward": {
+          "galeones": 60,
+          "cromoRarity": "Raro"
+        }
+      },
+      {
+        "id": "cofre_mazmorras",
+        "roomId": "mazmorras",
+        "name": "Cofre de las Mazmorras",
+        "lockLevel": 2,
+        "reward": {
+          "galeones": 60,
+          "cromoRarity": "Raro"
+        }
+      },
+      {
+        "id": "cofre_menesteres",
+        "roomId": "menesteres",
+        "name": "Cofre de la Sala de los Menesteres",
+        "lockLevel": 3,
+        "reward": {
+          "galeones": 120,
+          "cosmetic": "tunica_gala"
+        }
+      },
+      {
+        "id": "cofre_lechuceria",
+        "roomId": "lechuceria",
+        "name": "Cofre de la Lechucería",
+        "lockLevel": 3,
+        "reward": {
+          "galeones": 100,
+          "cromoRarity": "Legendario"
+        }
+      },
+      {
+        "id": "cofre_terrenos",
+        "roomId": "terrenos",
+        "name": "Cofre junto al Lago",
+        "lockLevel": 1,
+        "reward": {
+          "galeones": 35,
+          "cromoRarity": "Comun"
+        }
+      }
+    ]
   }
 ]
