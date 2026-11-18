@@ -49,18 +49,27 @@ a{color:inherit}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
-/* nav */
+/* Barra superior: solo identidad, Galeones, "en línea" y perfil. Los botones de
+   acción viven en el menú lateral (.sidemenu) para no saturar la cabecera. */
 .nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
   margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
-.nav-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:20px;height:60px}
-/* La fila de botones no se parte en varias líneas: si no cabe, se desliza. */
-.nav-in > .row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%;padding:6px 2px}
-.nav-in > .row::-webkit-scrollbar{display:none}
-/* Los botones de la barra nunca se parten en dos líneas ni se recortan. */
-.nav-in .btn{white-space:nowrap;flex:0 0 auto}
-.nav-in .clock{flex:0 0 auto}
+.nav-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;height:60px}
+.nav-in .brand{flex:1;min-width:0}
+.nav-tools{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.nav-tools .btn,.nav-tools .pill{white-space:nowrap}
+.menu-toggle{display:none}
+/* Menú lateral de acciones: botones compactos, una sola línea cada uno. */
+.sidemenu{display:grid;gap:6px;align-content:start;position:sticky;top:78px}
+.sidemenu .btn{width:100%;justify-content:flex-start;gap:10px;padding:9px 12px;font-size:13px;white-space:nowrap}
+.sidemenu .btn .mi{flex:0 0 auto;width:18px;text-align:center}
+.sidemenu .btn .soc-badge{position:static;margin-left:auto;box-shadow:none}
+.side-card{margin-bottom:6px}
+.side-card .side-prof{display:flex;align-items:center;gap:8px;font-size:13px;min-width:0}
+.side-card .side-prof strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-card .side-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.side-card .side-actions .btn{flex:1 1 auto;font-size:12px;padding:6px 8px;justify-content:center}
 /* Cintillo de El Profeta: banner ancho estilo periódico mágico. */
-.prophet-banner{display:flex;align-items:center;gap:16px;width:100%;max-width:1120px;margin:0 auto;padding:14px 20px;
+.prophet-banner{display:flex;align-items:center;gap:16px;width:100%;margin:0 auto;padding:14px 20px;
   border:1px solid var(--line);border-radius:14px;background:linear-gradient(100deg,color-mix(in srgb,var(--gold) 16%,var(--surface)) 0%,var(--surface) 60%);
   cursor:pointer;text-align:left;transition:.15s;box-shadow:0 1px 0 rgba(0,0,0,.04)}
 .prophet-banner:hover{border-color:var(--gold);transform:translateY(-1px)}
@@ -68,16 +77,17 @@ button,input,select,textarea{font:inherit;color:inherit}
 .prophet-banner .pb-headline{flex:1;min-width:0;font-family:'Cormorant',Georgia,serif;font-style:italic;font-size:15px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prophet-banner .pb-cta{font-weight:700;font-size:13px;color:var(--gold);white-space:nowrap}
-@media (max-width:640px){
-  .prophet-banner{flex-direction:column;align-items:flex-start;gap:4px;padding:12px 16px}
-  .prophet-banner .pb-headline{white-space:normal}
-}
+/* Lechuzas: bloque ancho justo ENCIMA del cintillo de El Profeta. */
+.letters-strip{display:flex;align-items:center;gap:12px;width:100%;margin:0 auto 10px;padding:12px 18px;position:relative;
+  border:1px solid var(--line);border-radius:14px;background:var(--surface);cursor:pointer;text-align:left;transition:.15s}
+.letters-strip:hover{border-color:var(--gold);transform:translateY(-1px)}
+.letters-strip .ls-icon{font-size:22px;flex:0 0 auto}
+.letters-strip .ls-title{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.04em;white-space:nowrap}
+.letters-strip .ls-sub{flex:1;min-width:0;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.letters-strip .ls-badge{position:static;box-shadow:none;flex:0 0 auto}
+.letters-strip .ls-badge[hidden]{display:none}
 .brand{font-family:var(--display);font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
 .brand svg{width:26px;height:26px}
-.links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
-.links::-webkit-scrollbar{display:none}
-.links a{padding:8px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap}
-.links a:hover{color:var(--fg);background:var(--surface-2)}
 .clock{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);white-space:nowrap}
 .clock i{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px color-mix(in srgb,var(--good) 25%,transparent)}
 body::after{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:41;background:var(--bg);pointer-events:none}
@@ -466,7 +476,60 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   .glasses{row-gap:34px}
   .clock .per{display:none}
 }
-@media (max-width:560px){.links{display:none}.hero{padding-top:44px}}
+@media (max-width:560px){.hero{padding-top:44px}}
+/* ===== LAYOUT PRINCIPAL: contenido + menú lateral (escritorio) ===== */
+.play{display:block}
+.play-main{min-width:0;width:100%}
+.play-in{width:100%;max-width:1120px;margin:0 auto}
+.bottom-dock{display:none}
+/* ===== MÓVIL/TABLET (<768px): dock inferior fijo + drawer desplegable ===== */
+@media (max-width:767px){
+  .nav-in{height:56px;gap:8px}
+  .nav-in .brand{font-size:15px}
+  .nav-in .brand svg{width:22px;height:22px}
+  .nav-tools{gap:6px}
+  .nav-tools .ol-label,.nav-tools .pf-label{display:none}   /* etiquetas compactas */
+  .menu-toggle{display:inline-flex}                          /* botón ☰ */
+  .nav-tools .btn.sm{padding:6px 10px}
+  .sidemenu{display:none}
+  body.drawer-open .sidemenu{display:grid;position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 56px);
+    z-index:39;max-height:70vh;overflow-y:auto;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:10px max(16px,env(safe-area-inset-left,0px)) 16px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .hero{padding:36px 0 24px}
+  .hero h1{font-size:clamp(34px,12vw,60px)}
+  .hero p.lead{font-size:17px}
+  /* Relojes de arena 2x2 (ya cubierto por 860px), con números legibles */
+  .glass .pts{font-size:26px}
+  .hg{width:70px;height:104px}
+  /* Tarjetas a una columna (relojes de arena en 2x2) */
+  .arcade-grid{grid-template-columns:1fr}
+  .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3,.steps,.creator,.g2{grid-template-columns:1fr}
+  /* Modales cómodos en móvil */
+  .modal{padding:8px}
+  .modal .panel{width:95vw;max-width:95vw;max-height:88vh;overflow-y:auto;padding:14px}
+  .modal .panel.wide{max-width:95vw}
+  /* Controles táctiles grandes */
+  .btn{min-height:40px}
+  .btn.sm{min-height:40px}
+  .letters-strip .ls-sub{display:none}
+  .letters-strip .ls-title{flex:1}
+  /* Dock inferior fijo tipo app (siempre visibles Mapa/Social/Mochila/Expediente/Lechuzas) */
+  .bottom-dock{display:grid;position:fixed;left:0;right:0;bottom:0;z-index:45;
+    grid-template-columns:repeat(5,1fr);gap:2px;background:color-mix(in srgb,var(--bg) 94%,transparent);
+    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px))}
+  .dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;
+    background:none;border:none;color:var(--muted);font-size:10px;font-weight:600;cursor:pointer;position:relative;padding:2px}
+  .dock-item .di{font-size:19px;line-height:1}
+  .dock-item:active{color:var(--gold)}
+  .dock-item .soc-badge{position:absolute;top:0;right:calc(50% - 20px);box-shadow:0 0 0 2px var(--bg)}
+  body{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+  .wrap{padding-bottom:70px}
+}
+@media (min-width:768px){
+  .play{display:grid;grid-template-columns:210px minmax(0,1fr);gap:20px;align-items:start;max-width:1120px;margin:0 auto}
+  .bottom-dock{display:none}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}}
 
 /* ===== HOGSMEADE & ÁLBUM DE CROMOS ===== */
@@ -479,7 +542,6 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .cromo-repetido{position:absolute;top:8px;right:8px;background:var(--gold);color:var(--gold-ink);font-weight:900;font-size:11px;padding:2px 7px;border-radius:8px}
 
 /* ===== MÓDULO SOCIAL (estilo Hogwarts Mystery) ===== */
-#socialBtn{position:relative}
 .soc-badge{position:absolute;top:-2px;right:-2px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--bg);pointer-events:none}
 .soc-badge.inline{position:static;box-shadow:none;margin-left:6px;min-width:18px;height:18px}
 .modal .panel.soc-panel{max-width:980px;text-align:left;justify-items:stretch}
@@ -598,25 +660,35 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 </style>
 <nav class="nav" aria-label="Principal"><div class="nav-in">
   <a class="brand" href="#arriba"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 28V14l3-2v-3l2 1 2-1v3h4V9l2 1 2-1v3h4v2l3 2v12z"/><path d="M13 28v-7a3 3 0 016 0v7"/></svg>El Castillo</a>
-  <div class="links">
-    <a href="#copa">La Copa</a><a href="#directo">Directo</a><a href="#profesores-sec">Profesorado</a><a href="#casas-sec">Casas</a><a href="#prefectos">Prefectos</a><a href="#clases">Clases y Minijuegos</a><a href="#quidditch-sec">Quidditch</a><a href="#relaciones-sec">Amistades</a><a href="#alumnos">Alumnos Canon</a>
-  </div>
-  <div class="row">
+  <div class="nav-tools">
     <span class="pill gold mono" id="navGaleones" style="display:none;cursor:pointer" data-do="openHogsmeade" title="Tus Galeones">🪙 <span id="hudGaleones">0</span></span>
-    <button class="btn sm" type="button" id="socialBtn" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
+    <button class="btn sm" type="button" data-do="openOnlinePlayers" title="Jugadores conectados ahora y en qué sala están" id="onlineBtn">🟢 <span id="onlineCount">0</span><span class="ol-label"> en línea</span></button>
+    <button class="btn sm" type="button" id="navProfile" data-do="openPlayerProfile" title="Tu perfil de jugador">👤<span class="pf-label"> Perfil</span></button>
+    <button class="btn sm menu-toggle" type="button" id="menuToggle" aria-label="Abrir menú de acciones" aria-expanded="false" title="Menú">☰</button>
+  </div>
+</div></nav>
+
+<div class="play">
+  <aside class="sidemenu" id="actionMenu" aria-label="Menú de acciones">
+    <div class="side-card box">
+      <div class="side-prof" id="sideProfile"><span class="muted">Modo espectador</span></div>
+      <div class="side-actions" id="sideProfileActions">
+        <button class="btn sm gold" type="button" data-do="openNewChar">✨ Crear</button>
+        <button class="btn sm" type="button" data-do="openLogin">🔑 Entrar</button>
+      </div>
+    </div>
+    <button class="btn sm" type="button" data-do="openSocial" title="Módulo Social: amistades, romance y solicitudes pendientes">🤝 Social<span class="soc-badge" id="socialBadge" hidden>0</span></button>
     <button class="btn sm gold" type="button" data-do="openMagicProfile" title="Mi Expediente Mágico: varita, títulos, guardarropa y bestiario">📜 Expediente</button>
-    <button class="btn sm" type="button" data-do="openOnlinePlayers" title="Jugadores conectados ahora y en qué sala están" id="onlineBtn">🟢 <span id="onlineCount">0</span> en línea</button>
     <button class="btn sm gold" type="button" data-do="openMacroMap" title="Mapa del Mundo: regiones del universo mágico">🗺️ Mapa del Mundo</button>
     <button class="btn sm gold" type="button" data-do="generateCanonEvent" title="Consultar el archivo histórico de Hogwarts">🔮 Presagio</button>
     <button class="btn sm" type="button" data-do="openGrimorio" title="Tu Grimorio de Hechizos">📖 Grimorio</button>
     <button class="btn sm" type="button" data-do="openBackpack" title="Tu Mochila">🎒 Mochila</button>
     <button class="btn sm" type="button" data-do="openHogsmeade" title="Tienda de Hogsmeade">🛍️ Hogsmeade</button>
     <button class="btn sm" type="button" data-do="openAlbum" title="Álbum de Cromos">🐸 Cromos</button>
+    <button class="btn sm" type="button" data-do="openQuestBoard" title="Tablón de Encargos">📋 Encargos</button>
     <div class="clock" title="Hora del castillo"><i></i><span id="clockTime" class="mono">--:--</span><span id="clockPeriod" class="per muted"></span></div>
-    <button class="btn sm" type="button" id="lettersBtn" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">✉️ Lechuzas<span class="soc-badge" id="lettersBadge" hidden>0</span></button>
-  </div>
-</div></nav>
-
+  </aside>
+  <div class="play-main">
 <main class="wrap" id="arriba">
   <header class="hero">
     <p class="kicker">Escuela de Magia y Hechicería</p>
@@ -640,6 +712,13 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <div class="panel hl"><div class="glasses" id="glasses"></div><p class="muted center" id="copaTotal" style="text-align:center;margin-top:18px;font-size:13px"></p></div>
   </section>
 
+  <!-- Lechuzas: acceso ancho justo ENCIMA del cintillo de El Profeta. -->
+  <button class="letters-strip" type="button" id="lettersStrip" data-do="openLetters" title="Correo por Lechuza: tus cartas y regalos">
+    <span class="ls-icon" aria-hidden="true">✉️</span>
+    <span class="ls-title">Lechuzas</span>
+    <span class="ls-sub">Tu correo por lechuza: cartas, regalos y noticias del castillo.</span>
+    <span class="soc-badge ls-badge" id="lettersBadge" hidden>0</span>
+  </button>
   <!-- Cintillo de El Profeta: periódico mágico dinámico (bajo los relojes de las Casas). -->
   <button class="prophet-banner" type="button" data-do="openProphet" title="El Profeta: el periódico del mundo mágico">
     <span class="pb-masthead">📰 El Profeta</span>
@@ -814,6 +893,17 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
     <button id="adminLoginBtn" style="background:none; border:none; color:var(--muted); font-size:10px; cursor:pointer; margin-top:10px;">🔐 Acceso Profesorado</button>
   </footer>
 </main>
+  </div><!-- /play-main -->
+</div><!-- /play -->
+
+<!-- Dock inferior fijo (solo móvil): accesos rápidos siempre visibles. -->
+<nav class="bottom-dock" id="bottomDock" aria-label="Accesos rápidos">
+  <button class="dock-item" type="button" data-do="openMacroMap" title="Mapa del Mundo"><span class="di" aria-hidden="true">🗺️</span>Mapa</button>
+  <button class="dock-item" type="button" data-do="openSocial" title="Social"><span class="di" aria-hidden="true">🤝</span>Social<span class="soc-badge" id="socialBadgeDock" hidden>0</span></button>
+  <button class="dock-item" type="button" data-do="openBackpack" title="Mochila"><span class="di" aria-hidden="true">🎒</span>Mochila</button>
+  <button class="dock-item" type="button" data-do="openMagicProfile" title="Expediente Mágico"><span class="di" aria-hidden="true">📜</span>Expediente</button>
+  <button class="dock-item" type="button" data-do="openLetters" title="Lechuzas"><span class="di" aria-hidden="true">✉️</span>Lechuzas<span class="soc-badge" id="lettersBadgeDock" hidden>0</span></button>
+</nav>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <div id="canonEventBanner" class="canon-banner" hidden role="status" aria-live="polite">
@@ -3927,6 +4017,31 @@ function renderChat(){
 }
 
 /* ===== JUGADORES CONECTADOS AHORA (8.3) ===== */
+/* Menú lateral: cabecera de perfil compacta que refleja al jugador actual. */
+function renderSideMenu(){
+  const prof=$('sideProfile'),acts=$('sideProfileActions');
+  if(!prof) return;
+  const u=me();
+  if(!u){
+    prof.innerHTML=`<span class="pawn">👤</span><span class="muted">Modo espectador</span>`;
+    if(acts) acts.hidden=false;
+    return;
+  }
+  const title=(u.title&&TITLES[u.title])?TITLES[u.title].name:'';
+  prof.innerHTML=`<span class="pawn">${av(u,30)}</span><span style="min-width:0"><strong>${esc(u.username)}</strong><div class="hint">${title?esc(title)+' · ':''}🪙 ${u.galeones||0}</div></span>`;
+  if(acts){
+    acts.hidden=false;
+    acts.innerHTML=`<button class="btn sm" type="button" data-do="editChar">🎨 Editar</button>`
+      +`<button class="btn sm" type="button" data-do="openPlayerProfile">👤 Perfil</button>`
+      +`<button class="btn sm danger" type="button" data-do="logoutChar">🚪 Salir</button>`;
+  }
+}
+/* Drawer del menú lateral en móvil (botón ☰). */
+function setDrawer(open){
+  document.body.classList.toggle('drawer-open',!!open);
+  const t=$('menuToggle');
+  if(t) t.setAttribute('aria-expanded',open?'true':'false');
+}
 function renderOnlineIndicator(){
   const el=$('onlineCount');
   if(el) el.textContent=onlineCount();
@@ -4474,6 +4589,49 @@ function openMagicProfileModal(){
   </div>
   <div class="row" style="margin-top:12px;justify-content:center"><button class="btn sm" data-do="closeModal" type="button">Cerrar</button></div>`;
   openModal(html, true);
+}
+
+/* Perfil de jugador: ficha compacta y rápida de la cuenta activa. */
+function openPlayerProfileModal(){
+  const u=me();
+  if(!u){ openLoginModal(); return; }
+  const h=HOUSE(u.house);
+  const t=(u.title&&TITLES[u.title])?TITLES[u.title]:null;
+  const wand=u.wand?`${esc(WAND_WOOD_LABEL[u.wand.wood]||u.wand.wood)} · ${u.wand.length} cm · ${esc((WAND_CORES[wandCoreOf(u)]||{}).name||'núcleo')}`:'Sin varita';
+  const stat=(icon,label,val,color)=>`<div class="box" style="display:flex;flex-direction:column;gap:4px">
+      <span>${icon} ${label}</span><b class="mono" style="font-size:18px;color:${color||'var(--fg)'}">${val}</b></div>`;
+  const repVals=Object.values((db.profAffinity||{})[u.id]||{}).map(Number).filter(n=>!Number.isNaN(n));
+  const avgRep=repVals.length?Math.round(repVals.reduce((a,b)=>a+b,0)/repVals.length):0;
+  const html=`<div class="row" style="justify-content:space-between;width:100%;margin-bottom:8px">
+    <h3 style="font-size:20px;color:var(--gold)">👤 Perfil del jugador</h3>
+    <span class="pill gold mono">🪙 ${u.galeones||0}</span>
+  </div>
+  <div class="row" style="width:100%;gap:12px;align-items:center;text-align:left">
+    <span class="pawn big me">${av(u,56)}</span>
+    <div style="min-width:0">
+      <strong style="font-size:18px">${esc(u.username)}</strong>
+      <div class="hint">${h?esc(h.name):'Sin casa'} · ${userYear(u)}.º curso${t?` · ${t.icon} ${esc(t.name)}`:''}</div>
+    </div>
+  </div>
+  <div class="grid g2" style="width:100%;text-align:left;gap:8px;margin-top:8px">
+    ${stat('🏆','Puntos de casa',u.points||0,'var(--gold)')}
+    ${stat('📚','Progreso académico',u.academic_progress||0)}
+    ${stat('🦁','Valentía',u.attrValentia||0,'var(--gry)')}
+    ${stat('🕊️','Empatía',u.attrEmpatia||0,'var(--huf)')}
+    ${stat('🦅','Sabiduría',u.attrSabiduria||0,'var(--rav)')}
+    ${stat('💛','Felicidad',u.happiness||0)}
+  </div>
+  <div class="box" style="width:100%;text-align:left;display:flex;flex-direction:column;gap:4px">
+    <span>🪄 Varita: <b>${wand}</b></span>
+    <span>🎓 Reputación media: <b class="mono">${avgRep}</b></span>
+    ${birthdayLabel(u)?`<span>🎂 Cumpleaños: <b>${esc(birthdayLabel(u))}</b></span>`:''}
+  </div>
+  <div class="row" style="margin-top:12px;justify-content:center;flex-wrap:wrap;gap:8px">
+    <button class="btn sm gold" type="button" data-do="openMagicProfile">📜 Expediente</button>
+    <button class="btn sm" type="button" data-do="openOnlinePlayers">🟢 Jugadores en línea</button>
+    <button class="btn sm" type="button" data-do="closeModal">Cerrar</button>
+  </div>`;
+  openModal(html,true);
 }
 
 function openShopRoomModal(shopId){
@@ -5196,6 +5354,7 @@ function renderAll(){
   renderCourses();
   renderClock();
   renderOnlineIndicator();
+  renderSideMenu();
   updateSocialBadge();
   updateLettersBadge();
 }
@@ -7328,12 +7487,14 @@ function relMetricTier(rel){
 }
 // Badge rojo del botón Social con el número de solicitudes pendientes.
 function updateSocialBadge(){
-  const badge=$('socialBadge');
-  if(!badge) return;
   const u=me();
   const n=u?pendingRequestsFor(u.id).length:0;
-  badge.textContent=String(n);
-  badge.hidden=!(n>0);
+  ['socialBadge','socialBadgeDock'].forEach(id=>{
+    const badge=$(id);
+    if(!badge) return;
+    badge.textContent=String(n);
+    badge.hidden=!(n>0);
+  });
 }
 
 /* --- Envío de solicitudes de amistad --- */
@@ -7704,12 +7865,14 @@ function realPlayersExcept(uid) {
 /* ===== 1. CORREO POR LECHUZA ===== */
 const LETTER_GALEONES_OPTIONS = [10];
 function updateLettersBadge() {
-  const badge = $('lettersBadge');
-  if (!badge) return;
   const u = me();
   const n = u ? unreadLetters(u.id).length : 0;
-  badge.textContent = String(n);
-  badge.hidden = !(n > 0);
+  ['lettersBadge','lettersBadgeDock'].forEach(id=>{
+    const badge = $(id);
+    if (!badge) return;
+    badge.textContent = String(n);
+    badge.hidden = !(n > 0);
+  });
 }
 function letterGiftLabel(gift) {
   if (!gift) return '';
@@ -9576,6 +9739,7 @@ document.addEventListener('click',e=>{
     case 'seeCreature':seeCreature(d.id);break;
     case 'observeCreatures':observeCreatures();break;
     case 'openOnlinePlayers':openOnlinePlayersModal();break;
+    case 'openPlayerProfile':openPlayerProfileModal();break;
     case 'summonPatronus':summonPatronus();break;
     case 'summonAnimagus':summonAnimagus();break;
     case 'ansClassTrivia':answerClassTrivia(d.k,Number(d.i),Number(d.c));break;
@@ -9663,6 +9827,15 @@ $('userSwitch').addEventListener('change',e=>{
   renderAll();
 });
 $('newStudentBtn').addEventListener('click',newStudent);
+// Drawer del menú de acciones en móvil (botón ☰) y cierre al pulsar fuera.
+const menuToggleBtn=$('menuToggle');
+if(menuToggleBtn) menuToggleBtn.addEventListener('click',()=>setDrawer(!document.body.classList.contains('drawer-open')));
+document.addEventListener('click',e=>{
+  if(!document.body.classList.contains('drawer-open')) return;
+  if(e.target.closest('#actionMenu')||e.target.closest('#menuToggle')) return;
+  setDrawer(false);
+});
+window.addEventListener('resize',()=>{if(window.innerWidth>=768) setDrawer(false)});
 $('chGlobal').addEventListener('click',()=>{session.channel='global';renderChat()});
 $('chHouse').addEventListener('click',()=>{const u=me();if(!u||!u.house){toast('Inicia sesión con tu personaje para entrar a tu Sala Común');return}session.channel=u.house;renderChat()});
 $('chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('chatInput');if(!i.value.trim())return;try{API.say(i.value);i.value='';}catch(err){toast(err.message);}});
