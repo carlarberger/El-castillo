@@ -1882,6 +1882,9 @@ socket.on('sync_db', (data) => {
   if (data && data.db) {
     db = data.db;
     serverDbLoaded = true;
+    // Si el servidor reasignó el id de mi personaje (colisión al crear), adopto
+    // el id canónico para que la sesión siga apuntando a mi jugador.
+    applyRemaps(data.remaps);
     // La lista de usuarios es autoritativa del servidor: se aplica la lápida de
     // bajas para que ninguna cuenta eliminada vuelva, y se limpia la sesión
     // local si el personaje propio ya no existe en el servidor.
@@ -1889,7 +1892,9 @@ socket.on('sync_db', (data) => {
     ensureDbIntegrity();
     validateLocalSession();
     if (data.reason) toast('En vivo: ' + data.reason);
-    renderAll();
+    // Un sync_db de fondo no debe borrar lo que el jugador está escribiendo en
+    // el formulario de creación/edición de personaje.
+    withCreatorInputsPreserved(renderAll);
   }
 });
 
@@ -2058,6 +2063,23 @@ function reviveDeletedUser(user){
     return true;
   }));
 }
+// Aplica las reasignaciones de id que el servidor hizo al fusionar (colisión de
+// id al crear un personaje). Si mi propio personaje fue reasignado, la sesión
+// local (y el almacenamiento) pasan a apuntar al id canónico.
+function applyRemaps(remaps){
+  if(!remaps||typeof remaps!=='object') return;
+  Object.keys(remaps).forEach(from=>{
+    const to=Number(remaps[from]);
+    if(!Number.isFinite(to)||to<=0) return;
+    if(Number(session.uid)===Number(from)){
+      session.uid=to;
+      localStorage.setItem('castillo_uid',String(to));
+      identifySocket();
+      toast('Tu personaje se ha sincronizado con el castillo.');
+    }
+  });
+}
+
 // Aplica la lápida del servidor sobre la lista local de usuarios y limpia de
 // localStorage la sesión si el personaje propio fue eliminado.
 function applyDeletedUsers(list){
@@ -2072,10 +2094,12 @@ function applyDeletedUsers(list){
   }
 }
 
-function commit(reason){
+function commit(reason,opts){
   ensureDbIntegrity();
   syncHouseTotals();
-  socket.emit('sync_db', { db: db, reason: reason });
+  // `newCharId` marca el personaje recién creado en este envío: permite al
+  // servidor reasignarle un id si colisiona con otro jugador (no se persiste).
+  socket.emit('sync_db', { db: db, reason: reason, newCharId: (opts&&opts.newCharId)||null });
   renderAll();
 }
 
@@ -2836,7 +2860,7 @@ const API={
     localStorage.setItem('castillo_pass',pHash);
     identifySocket();
     if(chosenHouse)fanfare();
-    commit('Nuevo alumno: '+name);
+    commit('Nuevo alumno: '+name, { newCharId: u.id });
     toast('¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
   },
   login(name,pass){
@@ -5929,6 +5953,26 @@ function renderAll(){
 }
 
 /* ===== 8. Modales y 7 Minijuegos Interactivos ===== */
+// Ejecuta `fn` (normalmente renderAll) sin perder lo que el jugador está
+// escribiendo en el formulario de creación/edición de personaje: guarda el
+// estado de los campos, re-renderiza y restaura los valores si el modal sigue
+// abierto. Así un sync_db de fondo no borra el nombre, la contraseña ni la
+// fecha de cumpleaños a medio rellenar.
+function withCreatorInputsPreserved(fn){
+  const box=$('creatorBox');
+  if(!box){ fn(); return; }
+  const fields={};
+  ['cName','cPass','cBirthDay','cBirthMonth'].forEach(id=>{const el=$(id);if(el)fields[id]=el.value;});
+  fn();
+  const box2=$('creatorBox');
+  if(!box2) return;
+  Object.keys(fields).forEach(id=>{const el=$(id);if(el)el.value=fields[id];});
+  // Mantiene el borrador alineado con lo que se ve en pantalla.
+  if(fields.cName!==undefined) draft.name=fields.cName;
+  if(fields.cPass!==undefined) draft.pass=fields.cPass;
+  if(fields.cBirthDay!==undefined) draft.birthDay=fields.cBirthDay?Number(fields.cBirthDay):null;
+  if(fields.cBirthMonth!==undefined) draft.birthMonth=fields.cBirthMonth?Number(fields.cBirthMonth):null;
+}
 function houseConfirm(id){const h=HOUSE(id);openModal(`${crest(id,true)}<h3 style="font-size:22px">¿Unirte a ${h.name}?</h3><p class="muted">“${h.motto}”. Esta decisión es permanente.</p><div class="row"><button class="btn" data-do="closeModal" type="button">Pensarlo</button><button class="btn gold" data-do="confirmHouse" data-id="${id}" type="button">Sí, unirme</button></div>`)}
 
 function finishMinigame(k,hit,msgWin,msgLose){
