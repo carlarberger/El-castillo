@@ -1272,6 +1272,13 @@ const U = (id, username, house, points, flight_xp, role, is_admin, look, is_npc 
   demiguiseCarrying: [],
   alohomoraLevel: 1,
   bagCapacity: 5,
+  // Parte 4A: hallazgos intangibles (encuentros/avistamientos), oro guardado
+  // en la Bóveda de Gringotts y marca del último interés semanal abonado.
+  encounters: [],
+  vault: 0,
+  vaultLastInterest: 0,
+  // Enfriamiento de las acciones sociales rápidas (Parte 4A).
+  socialCooldowns: {},
   // Exploración avanzada (Tanda 2): páginas de la Guía de Campo, puertas de
   // Aritmancia abiertas, pasadizos secretos, constelaciones y cofres.
   guidePages: [],
@@ -1535,8 +1542,64 @@ const GAME_BALANCE = {
   potions:  { xp: 22, housePoints: 10, galeones: 6, clubXp: 14 },
   herbology:{ xp: 20, housePoints: 8,  galeones: 5, clubXp: 12 },
   exams:    { galeones: 40, housePoints: 25, clubXp: 25 },
-  defense:  { maxPenalty: 15 }
+  defense:  { maxPenalty: 15 },
+  // Curva unificada de atributos (servidor y cliente comparten estos tramos).
+  attributes: {
+    maxLevel: 5,
+    curve: [
+      { level: 1, min: 0,  max: 9 },
+      { level: 2, min: 10, max: 19 },
+      { level: 3, min: 20, max: 34 },
+      { level: 4, min: 35, max: 49 },
+      { level: 5, min: 50, max: null }
+    ],
+    // Acción social rápida: sube atributos además de la afinidad.
+    social: {
+      chat: { label: 'Charlar', icon: '💬', attr: 'empatia',  points: 2, affinity: 8 },
+      help: { label: 'Ayudar',  icon: '🤲', attr: 'valentia', points: 2, empathy: 1, affinity: 10 },
+      cooldownMs: 12000
+    }
+  },
+  // Bóveda de Gringotts: interés semanal pasivo sobre el oro depositado.
+  bank: { weeklyRate: 0.05, weekMs: 7 * 24 * 60 * 60 * 1000, minMove: 1, maxBalance: 999999 },
+  // Mercadillo entre jugadores: límites de ofertas y cantidades por intercambio.
+  market: { maxOffers: 200, maxQty: 10 },
+  // Cumpleaños: descuento en Honeydukes y Zonko.
+  birthday: { discount: 0.5, minPrice: 1 },
+  // Cestas de regalo: afinidad base y multiplicador por regalo favorito del NPC.
+  gifts: { baseAffinity: 12, favoriteMultiplier: 2 }
 };
+
+/* Curva unificada de atributos: 0–9 Nv.1 · 10–19 Nv.2 · 20–34 Nv.3 ·
+   35–49 Nv.4 · 50+ Nv.5. Una sola fuente de verdad para servidor y cliente. */
+const ATTR_CURVE = GAME_BALANCE.attributes.curve;
+function attrLevelFromPoints(points) {
+  const p = Math.max(0, Math.floor(Number(points) || 0));
+  for (let i = ATTR_CURVE.length - 1; i >= 0; i--) {
+    if (p >= ATTR_CURVE[i].min) return ATTR_CURVE[i].level;
+  }
+  return 1;
+}
+// Progreso del atributo para las tarjetas: nivel, puntos actuales, umbral
+// siguiente y porcentaje de la barra dentro del nivel actual.
+function attrProgress(points) {
+  const p = Math.max(0, Math.floor(Number(points) || 0));
+  const level = attrLevelFromPoints(p);
+  if (level >= GAME_BALANCE.attributes.maxLevel) {
+    return { level, current: p, next: null, base: ATTR_CURVE[level - 1].min, pct: 100 };
+  }
+  const base = ATTR_CURVE[level - 1].min;
+  const next = ATTR_CURVE[level].min;
+  const span = Math.max(1, next - base);
+  return { level, current: p, next, base, pct: Math.max(0, Math.min(100, Math.round((p - base) / span * 100))) };
+}
+// Precio de un objeto en Hogsmeade/Zonko aplicando el descuento de cumpleaños.
+function birthdayPrice(base, isBirthday) {
+  const price = Math.max(0, Math.floor(Number(base) || 0));
+  if (!isBirthday) return price;
+  const rate = GAME_BALANCE.birthday.discount;
+  return Math.max(GAME_BALANCE.birthday.minPrice, Math.round(price * (1 - rate)));
+}
 
 /* ===== CLUBES EXTRACURRICULARES (Tanda 3.2) =====
    Tres clubes que suben automáticamente al ganar XP en sus materias afines. El
@@ -1742,15 +1805,52 @@ function cleanCosmeticIds(v) {
 // Hallazgos mágicos al moverse: el SERVIDOR es la fuente de verdad (la pasiva de
 // Fénix y la mascota rata se aplican aquí). Los nombres coinciden con
 // RANDOM_FINDS de index.html para que la ficha mostrada sea coherente.
+// Clasificación (Parte 4A): los hallazgos TANGIBLES (`tangible: true`) son
+// objetos reales que van a la Mochila (`u.inv`); los intangibles (Dobby,
+// Peeves, fantasmas, pistas) son SUCESOS que se guardan en `u.encounters[]`.
 const SERVER_FINDS = [
-  { name: 'Cromo de Rana de Chocolate de Dumbledore', pts: 5, xp: 0, galeones: 0, icon: '🃏' },
-  { name: 'Galeón de oro perdido', pts: 8, xp: 0, galeones: 3, icon: '🪙' },
-  { name: 'Pista del Mapa del Merodeador', pts: 6, xp: 0, galeones: 0, icon: '🗺️' },
-  { name: 'Grajeas Bertie Bott', pts: 5, xp: 2, galeones: 0, icon: '🍬' },
-  { name: 'Encuentro con Dobby', pts: 7, xp: 0, galeones: 0, icon: '🧦' },
-  { name: 'Pluma de Fénix', pts: 8, xp: 2, galeones: 0, icon: '🪶' },
-  { name: 'Broma de Peeves', pts: 5, xp: 0, galeones: 0, icon: '👻' }
+  { name: 'Cromo de Rana de Chocolate de Dumbledore', pts: 5, xp: 0, galeones: 0, icon: '🃏', itemId: 'cromo_rana', tangible: true },
+  { name: 'Galeón de oro perdido', pts: 8, xp: 0, galeones: 3, icon: '🪙', itemId: 'galeon_perdido', tangible: true },
+  { name: 'Pista del Mapa del Merodeador', pts: 6, xp: 0, galeones: 0, icon: '🗺️', kind: 'encounter' },
+  { name: 'Grajeas Bertie Bott', pts: 5, xp: 2, galeones: 0, icon: '🍬', itemId: 'grageas_bertie', tangible: true },
+  { name: 'Encuentro con Dobby', pts: 7, xp: 0, galeones: 0, icon: '🧦', kind: 'encounter' },
+  { name: 'Pluma de Fénix', pts: 8, xp: 2, galeones: 0, icon: '🪶', itemId: 'pluma_fenix', tangible: true },
+  { name: 'Broma de Peeves', pts: 5, xp: 0, galeones: 0, icon: '👻', kind: 'encounter' },
+  { name: 'Aparición de un fantasma del castillo', pts: 6, xp: 0, galeones: 0, icon: '🌫️', kind: 'encounter' }
 ];
+
+// Objetos tangibles obtenibles como hallazgo (Parte 4A). Se guardan realmente
+// en la Mochila (`u.inv`) y pueden intercambiarse en el Mercadillo.
+const FIND_ITEM_DEFS = {
+  cromo_rana:      { id: 'cromo_rana',      nombre: 'Cromo de Rana de Chocolate', icon: '🃏', desc: 'Un cromo coleccionable caído de una Rana de Chocolate.', vendible: 4 },
+  galeon_perdido:  { id: 'galeon_perdido',  nombre: 'Galeón de Oro Perdido',      icon: '🪙', desc: 'Un galeón brillante extraviado por los pasillos.', vendible: 6 },
+  grageas_bertie:  { id: 'grageas_bertie',  nombre: 'Grajeas Bertie Bott',        icon: '🍬', desc: 'Golosinas de todos los sabores… incluso los terribles.', vendible: 3 },
+  pluma_fenix:     { id: 'pluma_fenix',     nombre: 'Pluma de Fénix',              icon: '🪶', desc: 'Una pluma cálida que nunca se apaga.', vendible: 8 }
+};
+const FIND_ITEM_IDS = new Set(Object.keys(FIND_ITEM_DEFS));
+
+// Normaliza la colección de encuentros/avistamientos del jugador. Cada entrada
+// es { id, name, icon, kind, count, at }. Máximo 64 entradas distintas.
+function sanitizeEncounters(list) {
+  if (!Array.isArray(list)) return [];
+  const byId = new Map();
+  list.forEach(e => {
+    if (!e || typeof e !== 'object') return;
+    const name = String(e.name || '').trim().slice(0, 80);
+    const id = String(e.id || name).trim().slice(0, 80);
+    if (!id || !name) return;
+    const prev = byId.get(id);
+    byId.set(id, {
+      id,
+      name,
+      icon: String(e.icon || (prev && prev.icon) || '✨').slice(0, 8),
+      kind: String(e.kind || (prev && prev.kind) || 'encounter').slice(0, 24),
+      count: Math.max(1, Number(prev && prev.count) || 1, Number(e.count) || 1),
+      at: Number(e.at) || (prev && prev.at) || Date.now()
+    });
+  });
+  return [...byId.values()].slice(-64);
+}
 
 // Núcleo de la varita del jugador (o null si aún no la tiene).
 function wandCore(user) {
@@ -1764,11 +1864,11 @@ function wandFindBonus(user) { return wandAxisOf(wandCore(user)) === 'fenix' ? 0
 function wandEmpatiaBonus(user) { return wandAxisOf(wandCore(user)) === 'unicornio' ? 1 : 0; }
 // Pasiva del eje Dragón: +1 de Valentía efectiva.
 function wandValentiaBonus(user) { return wandAxisOf(wandCore(user)) === 'dragon' ? 1 : 0; }
-// Nivel efectivo de un atributo = base (1 + puntos/10) + bonus de la varita.
+// Nivel efectivo de un atributo = nivel de la curva unificada + bonus de la varita.
 function effectiveAttrLevel(user, key) {
   const prop = ATTR_PROP[key];
   if (!prop) return 1;
-  const base = Math.floor(Math.max(0, Number(user && user[prop]) || 0) / 10) + 1;
+  const base = attrLevelFromPoints(user && user[prop]);
   if (key === 'empatia') return base + wandEmpatiaBonus(user);
   if (key === 'valentia') return base + wandValentiaBonus(user);
   return base;
@@ -1857,6 +1957,9 @@ function defaultDb() {
     letters: [],
     // Ofertas de intercambio de cromos: { id, from, to, giveCromoId, wantCromoId, status, at }
     tradeOffers: [],
+    // Mercadillo (Parte 4A): ofertas de intercambio de objetos tangibles.
+    // { id, from, to, giveItemId, giveQty, wantItemId, wantQty, status, at }
+    itemTrades: [],
     // Edición activa de El Profeta: { issue, generatedAt, year } o null.
     dailyProphet: null,
     // Caché global de retratos IA de Patronus/Animago: { [type_formId_gender]: url }
@@ -2190,6 +2293,158 @@ function mergeTradeOffers(serverList, incomingList, users) {
   return sanitizeTradeOffers({ users }, [...map.values()]);
 }
 
+/* ===== MERCADILLO DE OBJETOS TANGIBLES (Parte 4A) =====
+   Intercambio atómico de pociones, dulces, artículos de Zonko y hallazgos
+   tangibles entre jugadores. Mismo esquema de estados que el mercado de cromos. */
+const ITEM_TRADE_MAX = GAME_BALANCE.market.maxOffers;
+const ITEM_TRADE_STATUSES = ['pending', 'accepted', 'rejected', 'cancelled'];
+const isItemTradeTerminal = s => s === 'accepted' || s === 'rejected' || s === 'cancelled';
+
+function sanitizeItemTrade(r, users) {
+  if (!r || r.from == null || r.to == null) return null;
+  const from = Number(r.from);
+  const to = Number(r.to);
+  if (!from || !to || from === to) return null;
+  if (users && users.length && (!users.some(u => u.id === from) || !users.some(u => u.id === to))) return null;
+  const giveItemId = String(r.giveItemId || '').trim().slice(0, 40);
+  const wantItemId = String(r.wantItemId || '').trim().slice(0, 40);
+  if (!giveItemId || !wantItemId) return null;
+  const clampQty = v => Math.max(1, Math.min(GAME_BALANCE.market.maxQty, Math.floor(Number(v) || 1)));
+  let status = String(r.status || 'pending');
+  if (!ITEM_TRADE_STATUSES.includes(status)) status = 'pending';
+  return {
+    id: String(r.id || `itemtrade_${from}_${to}_${Date.now()}`),
+    from, to,
+    giveItemId, giveQty: clampQty(r.giveQty),
+    wantItemId, wantQty: clampQty(r.wantQty),
+    status,
+    at: Number(r.at) || Date.now()
+  };
+}
+
+function sanitizeItemTrades(state, list) {
+  if (!Array.isArray(list)) return [];
+  const users = (state && Array.isArray(state.users)) ? state.users : [];
+  const seen = new Set();
+  const out = [];
+  list.forEach(r => {
+    const o = sanitizeItemTrade(r, users);
+    if (!o || seen.has(o.id)) return;
+    seen.add(o.id);
+    out.push(o);
+  });
+  return out.slice(-ITEM_TRADE_MAX);
+}
+
+// Un estado terminal (aceptada/rechazada/cancelada) nunca vuelve a 'pendiente'.
+function mergeItemTrades(serverList, incomingList, users) {
+  const map = new Map();
+  (serverList || []).forEach(r => { const o = sanitizeItemTrade(r, users); if (o) map.set(o.id, o); });
+  (incomingList || []).forEach(r => {
+    const o = sanitizeItemTrade(r, users);
+    if (!o) return;
+    const prev = map.get(o.id);
+    if (prev) {
+      const status = (!isItemTradeTerminal(prev.status) && isItemTradeTerminal(o.status)) ? o.status : prev.status;
+      map.set(o.id, { ...prev, status });
+    } else map.set(o.id, o);
+  });
+  return sanitizeItemTrades({ users }, [...map.values()]);
+}
+
+// Cuenta de un objeto en el inventario de un jugador.
+function invCount(user, itemId) {
+  const inv = user && user.inv;
+  return Math.max(0, Math.floor(Number(inv && inv[itemId]) || 0));
+}
+// Suma/resta un objeto del inventario respetando el mínimo 0.
+function invAdd(user, itemId, delta) {
+  if (!user) return;
+  user.inv = (user.inv && typeof user.inv === 'object') ? user.inv : {};
+  const next = Math.max(0, invCount(user, itemId) + Math.floor(Number(delta) || 0));
+  if (next <= 0) delete user.inv[itemId];
+  else user.inv[itemId] = next;
+}
+
+/* ===== BÓVEDA DE GRINGOTTS (Parte 4A) =====
+   El oro depositado genera un interés semanal pasivo. `vaultLastInterest`
+   guarda la marca del último periodo abonado para no pagar dos veces. */
+function accrueVaultInterest(user, now = Date.now()) {
+  if (!user) return 0;
+  const balance = Math.max(0, Math.floor(Number(user.vault) || 0));
+  const last = Math.max(0, Number(user.vaultLastInterest) || 0);
+  if (balance <= 0) { user.vaultLastInterest = last || now; return 0; }
+  if (!last) { user.vaultLastInterest = now; return 0; }
+  const weeks = Math.floor((now - last) / GAME_BALANCE.bank.weekMs);
+  if (weeks <= 0) return 0;
+  let interest = 0;
+  for (let i = 0; i < weeks; i++) interest += Math.floor(balance * GAME_BALANCE.bank.weeklyRate);
+  interest = Math.max(0, Math.min(GAME_BALANCE.bank.maxBalance - balance, interest));
+  user.vault = balance + interest;
+  user.vaultLastInterest = last + weeks * GAME_BALANCE.bank.weekMs;
+  return interest;
+}
+// Deposita Galeones del monedero en la bóveda (abona antes el interés vencido).
+function vaultDeposit(user, amount) {
+  if (!user) return { ok: false, message: 'Sin personaje.' };
+  accrueVaultInterest(user);
+  const amt = Math.floor(Number(amount) || 0);
+  if (amt < GAME_BALANCE.bank.minMove) return { ok: false, message: 'Cantidad demasiado baja.' };
+  const wallet = Math.max(0, Number(user.galeones) || 0);
+  if (wallet < amt) return { ok: false, message: 'No tienes suficientes Galeones en el monedero.' };
+  const room = GAME_BALANCE.bank.maxBalance - Math.max(0, Math.floor(Number(user.vault) || 0));
+  if (room <= 0) return { ok: false, message: 'Tu bóveda está llena.' };
+  const moved = Math.min(amt, room);
+  user.galeones = wallet - moved;
+  user.vault = Math.max(0, Math.floor(Number(user.vault) || 0)) + moved;
+  return { ok: true, moved, vault: user.vault, galeones: user.galeones };
+}
+// Retira Galeones de la bóveda al monedero.
+function vaultWithdraw(user, amount) {
+  if (!user) return { ok: false, message: 'Sin personaje.' };
+  accrueVaultInterest(user);
+  const amt = Math.floor(Number(amount) || 0);
+  if (amt < GAME_BALANCE.bank.minMove) return { ok: false, message: 'Cantidad demasiado baja.' };
+  const balance = Math.max(0, Math.floor(Number(user.vault) || 0));
+  if (balance < amt) return { ok: false, message: 'No tienes suficiente oro en la bóveda.' };
+  user.vault = balance - amt;
+  user.galeones = Math.max(0, Number(user.galeones) || 0) + amt;
+  return { ok: true, moved: amt, vault: user.vault, galeones: user.galeones };
+}
+
+/* ===== CESTAS DE REGALO (Parte 4A) =====
+   Regalar a un NPC concede afinidad; si el objeto es su favorito, se duplica. */
+function giftAffinityFor(npc, itemId) {
+  const base = GAME_BALANCE.gifts.baseAffinity;
+  const fav = npcFavoriteItem(npc);
+  const favorite = !!(fav && fav === itemId);
+  return { affinity: favorite ? base * GAME_BALANCE.gifts.favoriteMultiplier : base, favorite };
+}
+
+/* ===== MERCADILLO: INTERCAMBIO ATÓMICO (Parte 4A) =====
+   Ejecuta la oferta en el servidor para que ambos inventarios queden siempre
+   consistentes. Devuelve { ok, accepted, message }. */
+function executeItemTrade(state, offerId, userId, accept) {
+  const offer = (state.itemTrades || []).find(o => String(o.id) === String(offerId));
+  if (!offer || offer.status !== 'pending' || Number(offer.to) !== Number(userId)) {
+    return { ok: false, message: 'Oferta no disponible.' };
+  }
+  if (!accept) { offer.status = 'rejected'; return { ok: true, accepted: false, offer }; }
+  const giver = state.users.find(u => u.id === Number(offer.from));
+  const taker = state.users.find(u => u.id === Number(offer.to));
+  if (!giver || !taker) { offer.status = 'cancelled'; return { ok: false, message: 'Alguno de los jugadores ya no está en el castillo.' }; }
+  if (invCount(giver, offer.giveItemId) < offer.giveQty || invCount(taker, offer.wantItemId) < offer.wantQty) {
+    offer.status = 'cancelled';
+    return { ok: false, message: 'Ya no tenéis los objetos acordados.' };
+  }
+  invAdd(giver, offer.giveItemId, -offer.giveQty);
+  invAdd(giver, offer.wantItemId, offer.wantQty);
+  invAdd(taker, offer.wantItemId, -offer.wantQty);
+  invAdd(taker, offer.giveItemId, offer.giveQty);
+  offer.status = 'accepted';
+  return { ok: true, accepted: true, offer, giver, taker };
+}
+
 /* ===== FUSIÓN DE USUARIOS (protección contra borrado masivo) ===== */
 // Un jugador real tiene casa/contraseña y no es NPC.
 function isRealUser(u) {
@@ -2247,6 +2502,32 @@ function mergeServerAuthority(serverUser, incomingUser) {
   out.examAttempts = Math.max(0, Number(serverUser.examAttempts) || 0, Number(incomingUser.examAttempts) || 0);
   out.defenseCount = Math.max(0, Number(serverUser.defenseCount) || 0, Number(incomingUser.defenseCount) || 0);
   out.defenseGraceUntil = Math.max(0, Number(serverUser.defenseGraceUntil) || 0);
+  // Bóveda de Gringotts (Parte 4A): el saldo guardado y la marca del último
+  // interés son autoritativos del servidor (un cliente obsoleto no los borra).
+  out.vault = Math.max(0, Number(serverUser.vault) || 0, Number(incomingUser.vault) || 0);
+  out.vaultLastInterest = Math.max(0, Number(serverUser.vaultLastInterest) || 0);
+  // Encuentros y avistamientos (Parte 4A): colección acumulativa; la unión
+  // evita que un autosave antiguo borre los sucesos ya registrados.
+  const svEnc = Array.isArray(serverUser.encounters) ? serverUser.encounters : [];
+  const incEnc = Array.isArray(incomingUser.encounters) ? incomingUser.encounters : [];
+  if (svEnc.length) {
+    const byId = new Map();
+    [...incEnc, ...svEnc].forEach(e => {
+      if (!e || typeof e !== 'object') return;
+      const id = String(e.id || e.name || '');
+      if (!id) return;
+      const prev = byId.get(id);
+      byId.set(id, {
+        id,
+        name: e.name || (prev && prev.name) || id,
+        icon: e.icon || (prev && prev.icon) || '✨',
+        kind: e.kind || (prev && prev.kind) || 'encounter',
+        at: Math.min(Number(prev && prev.at) || Number(e.at) || Date.now(), Number(e.at) || Number(prev && prev.at) || Date.now()),
+        count: Math.max(1, Number(prev && prev.count) || 1, Number(e.count) || 1)
+      });
+    });
+    out.encounters = [...byId.values()];
+  }
   return out;
 }
 
@@ -2413,6 +2694,21 @@ function sanitizeState(state) {
     u.secretPassages = cleanIds(u.secretPassages);
     u.constellations = cleanIds(u.constellations);
     u.chests = cleanIds(u.chests);
+    // Parte 4A: encuentros/avistamientos (sucesos intangibles) y Bóveda de
+    // Gringotts. Retrocompatible: un guardado antiguo arranca vacío y a cero.
+    u.encounters = sanitizeEncounters(u.encounters);
+    u.vault = Math.max(0, Math.min(GAME_BALANCE.bank.maxBalance, Math.floor(Number(u.vault) || 0)));
+    u.vaultLastInterest = Math.max(0, Math.floor(Number(u.vaultLastInterest) || 0));
+    // Enfriamientos de acciones sociales: solo marcas numéricas futuras válidas.
+    if (!u.socialCooldowns || typeof u.socialCooldowns !== 'object' || Array.isArray(u.socialCooldowns)) {
+      u.socialCooldowns = {};
+    } else {
+      Object.keys(u.socialCooldowns).forEach(k => {
+        const v = Number(u.socialCooldowns[k]);
+        if (!Number.isFinite(v) || v <= 0) delete u.socialCooldowns[k];
+        else u.socialCooldowns[k] = v;
+      });
+    }
     // Perfil (Tandas 4 y 8): varita, títulos, guardarropa y bestiario.
     // Retrocompatibilidad: un guardado antiguo sin estos campos queda con
     // valores por defecto seguros en lugar de provocar errores `undefined`.
@@ -2520,6 +2816,8 @@ function sanitizeState(state) {
   // pudiera haber sobrescrito (protección contra lost update).
   reconcileLetterGrants(state);
   state.tradeOffers = sanitizeTradeOffers(state, state.tradeOffers);
+  // Mercadillo de objetos tangibles (Parte 4A): se sanea igual que los cromos.
+  state.itemTrades = sanitizeItemTrades(state, state.itemTrades);
   // Edición activa de El Profeta: estructura { issue, generatedAt, year } válida
   // o null. Se conserva al guardar otros cambios para no regenerarla antes de 24 h.
   const dp = state.dailyProphet;
@@ -2752,6 +3050,34 @@ const NPC_GIFT_POOLS = {
 
 // Regalos especiales de cumpleaños (afinidad >= 50): cromo legendario o 50 Galeones.
 const NPC_BIRTHDAY_GIFTS = ['galeones_50', 'cromo_legendario'];
+
+/* Regalo favorito de cada NPC del canon (Parte 4A). Regalarle su objeto
+   favorito desde una Cesta de Regalo duplica la afinidad concedida. */
+const NPC_FAVORITE_ITEMS = {
+  'Harry Potter': 'objeto_brillante',
+  'Ron Weasley': 'grageas_bertie',
+  'Hermione Granger': 'libro_hechizos',
+  'Draco Malfoy': 'pocion_prestigio',
+  'Luna Lovegood': 'pluma_fenix',
+  'Neville Longbottom': 'pocion_curativa',
+  'Ginny Weasley': 'cerveza_mantequilla',
+  'Fred Weasley': 'bomba_fetida',
+  'George Weasley': 'polvo_oscuridad',
+  'Percy Weasley': 'apuntes_magicos',
+  'Oliver Wood': 'cerveza_mantequilla',
+  'Cho Chang': 'cromo_rana',
+  'Pansy Parkinson': 'pocion_prestigio',
+  'Blaise Zabini': 'objeto_brillante',
+  'Cedric Diggory': 'galeon_perdido',
+  'Hannah Abbott': 'rana_chocolate',
+  'Ernie Macmillan': 'apuntes_magicos',
+  'Nymphadora Tonks': 'bomba_fetida'
+};
+// Objeto favorito de un NPC (o null si no tiene uno definido).
+function npcFavoriteItem(npc) {
+  if (!npc) return null;
+  return NPC_FAVORITE_ITEMS[npc.username] || null;
+}
 
 /* ===== PARÁMETROS DE LAS LECHUZAS AUTOMÁTICAS =====
    Todo configurable por entorno para no saturar el servidor en producción. */
@@ -3159,6 +3485,13 @@ io.on('connection', async (socket) => {
         data.db.tradeOffers = mergeTradeOffers(
           (memoryState && memoryState.tradeOffers) || [],
           Array.isArray(data.db.tradeOffers) ? data.db.tradeOffers : [],
+          liveUsers
+        );
+        // Mercadillo de objetos (Parte 4A): mismo tratamiento que las ofertas de
+        // cromos; los estados terminales nunca retroceden.
+        data.db.itemTrades = mergeItemTrades(
+          (memoryState && memoryState.itemTrades) || [],
+          Array.isArray(data.db.itemTrades) ? data.db.itemTrades : [],
           liveUsers
         );
 
@@ -3824,6 +4157,168 @@ io.on('connection', async (socket) => {
         io.to('user:' + uid).emit('trade_result', { offerId, accepted: true, byId: Number(offer.from), byName: giver.username });
       } catch (err) {
         console.error('Error respondiendo a la oferta de intercambio:', err.message);
+      }
+    });
+
+    /* ===== PARTE 4A: ECONOMÍA GRUPAL ===== */
+
+    // Acción social rápida: sube atributos (y afinidad) sin depender de un
+    // objetivo concreto. El servidor es la fuente de verdad de los puntos.
+    socket.on('social:quickAction', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const kind = String((data && data.kind) || 'chat');
+        const social = GAME_BALANCE.attributes.social;
+        const def = social[kind];
+        if (!def || typeof def !== 'object' || !def.attr || !ATTR_PROP[def.attr]) return;
+        const cooldownMs = Math.max(1000, Number(social.cooldownMs) || 12000);
+        const cdKey = 'social_' + kind;
+        const cd = Math.max(0, (Number(u.socialCooldowns && u.socialCooldowns[cdKey]) || 0) - Date.now());
+        if (cd > 0) { socket.emit('social:error', { message: `Espera ${Math.ceil(cd / 1000)} s para otra acción social.` }); return; }
+        const prop = ATTR_PROP[def.attr];
+        if (prop) u[prop] = Math.max(0, Math.floor(Number(u[prop]) || 0) + def.points);
+        if (def.empathy) u.attrEmpatia = Math.max(0, Math.floor(Number(u.attrEmpatia) || 0) + def.empathy);
+        u.socialCooldowns = (u.socialCooldowns && typeof u.socialCooldowns === 'object') ? u.socialCooldowns : {};
+        u.socialCooldowns[cdKey] = Date.now() + cooldownMs;
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('social:result', {
+          ok: true, kind, label: def.label, icon: def.icon,
+          attr: def.attr, points: def.points,
+          attrValentia: u.attrValentia, attrEmpatia: u.attrEmpatia, attrSabiduria: u.attrSabiduria
+        });
+      } catch (err) {
+        console.error('Error en la acción social:', err.message);
+      }
+    });
+
+    // Bóveda de Gringotts: depósito, retiro y consulta (con interés vencido).
+    socket.on('bank:deposit', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const res = vaultDeposit(u, data && data.amount);
+        if (!res.ok) { socket.emit('bank:error', { message: res.message }); return; }
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('bank:result', { ok: true, action: 'deposit', moved: res.moved, vault: u.vault, galeones: u.galeones });
+      } catch (err) {
+        console.error('Error en el depósito de Gringotts:', err.message);
+      }
+    });
+    socket.on('bank:withdraw', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const res = vaultWithdraw(u, data && data.amount);
+        if (!res.ok) { socket.emit('bank:error', { message: res.message }); return; }
+        await saveState(memoryState);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('bank:result', { ok: true, action: 'withdraw', moved: res.moved, vault: u.vault, galeones: u.galeones });
+      } catch (err) {
+        console.error('Error en el retiro de Gringotts:', err.message);
+      }
+    });
+
+    // Mercadillo: crear una oferta de intercambio de objetos tangibles.
+    socket.on('trade:offer', async (data) => {
+      try {
+        const from = Number(socket.data && socket.data.userId) || Number(data && data.from);
+        const to = Number(data && data.to);
+        if (!from || !to || from === to) return;
+        const state = memoryState;
+        const sender = state.users.find(u => u.id === from);
+        const target = state.users.find(u => u.id === to);
+        if (!sender || !target || target.is_npc) return;
+        const offer = sanitizeItemTrade({
+          id: `itemtrade_${from}_${to}_${Date.now()}`,
+          from, to,
+          giveItemId: data && data.giveItemId, giveQty: data && data.giveQty,
+          wantItemId: data && data.wantItemId, wantQty: data && data.wantQty,
+          status: 'pending'
+        }, state.users);
+        if (!offer) { socket.emit('trade:error', { message: 'Oferta inválida.' }); return; }
+        if (invCount(sender, offer.giveItemId) < offer.giveQty) {
+          socket.emit('trade:error', { message: 'No tienes suficientes objetos para ofrecer.' });
+          return;
+        }
+        state.itemTrades = Array.isArray(state.itemTrades) ? state.itemTrades : [];
+        const dup = state.itemTrades.find(o =>
+          o.status === 'pending' && Number(o.from) === from && Number(o.to) === to &&
+          o.giveItemId === offer.giveItemId && o.wantItemId === offer.wantItemId);
+        if (dup) { socket.emit('trade:error', { message: 'Ya enviaste esa oferta.' }); return; }
+        state.itemTrades.push(offer);
+        state.itemTrades = sanitizeItemTrades(state, state.itemTrades);
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        io.to('user:' + to).emit('trade:newOffer', {
+          id: offer.id, from, fromName: sender.username,
+          giveItemId: offer.giveItemId, giveQty: offer.giveQty,
+          wantItemId: offer.wantItemId, wantQty: offer.wantQty
+        });
+        socket.emit('trade:sent', { to, toName: target.username });
+      } catch (err) {
+        console.error('Error creando la oferta del mercadillo:', err.message);
+      }
+    });
+
+    // Mercadillo: aceptar o rechazar una oferta (intercambio atómico).
+    socket.on('trade:accept', async (data) => {
+      try {
+        const uid = Number(socket.data && socket.data.userId) || Number(data && data.userId);
+        const offerId = String((data && data.offerId) || '');
+        const accept = (data && typeof data.accept === 'boolean') ? data.accept : true;
+        if (!uid || !offerId) return;
+        const state = memoryState;
+        const res = executeItemTrade(state, offerId, uid, accept);
+        if (!res.ok) {
+          await saveState(state);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          socket.emit('trade:error', { message: res.message || 'No se pudo completar el intercambio.' });
+          return;
+        }
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        if (res.accepted) {
+          io.to('user:' + Number(res.offer.from)).emit('trade:result', { offerId, accepted: true, byId: uid, byName: res.taker.username });
+          io.to('user:' + uid).emit('trade:result', { offerId, accepted: true, byId: Number(res.offer.from), byName: res.giver.username });
+        } else {
+          io.to('user:' + Number(res.offer.from)).emit('trade:result', { offerId, accepted: false, byId: uid });
+        }
+      } catch (err) {
+        console.error('Error respondiendo a la oferta del mercadillo:', err.message);
+      }
+    });
+
+    // Cesta de regalo: regala un objeto de la Mochila a un NPC. Su objeto
+    // favorito duplica la afinidad concedida (Parte 4A).
+    socket.on('gift:basket', async (data) => {
+      try {
+        const u = profileUser();
+        if (!u) return;
+        const npcId = Number(data && data.npcId);
+        const itemId = String((data && data.itemId) || '').trim();
+        const state = memoryState;
+        const npc = state.users.find(x => x.id === npcId && x.is_npc);
+        if (!npc) { socket.emit('gift:error', { message: 'Ese personaje no está en el castillo.' }); return; }
+        if (invCount(u, itemId) < 1) { socket.emit('gift:error', { message: 'No tienes ese objeto en tu Mochila.' }); return; }
+        const { affinity, favorite } = giftAffinityFor(npc, itemId);
+        invAdd(u, itemId, -1);
+        state.relations = state.relations || {};
+        const key = relKeyBetween(u.id, npc.id);
+        const rel = state.relations[key] || { friendshipScore: 0, romanceScore: 0, rival: false };
+        rel.friendshipScore = Math.min(100, (Number(rel.friendshipScore) || 0) + affinity);
+        state.relations[key] = rel;
+        await saveState(state);
+        io.emit('sync_db', { db: memoryState, reason: null });
+        socket.emit('gift:result', {
+          ok: true, npcId: npc.id, npcName: npc.username, itemId,
+          affinity, favorite, friendship: rel.friendshipScore,
+          inventory: u.inv
+        });
+      } catch (err) {
+        console.error('Error enviando la cesta de regalo:', err.message);
       }
     });
 
@@ -4545,13 +5040,29 @@ io.on('connection', async (socket) => {
         u.points = (Number(u.points) || 0) + f.pts;
         if (f.xp) u.flight_xp = (Number(u.flight_xp) || 0) + f.xp;
         if (f.galeones) u.galeones = (Number(u.galeones) || 0) + f.galeones;
+        // Clasificación (Parte 4A): el hallazgo tangible va a la Mochila; el
+        // intangible (Dobby, Peeves, fantasmas…) se registra como encuentro.
+        let tangible = null;
+        let encounter = null;
+        if (f.tangible && f.itemId && FIND_ITEM_DEFS[f.itemId]) {
+          invAdd(u, f.itemId, 1);
+          tangible = { itemId: f.itemId, name: FIND_ITEM_DEFS[f.itemId].nombre, icon: FIND_ITEM_DEFS[f.itemId].icon, qty: invCount(u, f.itemId) };
+        } else {
+          u.encounters = sanitizeEncounters(u.encounters);
+          const id = `find:${f.name}`;
+          const prev = u.encounters.find(e => e.id === id);
+          if (prev) { prev.count += 1; prev.at = Date.now(); }
+          else u.encounters.push({ id, name: f.name, icon: f.icon, kind: f.kind || 'encounter', count: 1, at: Date.now() });
+          u.encounters = sanitizeEncounters(u.encounters);
+          encounter = u.encounters.find(e => e.id === id) || null;
+        }
         memoryState.log = Array.isArray(memoryState.log) ? memoryState.log : [];
         memoryState.log.unshift({ u: u.username, h: u.house, a: `Hallazgo: ${f.name}`, p: f.pts, x: f.xp });
         memoryState.log.length = Math.min(memoryState.log.length, 15);
         reconcileHousePoints(memoryState);
         await saveState(memoryState);
         io.emit('sync_db', { db: memoryState, reason: null });
-        socket.emit('world:magicFindResult', { found: true, find: f, room: roomId });
+        socket.emit('world:magicFindResult', { found: true, find: f, room: roomId, tangible, encounter, inventory: u.inv });
       } catch (err) {
         console.error('Error en hallazgo mágico:', err.message);
       }
@@ -4777,5 +5288,29 @@ module.exports = {
   EXAM_TYPES,
   EXAM_SUBJECTS,
   EXAM_SUBJECT_IDS,
-  generateExamQuestions
+  generateExamQuestions,
+  // Parte 4A: atributos, encuentros, Gringotts, mercadillo y regalos.
+  ATTR_CURVE,
+  attrLevelFromPoints,
+  attrProgress,
+  birthdayPrice,
+  isBirthdayToday,
+  sanitizeEncounters,
+  SERVER_FINDS,
+  FIND_ITEM_DEFS,
+  FIND_ITEM_IDS,
+  invCount,
+  invAdd,
+  accrueVaultInterest,
+  vaultDeposit,
+  vaultWithdraw,
+  executeItemTrade,
+  sanitizeItemTrade,
+  sanitizeItemTrades,
+  mergeItemTrades,
+  giftAffinityFor,
+  npcFavoriteItem,
+  NPC_FAVORITE_ITEMS,
+  defaultDb,
+  sanitizeState
 };
