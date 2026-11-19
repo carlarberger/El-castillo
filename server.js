@@ -3083,7 +3083,7 @@ function executeItemTrade(state, offerId, userId, accept) {
 /* ===== FUSIÓN DE USUARIOS (protección contra borrado masivo) ===== */
 // Un jugador real tiene casa/contraseña y no es NPC.
 function isRealUser(u) {
-  return !!(u && !u.is_npc && (u.pass || u.house || u.is_admin));
+  return !!(u && !u.is_npc && u.id != null && String(u.username || '').trim().length > 0);
 }
 
 // El cliente envía su array `users` completo en cada sync_db. Si ese cliente
@@ -4347,6 +4347,111 @@ io.on('connection', async (socket) => {
       exams: { types: EXAM_TYPES, subjects: EXAM_SUBJECTS }
     });
 
+    const registerPresence = (uid) => {
+      if (!uid) return;
+      const prev = socket.data.presenceUid;
+      if (prev === uid) return;
+      // Si el socket cambia de identidad, libera el conteo anterior.
+      if (prev) {
+        const n = (onlineUsers.get(prev) || 1) - 1;
+        if (n <= 0) onlineUsers.delete(prev); else onlineUsers.set(prev, n);
+      }
+      const u = memoryState.users.find(x => x.id === uid);
+      if (!u || u.is_npc) { socket.data.presenceUid = null; if (prev) emitPresence(); return; }
+      onlineUsers.set(uid, (onlineUsers.get(uid) || 0) + 1);
+      socket.data.presenceUid = uid;
+      emitPresence();
+    };
+
+    // ⬅️ REGISTRO ATÓMICO DE NUEVOS JUGADORES (evita colisión de ID y carreras con sync_db)
+    let registerSeq = 0;
+    socket.on('user:register', async (payload, ack) => {
+      const reply = (res) => { if (typeof ack === 'function') ack(res); };
+      try {
+        const rawName = String((payload && payload.username) || '').replace(/[<>&"']/g, '').trim().slice(0, 18);
+        const pass = String((payload && payload.pass) || '').trim();
+        if (!rawName) return reply({ ok: false, error: 'Escribe un nombre para tu personaje.' });
+        if (pass.length < 3) return reply({ ok: false, error: 'La contraseña debe tener al menos 3 caracteres.' });
+
+        const state = memoryState;
+        state.users = Array.isArray(state.users) ? state.users : [];
+        const norm = normUserName(rawName);
+
+        const existing = state.users.find(u => normUserName(u.username) === norm);
+        if (existing) {
+          if (existing.is_npc) {
+            return reply({ ok: false, error: 'Ese nombre pertenece a un alumno NPC. Elige otro.' });
+          }
+          if (existing.pass && existing.pass !== pass) {
+            return reply({ ok: false, error: 'Ese personaje ya existe y la contraseña no coincide.' });
+          }
+          existing.pass = pass;
+          if (payload.look && typeof payload.look === 'object') existing.look = { ...existing.look, ...payload.look };
+          if (payload.gender) existing.gender = normGender(payload.gender);
+          if (payload.romancePref) existing.romancePref = normRomancePref(payload.romancePref);
+          if (payload.birthDay != null) existing.birthDay = payload.birthDay;
+          if (payload.birthMonth != null) existing.birthMonth = payload.birthMonth;
+          if (!existing.house && payload.house) existing.house = payload.house;
+
+          state.deletedUserIds = pruneTombstonesForLiveUsers(state.deletedUserIds, state.users);
+          await saveState(state);
+          for (const room of Array.from(socket.rooms)) {
+            if (room !== socket.id && room.startsWith('user:')) socket.leave(room);
+          }
+          socket.data.userId = existing.id;
+          socket.join('user:' + existing.id);
+          registerPresence(existing.id);
+          io.emit('sync_db', { db: memoryState, reason: null });
+          return reply({ ok: true, user: existing, existing: true });
+        }
+
+        registerSeq = (registerSeq + 1) % 1000;
+        let uniqueId = Date.now() * 1000 + registerSeq;
+        const usedIds = new Set(state.users.map(u => Number(u.id)));
+        while (usedIds.has(uniqueId)) uniqueId++;
+
+        const chosenHouse = payload.house || null;
+        const newUser = U(
+          uniqueId,
+          rawName,
+          chosenHouse,
+          0,
+          0,
+          'student',
+          false,
+          payload.look || null,
+          false,
+          pass,
+          chosenHouse || 'comedor'
+        );
+        if (payload.pet) newUser.pet = payload.pet;
+        newUser.gender = normGender(payload.gender);
+        newUser.romancePref = normRomancePref(payload.romancePref);
+        newUser.birthDay = payload.birthDay ?? null;
+        newUser.birthMonth = payload.birthMonth ?? null;
+
+        state.users.push(newUser);
+        state.deletedUserIds = pruneTombstonesForLiveUsers(state.deletedUserIds, state.users);
+        sanitizeState(state);
+
+        await saveState(state);
+
+        for (const room of Array.from(socket.rooms)) {
+          if (room !== socket.id && room.startsWith('user:')) socket.leave(room);
+        }
+        socket.data.userId = newUser.id;
+        socket.join('user:' + newUser.id);
+        registerPresence(newUser.id);
+
+        console.log(`✨ Registro atómico completado: ${newUser.username} (ID ${newUser.id})`);
+        io.emit('sync_db', { db: memoryState, reason: `Nuevo alumno: ${newUser.username}` });
+        return reply({ ok: true, user: newUser });
+      } catch (err) {
+        console.error('Error en user:register:', err);
+        return reply({ ok: false, error: 'Error interno al crear el personaje.' });
+      }
+    });
+
     // ⬅️ AÑADIDO: rate-limit por socket (máx. ~20 sync/s)
     let lastSyncAt = 0;
 
@@ -4521,21 +4626,7 @@ io.on('connection', async (socket) => {
     // se puede llamar desde `identify` y desde `sync_db` sin contar dos veces).
     // Es necesario en ambos porque al registrar un personaje nuevo el cliente
     // envía `identify` antes de que el usuario exista en el servidor.
-    const registerPresence = (uid) => {
-      if (!uid) return;
-      const prev = socket.data.presenceUid;
-      if (prev === uid) return;
-      // Si el socket cambia de identidad, libera el conteo anterior.
-      if (prev) {
-        const n = (onlineUsers.get(prev) || 1) - 1;
-        if (n <= 0) onlineUsers.delete(prev); else onlineUsers.set(prev, n);
-      }
-      const u = memoryState.users.find(x => x.id === uid);
-      if (!u || u.is_npc) { socket.data.presenceUid = null; if (prev) emitPresence(); return; }
-      onlineUsers.set(uid, (onlineUsers.get(uid) || 0) + 1);
-      socket.data.presenceUid = uid;
-      emitPresence();
-    };
+
 
     socket.on('identify', async (data) => {
       const uid = Number(data && data.userId);
