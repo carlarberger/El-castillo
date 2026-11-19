@@ -2857,8 +2857,43 @@ const API={
       renderAll();
       toast(existing?'Sesión iniciada como '+u.username:'¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
     };
-    if(typeof socket!=='undefined'&&socket&&typeof socket.emit==='function'&&socket.connected){
+    const fallbackLocal=()=>{
+      const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
+      if(existing){
+        must(!existing.is_npc,'Ese nombre pertenece a un alumno NPC. Elige otro o inicia sesión.');
+        if(existing.pass && existing.pass!==pHash) throw new Error('Ese personaje ya existe y la contraseña no coincide');
+        existing.pass=pHash;
+        if(payload.look)existing.look=payload.look;
+        existing.gender=payload.gender;existing.romancePref=payload.romancePref;
+        existing.birthDay=payload.birthDay;existing.birthMonth=payload.birthMonth;
+        if(!existing.house&&chosenHouse)existing.house=chosenHouse;
+        applyUser(existing,true);
+        commit('Entró '+existing.username);
+        return;
+      }
+      const newId=Date.now()*1000+Math.floor(Math.random()*1000);
+      const u=U(newId,name,chosenHouse,0,0,'student',false,payload.look,false,pHash,chosenHouse||'comedor');
+      if(payload.pet)u.pet=payload.pet;
+      u.gender=payload.gender;u.romancePref=payload.romancePref;
+      u.birthDay=payload.birthDay;u.birthMonth=payload.birthMonth;
+      applyUser(u,false);
+      commit('Nuevo alumno: '+name,{newCharId:u.id});
+    };
+    if(typeof socket!=='undefined'&&socket&&typeof socket.emit==='function'){
+      let settled=false;
+      const btn=document.querySelector('[data-do="saveChar"]');
+      if(btn){btn.disabled=true;btn.textContent='Creando…';}
+      const timer=setTimeout(()=>{
+        if(settled)return;
+        settled=true;
+        if(btn){btn.disabled=false;btn.textContent='✨ Crear y entrar';}
+        try{fallbackLocal();}catch(err){toast(err.message);}
+      },3500);
       socket.emit('user:register',payload,(res)=>{
+        if(settled)return;
+        settled=true;
+        clearTimeout(timer);
+        if(btn){btn.disabled=false;btn.textContent='✨ Crear y entrar';}
         if(!res||!res.ok||!res.user){
           toast((res&&res.error)||'No se pudo crear el personaje.');
           return;
@@ -2867,6 +2902,8 @@ const API={
       });
       return;
     }
+    fallbackLocal();
+    return;
     const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
     if(existing){
       must(!existing.is_npc,'Ese nombre pertenece a un alumno NPC. Elige otro o inicia sesión.');
@@ -11342,9 +11379,11 @@ document.addEventListener('click',e=>{
     case 'confirmAdoptPet': API.adoptPet(d.id); closeModal(); break;
     case 'playWithPet': startPetPlayMinigame(); break;
     case 'saveChar':{
-      const nm=$('cName'),pw=$('cPass');
+      const nm=$('cName'),pw=$('cPass'),bd=$('cBirthDay'),bm=$('cBirthMonth');
       if(nm)draft.name=nm.value;
       if(pw)draft.pass=pw.value;
+      if(bd)draft.birthDay=bd.value?Number(bd.value):null;
+      if(bm)draft.birthMonth=bm.value?Number(bm.value):null;
       if(draftNew){API.register(draft.name,draft.pass,draft,draft.house);}
       else{API.editChar(draft);closeModal();toast('Personaje actualizado');}
       break;
