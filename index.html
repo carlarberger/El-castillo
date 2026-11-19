@@ -1880,6 +1880,10 @@ socket.on('init_db', (serverDb) => {
 
 socket.on('sync_db', (data) => {
   if (data && data.db) {
+    if (session.uid && session.passHash && Array.isArray(data.db.users)) {
+      const mySrv = data.db.users.find(x => Number(x.id) === Number(session.uid));
+      if (mySrv && !mySrv.pass) mySrv.pass = session.passHash;
+    }
     db = data.db;
     serverDbLoaded = true;
     // Si el servidor reasignó el id de mi personaje (colisión al crear), adopto
@@ -2827,41 +2831,62 @@ const API={
     name=cleanName(name);must(name,'Escribe un nombre para tu personaje');
     pass=String(pass||'').trim();must(pass.length>=3,'Pon una contraseña de al menos 3 caracteres');
     const pHash=hashPass(pass);
+    const chosenHouse=house&&HOUSE(house)?house:null;
+    const payload={
+      username:name,
+      pass:pHash,
+      house:chosenHouse,
+      look:look?lookOf(look):null,
+      pet:(look&&look.pet)||null,
+      gender:normGender(look&&look.gender),
+      romancePref:normRomancePref(look&&look.romancePref),
+      birthDay:birthdayPart(look&&look.birthDay,'day'),
+      birthMonth:birthdayPart(look&&look.birthMonth,'month')
+    };
+    const applyUser=(u,existing)=>{
+      reviveDeletedUser(u);
+      const i=db.users.findIndex(x=>Number(x.id)===Number(u.id));
+      if(i>=0)db.users[i]=u;
+      else db.users.push(u);
+      session.uid=u.id;session.passHash=pHash;
+      localStorage.setItem('castillo_uid',String(u.id));
+      localStorage.setItem('castillo_pass',pHash);
+      identifySocket();
+      closeModal();
+      if(u.house)fanfare();
+      renderAll();
+      toast(existing?'Sesión iniciada como '+u.username:'¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
+    };
+    if(typeof socket!=='undefined'&&socket&&typeof socket.emit==='function'&&socket.connected){
+      socket.emit('user:register',payload,(res)=>{
+        if(!res||!res.ok||!res.user){
+          toast((res&&res.error)||'No se pudo crear el personaje.');
+          return;
+        }
+        applyUser(res.user,!!res.existing);
+      });
+      return;
+    }
     const existing=db.users.find(u=>u.username.toLowerCase()===name.toLowerCase());
     if(existing){
       must(!existing.is_npc,'Ese nombre pertenece a un alumno NPC. Elige otro o inicia sesión.');
       if(existing.pass && existing.pass!==pHash) throw new Error('Ese personaje ya existe y la contraseña no coincide');
-      reviveDeletedUser(existing);
       existing.pass=pHash;
-      if(look)existing.look=lookOf(look);
-      if(look){existing.gender=normGender(look.gender);existing.romancePref=normRomancePref(look.romancePref);}
-      if(look){existing.birthDay=birthdayPart(look.birthDay,'day');existing.birthMonth=birthdayPart(look.birthMonth,'month');}
-      if(!existing.house&&house&&HOUSE(house))existing.house=house;
-      session.uid=existing.id;session.passHash=pHash;
-      localStorage.setItem('castillo_uid',String(existing.id));
-      localStorage.setItem('castillo_pass',pHash);
-      identifySocket();
+      if(payload.look)existing.look=payload.look;
+      existing.gender=payload.gender;existing.romancePref=payload.romancePref;
+      existing.birthDay=payload.birthDay;existing.birthMonth=payload.birthMonth;
+      if(!existing.house&&chosenHouse)existing.house=chosenHouse;
+      applyUser(existing,true);
       commit('Entró '+existing.username);
-      toast('Sesión iniciada como '+existing.username);
       return;
     }
-    const chosenHouse=house&&HOUSE(house)?house:null;
-    const newId=Math.max(10,...db.users.map(x=>x.id))+1;
-    const u=U(newId,name,chosenHouse,0,0,'student',false,look?lookOf(look):null,false,pHash,chosenHouse||'comedor');
-    if (look && look.pet) u.pet = look.pet;
-    u.gender = normGender(look && look.gender);
-    u.romancePref = normRomancePref(look && look.romancePref);
-    u.birthDay = birthdayPart(look && look.birthDay,'day');
-    u.birthMonth = birthdayPart(look && look.birthMonth,'month');
-    db.users.push(u);
-    reviveDeletedUser(u);
-    session.uid=u.id;session.passHash=pHash;
-    localStorage.setItem('castillo_uid',String(u.id));
-    localStorage.setItem('castillo_pass',pHash);
-    identifySocket();
-    if(chosenHouse)fanfare();
-    commit('Nuevo alumno: '+name, { newCharId: u.id });
-    toast('¡Personaje creado! Usa tu contraseña para entrar desde cualquier dispositivo.');
+    const newId=Date.now()*1000+Math.floor(Math.random()*1000);
+    const u=U(newId,name,chosenHouse,0,0,'student',false,payload.look,false,pHash,chosenHouse||'comedor');
+    if(payload.pet)u.pet=payload.pet;
+    u.gender=payload.gender;u.romancePref=payload.romancePref;
+    u.birthDay=payload.birthDay;u.birthMonth=payload.birthMonth;
+    applyUser(u,false);
+    commit('Nuevo alumno: '+name,{newCharId:u.id});
   },
   login(name,pass){
     name=cleanName(name);must(name,'Escribe el nombre de tu personaje');
@@ -11320,7 +11345,7 @@ document.addEventListener('click',e=>{
       const nm=$('cName'),pw=$('cPass');
       if(nm)draft.name=nm.value;
       if(pw)draft.pass=pw.value;
-      if(draftNew){API.register(draft.name,draft.pass,draft,draft.house);closeModal();}
+      if(draftNew){API.register(draft.name,draft.pass,draft,draft.house);}
       else{API.editChar(draft);closeModal();toast('Personaje actualizado');}
       break;
     }
