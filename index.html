@@ -9946,9 +9946,9 @@ function startPrankMinigame(){
       const dist=Math.hypot(player.x-f.x,player.y-f.y);
       if(dist<f.cone&&Math.abs(d)<f.half){ prankGame.caught=(prankGame.caught||0)+1; }
     });
-    $('mgCanvasHud').textContent=`💣 Colocadas: ${placed.size}/5 · 👁️ ${prankGame.caught||0}`;
+    $('mgCanvasHud').textContent=`💣 Colocadas: ${placed.size}/${targets.length} · 👁️ ${prankGame.caught||0}`;
     ctx.fillStyle='#f3e9d2'; ctx.font='16px sans-serif'; ctx.textAlign='left';
-    ctx.fillText(`Colocadas: ${placed.size}/5`, 20, 26);
+    ctx.fillText(`Colocadas: ${placed.size}/${targets.length}`, 20, 26);
     gameLoop=requestAnimationFrame(loop);
   };
   mgClickHandler=null;
@@ -9975,7 +9975,7 @@ function tryPlacePrank(){
   if(!near){ buzzSnd(); toast('💣 Acércate más a un punto objetivo (✨) para colocar.'); return; }
   g.placed.add(near.id); chime();
   toast(`💣 Bomba colocada en ${near.label}`);
-  if(g.placed.size>=5) finishPrankMinigame();
+  if(g.placed.size>=PRANK_TARGETS_CLIENT.length) finishPrankMinigame();
 }
 function finishPrankMinigame(){
   const g=prankGame; if(!g||g.done) return;
