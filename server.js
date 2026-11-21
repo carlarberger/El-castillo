@@ -1703,7 +1703,7 @@ const GAME_BALANCE = {
     treasure: { seedPot: 60, wrongRoomBonus: 4, maxPot: 999 },
     // Bromas coordinadas con Fred y George (minijuego de sigilo).
     prank: {
-      minPlacements: 1, maxPlacements: 5, minDurationMs: 6000, cooldownMs: 60000,
+      minPlacements: 1, maxPlacements: 4, minDurationMs: 6000, cooldownMs: 60000,
       galeonesPerPlacement: 12, clubXpPerPlacement: 8, cosmeticAfter: 1, titleAfter: 4
     },
     // Incursiones cooperativas contra Dementores.
