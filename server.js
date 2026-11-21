@@ -242,6 +242,77 @@ const NPC_PERSONAS = {
 // Caché simple en memoria: pregunta normalizada -> respuesta del NPC.
 const aiCache = new Map();
 
+// Tramo de relación / afinidad para modular el tono de respuesta del personaje
+// manteniendo intacta su personalidad canónica.
+function buildRelationTone(state, playerId, npcId, rawAffinity, opts = {}) {
+  const pid = Number(playerId) || 0;
+  const nidNum = Number(npcId);
+  const isNumNpc = Number.isFinite(nidNum) && nidNum > 0;
+  let score = Number.isFinite(Number(rawAffinity)) ? Number(rawAffinity) : 0;
+  let romance = Number.isFinite(Number(opts.romance)) ? Number(opts.romance) : 0;
+  let isRival = !!opts.isRival;
+  let isCouple = !!opts.isCouple;
+
+  if (state && pid) {
+    if (isNumNpc) {
+      const rel = (state.relations || {})[relKeyBetween(pid, nidNum)];
+      if (rel) {
+        score = Math.max(score, Number(rel.friendshipScore) || 0);
+        romance = Math.max(romance, Number(rel.romanceScore) || 0);
+        if (rel.rival) isRival = true;
+      }
+      const couple = (Array.isArray(state.officialCouples) ? state.officialCouples : [])
+        .find(c => Array.isArray(c.members) && c.members.includes(pid) && c.members.includes(nidNum));
+      if (couple) isCouple = true;
+    } else if (npcId) {
+      const profScore = ((state.profAffinity || {})[pid] || {})[String(npcId)];
+      if (Number.isFinite(Number(profScore))) score = Math.max(score, Number(profScore));
+    }
+  }
+
+  let tier;
+  if (isCouple) {
+    tier = {
+      id: 'pareja',
+      label: '❤️ Pareja',
+      instruction: 'Son pareja oficial. Muestra afecto profundo, complicidad romántica y máxima confianza, expresándolo siempre a través de tu propia forma de ser.'
+    };
+  } else if (isRival) {
+    tier = {
+      id: 'rival',
+      label: '⚔️ Rival',
+      instruction: 'Tienen una rivalidad activa. Responde con tono competitivo, desafiante o irónico, marcando distancia y orgullo.'
+    };
+  } else if (score >= 80) {
+    tier = {
+      id: 'confidente',
+      label: '💖 Confidente',
+      instruction: 'El jugador es uno de tus mayores confidentes (afinidad muy alta). Muestra máxima confianza, cercanía, apoyo leal y comparte confidencias o consejos valiosos.'
+    };
+  } else if (score >= 50) {
+    tier = {
+      id: 'amigo',
+      label: '🌟 Amigo cercano',
+      instruction: 'El jugador es un amigo cercano. Habla con tono cálido, cómplice y relajado, usa su nombre con naturalidad y ofrécele ayuda o consejos.'
+    };
+  } else if (score >= 20) {
+    tier = {
+      id: 'conocido',
+      label: '🤝 Conocido',
+      instruction: 'El jugador es un conocido cordial. Mantén un trato educado y normal de compañero o profesor, dispuesto a conversar sobre el castillo y las clases.'
+    };
+  } else {
+    tier = {
+      id: 'distante',
+      label: '🌱 Distante',
+      instruction: 'Apenas conoces al jugador o aún desconfías de él (afinidad baja). Responde de forma reservada, formal, escéptica o algo cortante.'
+    };
+  }
+
+  const prompt = `\n\nRELACIÓN ACTUAL CON EL JUGADOR: ${tier.label} (amistad: ${Math.round(score)}/100${romance > 0 ? `, romance: ${Math.round(romance)}/100` : ''}). ${tier.instruction} REGLA DE PERSONALIDAD: Ajusta tu cercanía, calidez y apertura a este nivel de relación, pero NUNCA pierdas tu personalidad canónica (por ejemplo, si eres sarcástico, severo, orgulloso, soñador o estudioso, mantén esos rasgos intactos).`;
+  return { ...tier, score: Math.round(score), romance: Math.round(romance), prompt };
+}
+
 function npcPersonaKey(npcId, npcName) {
   if (typeof npcId === 'string' && NPC_PERSONAS[npcId.toLowerCase()]) return npcId.toLowerCase();
   const provided = String(npcName || '').toLowerCase().trim();
@@ -5962,19 +6033,26 @@ io.on('connection', async (socket) => {
           : (memoryState && memoryState.schoolYear)
       );
       const canonContext = getCanonContext(message, currentYear);
+      const playerId = Number((data && data.playerId) || (socket.data && socket.data.userId)) || 0;
+      const relTone = buildRelationTone(memoryState, playerId, npcId, data && data.relationship, {
+        romance: data && data.romance,
+        isRival: data && data.isRival,
+        isCouple: data && data.isCouple
+      });
       const systemPrompt = (canonContext ? basePrompt + buildCanonPrompt(canonContext) : basePrompt)
+        + relTone.prompt
         + buildTimelinePrompt(currentYear);
       const npcName = String((data && data.npcName) || (personaKey ? personaKey.replace(/\b\w/g, c => c.toUpperCase()) : 'Alumno'));
       const petName = data && data.petName ? String(data.petName).slice(0, 40) : '';
       const petPrompt = petName
         ? `\n\nEl jugador lleva a su ${petName} contigo. Menciónalo de forma natural en tu respuesta si encaja en el contexto.`
         : '';
-      // El año forma parte de la clave de caché: la respuesta depende de la línea temporal.
-      const cacheKey = `${personaKey || 'generic'}|${petName.toLowerCase()}|Y${currentYear}|${message.toLowerCase()}`;
+      // El año y el tramo de relación forman parte de la clave de caché para que el tono evolucione.
+      const cacheKey = `${personaKey || 'generic'}|${relTone.id}|${petName.toLowerCase()}|Y${currentYear}|${message.toLowerCase()}`;
 
       const cachedText = aiCache.get(cacheKey);
       if (cachedText) {
-        socket.emit('npc_reply', { npcId, npcName, text: cachedText, cached: true });
+        socket.emit('npc_reply', { npcId, npcName, text: cachedText, relationTier: relTone.label, cached: true });
         return;
       }
 
@@ -5988,7 +6066,7 @@ io.on('connection', async (socket) => {
 
       const playerName = String((data && data.playerName) || 'un alumno');
       const playerHouse = String((data && data.playerHouse) || 'sin casa');
-      const relationship = data && data.relationship != null ? ` (afinidad con el jugador: ${data.relationship}/100)` : '';
+      const relationship = ` (${relTone.label}, afinidad: ${relTone.score}/100)`;
       const userPrompt = `${playerName}, de la casa ${playerHouse}${relationship}, se te acerca y te dice: "${message}"`;
 
       const aiBody = {
@@ -6030,7 +6108,7 @@ io.on('connection', async (socket) => {
         aiCache.set(cacheKey, text);
         if (aiCache.size > AI_CACHE_MAX) aiCache.delete(aiCache.keys().next().value);
 
-        socket.emit('npc_reply', { npcId, npcName, text, cached: false });
+        socket.emit('npc_reply', { npcId, npcName, text, relationTier: relTone.label, cached: false });
       } catch (err) {
         console.error('Error consultando Groq:', err.message);
         socket.emit('npc_reply', {
@@ -7000,5 +7078,6 @@ module.exports = {
   patronusCharge,
   applyRaidDecay,
   resolveRaidOutcome,
-  roomNameOf
+  roomNameOf,
+  buildRelationTone
 };
