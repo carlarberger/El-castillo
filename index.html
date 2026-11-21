@@ -497,9 +497,17 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
 .arcade-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:linear-gradient(165deg,var(--surface-2),var(--surface));display:flex;flex-direction:column;gap:6px;transition:.15s}
 .arcade-card:hover{border-color:var(--gold);transform:translateY(-2px)}
 .arcade-card h4{font-size:15px;color:var(--gold);display:flex;align-items:center;justify-content:space-between;gap:6px}
-.arcade-Controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
-.ctrl-btn{min-width:52px;height:44px;border-radius:10px;border:1px solid var(--gold);background:var(--surface-2);color:var(--gold);font-weight:700;font-size:16px;cursor:pointer;user-select:none;touch-action:manipulation;display:inline-flex;align-items:center;justify-content:center;padding:0 14px}
-.ctrl-btn:active{background:var(--gold);color:var(--gold-ink)}
+.arcade-Controls{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:12px;width:100%;max-width:420px;flex-wrap:nowrap}
+.dpad-grid{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,52px);gap:6px;align-items:center;justify-items:center}
+.ctrl-btn{min-width:52px;height:48px;border-radius:12px;border:1px solid var(--gold);background:var(--surface-2);color:var(--gold);font-weight:700;font-size:16px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation;display:inline-flex;align-items:center;justify-content:center;padding:0 14px}
+.dpad-grid .ctrl-btn{width:52px;height:52px;padding:0;font-size:20px}
+.dpad-up{grid-column:2;grid-row:1}
+.dpad-left{grid-column:1;grid-row:2}
+.dpad-center{grid-column:2;grid-row:2;width:14px;height:14px;border-radius:50%;background:color-mix(in srgb,var(--gold) 28%,transparent);pointer-events:none}
+.dpad-right{grid-column:3;grid-row:2}
+.dpad-down{grid-column:2;grid-row:3}
+.dpad-action{min-width:132px;min-height:64px;padding:10px 16px;font-size:15px;border-radius:14px;background:var(--gold);color:var(--gold-ink);box-shadow:0 4px 16px var(--glow)}
+.ctrl-btn:active,.ctrl-btn.pressed{background:var(--gold);color:var(--gold-ink);transform:scale(.95)}
 
 @media (max-width:860px){
   .g4,.glasses{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1006,11 +1014,14 @@ footer{padding:36px 0 0;text-align:center;color:var(--muted);font-size:13px;disp
   </div>
   <canvas id="gameCanvas" width="800" height="400" style="background:#14122e; border:2px solid var(--gold); border-radius:14px; max-width:95%; max-height:62vh; aspect-ratio:2/1; box-shadow:0 0 36px rgba(227,187,78,.2); touch-action:none;"></canvas>
   <div id="mgTouchBar" class="arcade-Controls">
-    <button type="button" class="ctrl-btn" data-key="ArrowLeft">◀ Izq</button>
-    <button type="button" class="ctrl-btn" data-key="ArrowUp">▲ Arriba / Saltar</button>
-    <button type="button" class="ctrl-btn" data-key="ArrowDown">▼ Abajo</button>
-    <button type="button" class="ctrl-btn" data-key="ArrowRight">▶ Der</button>
-    <button type="button" class="ctrl-btn" data-key=" " style="background:var(--gold);color:var(--gold-ink)">⚡ Acción / Atacar</button>
+    <div class="dpad-grid" aria-label="Controles direccionales">
+      <button type="button" class="ctrl-btn dpad-up" data-key="ArrowUp" aria-label="Arriba / Saltar">⬆️</button>
+      <button type="button" class="ctrl-btn dpad-left" data-key="ArrowLeft" aria-label="Izquierda">⬅️</button>
+      <span class="dpad-center" aria-hidden="true"></span>
+      <button type="button" class="ctrl-btn dpad-right" data-key="ArrowRight" aria-label="Derecha">➡️</button>
+      <button type="button" class="ctrl-btn dpad-down" data-key="ArrowDown" aria-label="Abajo">⬇️</button>
+    </div>
+    <button type="button" class="ctrl-btn dpad-action" data-key=" " aria-label="Acción o Atacar">⚡ Acción / Atacar</button>
   </div>
   <p id="mgControlsHint" class="muted" style="margin-top:8px; font-size:12px; text-align:center;">Controles: Flechas / WASD para moverte · Espacio o clic en el lienzo para interactuar.</p>
 </div>
@@ -6676,6 +6687,20 @@ function renderNpcChatHistory(){
   box.scrollTop=box.scrollHeight;
 }
 
+function npcChatRelationLabel(u,target,aff){
+  if(!u||!target) return '🌱 Distante';
+  if(!target.prof&&Number.isFinite(Number(target.id))){
+    const c=coupleOf(u.id);
+    if(c&&c.members.includes(Number(target.id))) return '❤️ Pareja';
+    const r=getRel(u.id,target.id);
+    if(r.rival) return '⚔️ Rival';
+  }
+  const s=Number(aff)||0;
+  if(s>=80) return '💖 Confidente';
+  if(s>=50) return '🌟 Amigo cercano';
+  if(s>=20) return '🤝 Conocido';
+  return '🌱 Distante';
+}
 function openNpcChatModal(npcId){
   const u=me();must(u&&u.house,'Inicia sesión con tu personaje para hablar con los personajes del canon');
   const target=npcChatTarget(npcId);must(target,'Personaje no encontrado');
@@ -6683,10 +6708,11 @@ function openNpcChatModal(npcId){
   db.aiChats=db.aiChats||{};
   db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
   const aff=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(getRel(u.id,target.id).friendshipScore)||0);
+  const relLabel=npcChatRelationLabel(u,target,aff);
   openModal(`<div style="width:100%;text-align:left">
     <div class="row" style="justify-content:space-between">
       <div class="row"><span class="pawn">${avatar(target.look,target.house,40)}</span><div><h4 style="margin:0">${esc(target.name)}</h4><small class="muted">${esc(target.trait)}</small></div></div>
-      <span class="pill gold" id="npcChatAff">Afinidad: ${aff}</span>
+      <div class="row" style="gap:6px"><span class="pill" id="npcChatTier">${relLabel}</span><span class="pill gold" id="npcChatAff">Afinidad: ${aff}</span></div>
     </div>
     <div id="npcChatHistory" class="box" style="margin-top:8px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
     <form id="npcChatForm" style="display:flex;gap:6px;margin-top:8px">
@@ -6846,14 +6872,23 @@ function sendNpcChatMessage(message){
   db.aiChats=db.aiChats||{};
   const hist=db.aiChats[npcChatKey]=db.aiChats[npcChatKey]||[];
   hist.push({role:'player',text,time:npcChatTime()});
-  const relationship=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(getRel(u.id,target.id).friendshipScore)||0);
+  const relObj=target.prof?null:getRel(u.id,target.id);
+  const relationship=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(relObj&&relObj.friendshipScore)||0);
+  const romance=relObj?(Number(relObj.romanceScore)||0):0;
+  const isRival=!!(relObj&&relObj.rival);
+  const myCouple=coupleOf(u.id);
+  const isCouple=!target.prof&&!!(myCouple&&myCouple.members.includes(Number(target.id)));
   socket.emit('npc_chat',{
     npcId:target.id,
     npcName:target.name,
+    playerId:u.id,
     playerName:u.username,
     playerHouse:u.house,
     message:text,
     relationship,
+    romance,
+    isRival,
+    isCouple,
     petName: petOf(u)?.name || null,
     // Año actual del castillo: el servidor lo usa para filtrar el lore canónico
     // y evitar que la IA revele eventos de años posteriores.
@@ -6906,7 +6941,12 @@ socket.on('npc_reply',(data)=>{
       if(npcUser) checkFriendshipUnlock(npcUser);
     }
     commit(`${u.username} habló con ${target.name}`);
-    if(key===npcChatKey)renderNpcChatHistory();
+    if(key===npcChatKey){
+      const newAff=target.prof?(((db.profAffinity||{})[u.id]||{})[target.id]||0):(Number(getRel(u.id,target.id).friendshipScore)||0);
+      const affEl=$('npcChatAff'); if(affEl) affEl.textContent='Afinidad: '+newAff;
+      const tierEl=$('npcChatTier'); if(tierEl) tierEl.textContent=data.relationTier||npcChatRelationLabel(u,target,newAff);
+      renderNpcChatHistory();
+    }
   }
 });
 
@@ -9827,12 +9867,7 @@ function startBallDance(){
   ballGame.onKey=onKey;
   document.addEventListener('keydown',onKey);
   const bar=$('mgTouchBar');
-  if(bar){
-    bar.dataset.ballMode='1';
-    bar.querySelectorAll('.ctrl-btn').forEach(btn=>{
-      btn.onclick=(e)=>{ e.preventDefault(); const k=btn.dataset.key; const m={'ArrowLeft':0,'ArrowUp':1,'ArrowDown':2,'ArrowRight':3}; if(m[k]!==undefined) hitArrow(m[k]); };
-    });
-  }
+  if(bar){ bar.dataset.ballMode='1'; }
   draw();
 }
 function hitArrow(want){
@@ -9925,11 +9960,7 @@ function startPrankMinigame(){
   prankGame.onKey=onKey;
   document.addEventListener('keydown',onKey);
   const bar=$('mgTouchBar');
-  if(bar){
-    bar.dataset.prankMode='1';
-    const action=bar.querySelector('[data-key=" "]');
-    if(action) action.onclick=(e)=>{ e.preventDefault(); tryPlacePrank(); };
-  }
+  if(bar){ bar.dataset.prankMode='1'; }
   loop();
 }
 function tryPlacePrank(){
@@ -10433,13 +10464,27 @@ document.addEventListener('keyup', e => { keys[e.key] = false; });
 
 document.querySelectorAll('#mgTouchBar .ctrl-btn').forEach(btn => {
   const k = btn.dataset.key;
-  const press = e => { e.preventDefault(); keys[k] = true; };
-  const release = e => { e.preventDefault(); keys[k] = false; };
-  btn.addEventListener('mousedown', press);
-  btn.addEventListener('mouseup', release);
-  btn.addEventListener('mouseleave', release);
-  btn.addEventListener('touchstart', press, { passive: false });
-  btn.addEventListener('touchend', release, { passive: false });
+  const code = k === ' ' ? 'Space' : k;
+  const press = e => {
+    e.preventDefault();
+    keys[k] = true;
+    if (k === ' ') keys['Space'] = true;
+    btn.classList.add('pressed');
+    try {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: k, code, bubbles: true, cancelable: true }));
+    } catch (err) {}
+  };
+  const release = e => {
+    if (e) e.preventDefault();
+    keys[k] = false;
+    if (k === ' ') keys['Space'] = false;
+    btn.classList.remove('pressed');
+  };
+  btn.addEventListener('pointerdown', press);
+  btn.addEventListener('pointerup', release);
+  btn.addEventListener('pointercancel', release);
+  btn.addEventListener('pointerleave', release);
+  btn.addEventListener('contextmenu', e => e.preventDefault());
 });
 
 canvas.addEventListener('pointerdown', e => {
